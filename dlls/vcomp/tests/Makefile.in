@@ -1,0 +1,8 @@
+TESTDLL = vcomp.dll
+IMPORTS = vcomp
+
+C_SRCS = \
+	fork.c
+
+RC_SRCS = \
+	vcomp.rc
