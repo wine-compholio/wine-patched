@@ -28,6 +28,17 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(vcomp);
 
+void CDECL _vcomp_for_static_init(int first, int last, int mystep, int chunksize, int *pnloops, int *pfirst, int *plast, int *pchunksize, int *pfinalchunkstart)
+{
+    TRACE("(%d, %d, %d, %d, %p, %p, %p, %p, %p): stub\n",
+          first, last, mystep, chunksize, pnloops, pfirst, plast, pchunksize, pfinalchunkstart);
+    *pfirst = first;
+    *plast = last;
+    *pfinalchunkstart = last;
+    *pnloops = 1;
+    *pchunksize = 0;  /* moot, since nloops=1 */
+}
+
 void CDECL _vcomp_for_static_simple_init(int first, int last, int mystep, int step, int *pfirst, int *plast)
 {
     TRACE("(%d, %d, %d, %d, %p, %p): stub\n", first, last, mystep, step, pfirst, plast);
