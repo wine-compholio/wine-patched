@@ -2,4 +2,5 @@ MODULE = vcomp.dll
 
 C_SRCS = \
 	fork.c \
-	main.c
+	main.c \
+	work.c
