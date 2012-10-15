@@ -2,7 +2,8 @@ TESTDLL = vcomp.dll
 IMPORTS = vcomp
 
 C_SRCS = \
-	fork.c
+	fork.c \
+	work.c
 
 RC_SRCS = \
 	vcomp.rc
