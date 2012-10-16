@@ -27,21 +27,6 @@
 #include "wine/debug.h"
 #include "vcomp_private.h"
 
-struct vcomp_team
-{
-    struct vcomp_team *parent;
-};
-
-static inline struct vcomp_team *vcomp_get_team(void)
-{
-    return (struct vcomp_team *)TlsGetValue(vcomp_context_tls);
-}
-
-static inline void vcomp_set_team(struct vcomp_team *team)
-{
-    TlsSetValue(vcomp_context_tls, team);
-}
-
 WINE_DEFAULT_DEBUG_CHANNEL(vcomp);
 
 void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args);
