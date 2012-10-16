@@ -35,6 +35,11 @@ struct vcomp_team
             int chunksize;
             int flags;
         } dyn_for;
+        struct
+        {
+            int counter;
+            int nsect;
+        } sections;
     } work;
 };
 

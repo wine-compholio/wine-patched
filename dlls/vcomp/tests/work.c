@@ -20,12 +20,15 @@
 
 #include "wine/test.h"
 
+static void WINAPIV (*p_vcomp_barrier)(void);
 static void WINAPIV (*p_vcomp_fork)(DWORD parallel, int nargs, void *helper, ...);
 static void CDECL (*p_vcomp_for_dynamic_init)(int flags, int first, int last, int mystep, int chunksize);
 static int CDECL (*p_vcomp_for_dynamic_next)(int *pcounter, int *pchunklimit);
 static void CDECL (*p_vcomp_for_static_end)(void);
 static void CDECL (*p_vcomp_for_static_init)(int first, int last, int mystep, int chunksize, int *pnloops, int *pfirst, int *plast, int *pchunksize, int *pfinalchunkstart);
 static void CDECL (*p_vcomp_for_static_simple_init)(int first, int last, int mystep, int step, int *pfirst, int *plast);
+static void CDECL (*p_vcomp_sections_init)(int n);
+static int CDECL (*p_vcomp_sections_next)(void);
 
 #define GETFUNC(x) do { p##x = (void*)GetProcAddress(vcomp, #x); ok(p##x != NULL, "Export '%s' not found\n", #x); } while(0)
 
@@ -42,12 +45,15 @@ static BOOL init(void)
         return FALSE;
     }
 
+    GETFUNC(_vcomp_barrier);
     GETFUNC(_vcomp_fork);
     GETFUNC(_vcomp_for_dynamic_init);
     GETFUNC(_vcomp_for_dynamic_next);
     GETFUNC(_vcomp_for_static_end);
     GETFUNC(_vcomp_for_static_init);
     GETFUNC(_vcomp_for_static_simple_init);
+    GETFUNC(_vcomp_sections_init);
+    GETFUNC(_vcomp_sections_next);
 
     return TRUE;
 }
@@ -183,6 +189,33 @@ static void test_vcomp_for_static_simple_init(void)
     ok(nsum == 6*13, "expected sum 6*13, got %d\n", nsum);
 }
 
+int section_calls[3];
+
+static void CDECL _test_vcomp_sections_worker(void)
+{
+    p_vcomp_sections_init(3);
+
+    for (;;)
+    {
+        int i = p_vcomp_sections_next();
+        if (i < 0 || i >= 3) break;
+        section_calls[i]++;
+    }
+
+    p_vcomp_barrier();
+}
+
+static void test_vcomp_sections(void)
+{
+    section_calls[0] = 0;
+    section_calls[1] = 0;
+    section_calls[2] = 0;
+    p_vcomp_fork(1, 0, _test_vcomp_sections_worker);
+    ok(section_calls[0] == 1, "section 0 not called once\n");
+    ok(section_calls[1] == 1, "section 1 not called once\n");
+    ok(section_calls[2] == 1, "section 2 not called once\n");
+}
+
 START_TEST(work)
 {
     if (!init())
@@ -191,4 +224,5 @@ START_TEST(work)
     test_vcomp_for_dynamic();
     test_vcomp_for_static_init();
     test_vcomp_for_static_simple_init();
+    test_vcomp_sections();
 }
