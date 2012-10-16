@@ -97,3 +97,21 @@ void CDECL _vcomp_for_static_end(void)
 {
     TRACE("stub\n");
 }
+
+void CDECL _vcomp_sections_init(int n)
+{
+    struct vcomp_team *pt = vcomp_get_team();
+    TRACE("(%d): stub\n", n);
+    pt->work.sections.counter = 0;
+    pt->work.sections.nsect = n;
+}
+
+int CDECL _vcomp_sections_next(void)
+{
+    struct vcomp_team *pt = vcomp_get_team();
+    int i = pt->work.sections.counter++;
+    if (i >= pt->work.sections.nsect)
+        i = -1;
+    TRACE("stub; returning %d\n", i);
+    return i;
+}
