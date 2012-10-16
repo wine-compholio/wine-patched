@@ -21,11 +21,17 @@
 #include "wine/test.h"
 
 static void WINAPIV (*p_vcomp_fork)(DWORD parallel, int nargs, void *helper, ...);
+static void CDECL (*p_vcomp_for_dynamic_init)(int flags, int first, int last, int mystep, int chunksize);
+static int CDECL (*p_vcomp_for_dynamic_next)(int *pcounter, int *pchunklimit);
 static void CDECL (*p_vcomp_for_static_end)(void);
 static void CDECL (*p_vcomp_for_static_init)(int first, int last, int mystep, int chunksize, int *pnloops, int *pfirst, int *plast, int *pchunksize, int *pfinalchunkstart);
 static void CDECL (*p_vcomp_for_static_simple_init)(int first, int last, int mystep, int step, int *pfirst, int *plast);
 
 #define GETFUNC(x) do { p##x = (void*)GetProcAddress(vcomp, #x); ok(p##x != NULL, "Export '%s' not found\n", #x); } while(0)
+
+/* Matches definitions in ../vcomp_private.h */
+#define VCOMP_DYNAMIC_FOR_FLAGS_DOWN 0x0
+#define VCOMP_DYNAMIC_FOR_FLAGS_UP 0x40
 
 static BOOL init(void)
 {
@@ -37,6 +43,8 @@ static BOOL init(void)
     }
 
     GETFUNC(_vcomp_fork);
+    GETFUNC(_vcomp_for_dynamic_init);
+    GETFUNC(_vcomp_for_dynamic_next);
     GETFUNC(_vcomp_for_static_end);
     GETFUNC(_vcomp_for_static_init);
     GETFUNC(_vcomp_for_static_simple_init);
@@ -46,6 +54,63 @@ static BOOL init(void)
 
 static LONG volatile ncalls;
 static LONG volatile nsum;
+
+static void CDECL _test_vcomp_for_dynamic_worker_up(void)
+{
+    int i, limit;
+
+    InterlockedIncrement(&ncalls);
+
+    /* pragma omp schedule(dynamic,16) */
+    /* for (i=0; i<=17; i++) */
+    p_vcomp_for_dynamic_init(VCOMP_DYNAMIC_FOR_FLAGS_UP, 0, 17, 1, 16);
+    while (p_vcomp_for_dynamic_next(&i, &limit))
+    {
+        for (; i<=limit; i++)
+        {
+            int j;
+            for (j=0; j<i; j++)
+                InterlockedIncrement(&nsum);
+        }
+    }
+}
+
+static void CDECL _test_vcomp_for_dynamic_worker_down(void)
+{
+    int i, limit;
+
+    InterlockedIncrement(&ncalls);
+
+    /* pragma omp schedule(dynamic,16) */
+    /* for (i=17; i>=0; i--) */
+    p_vcomp_for_dynamic_init(VCOMP_DYNAMIC_FOR_FLAGS_DOWN, 17, 0, 1, 16);
+    while (p_vcomp_for_dynamic_next(&i, &limit))
+    {
+        for (; i>=limit; i--)
+        {
+            int j;
+            for (j=0; j<i; j++)
+                InterlockedIncrement(&nsum);
+        }
+    }
+}
+
+static void test_vcomp_for_dynamic(void)
+{
+    /* for (i=0; i<=17; i++) nsum += i; */
+    ncalls = 0;
+    nsum = 0;
+    p_vcomp_fork(1, 0, _test_vcomp_for_dynamic_worker_up);
+    ok(ncalls >= 1, "expected >= 1 call, got %d\n", ncalls);
+    ok(nsum == 9*17, "expected sum 9*17, got %d\n", nsum);
+
+    /* for (i=17; i>=0; i--) nsum += i; */
+    ncalls = 0;
+    nsum = 0;
+    p_vcomp_fork(1, 0, _test_vcomp_for_dynamic_worker_down);
+    ok(ncalls >= 1, "expected >= 1 call, got %d\n", ncalls);
+    ok(nsum == 9*17, "expected sum 9*17, got %d\n", nsum);
+}
 
 static void CDECL _test_vcomp_for_static_init_worker(void)
 {
@@ -123,6 +188,7 @@ START_TEST(work)
     if (!init())
         return;
 
+    test_vcomp_for_dynamic();
     test_vcomp_for_static_init();
     test_vcomp_for_static_simple_init();
 }
