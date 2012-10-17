@@ -24,6 +24,9 @@ static const int is_win64 = (sizeof(void *) > sizeof(int));
 
 static void WINAPIV (*p_vcomp_fork)(BOOL ifval, int nargs, void *wrapper, ...);
 static int CDECL (*pomp_get_max_threads)(void);
+static int CDECL (*pomp_get_num_threads)(void);
+static int CDECL (*pomp_in_parallel)(void);
+static void CDECL (*pomp_set_num_threads)(int);
 
 #define GETFUNC(x) do { p##x = (void*)GetProcAddress(vcomp, #x); ok(p##x != NULL, "Export '%s' not found\n", #x); } while(0)
 
@@ -36,6 +39,9 @@ static BOOL init(void)
         return FALSE;
     }
 
+    GETFUNC(omp_get_num_threads);
+    GETFUNC(omp_in_parallel);
+    GETFUNC(omp_set_num_threads);
     GETFUNC(_vcomp_fork);
     GETFUNC(omp_get_max_threads);
 
@@ -142,6 +148,49 @@ static void test_vcomp_fork_float(void)
     p_vcomp_fork_f5(TRUE, 5, _test_vcomp_fork_float_worker, 1.5f, 2.5f, 3.5f, 4.5f, 5.5f);
 }
 
+#define NLOOPS_SHORT 5
+#define SLEEP_MS_SHORT 50
+
+static void CDECL _test_omp_in_parallel_nested_worker(LONG volatile *psum)
+{
+    if (pomp_in_parallel())
+        InterlockedIncrement(psum);
+}
+
+static void CDECL _test_omp_in_parallel_worker(LONG volatile *psum)
+{
+    int i;
+    InterlockedIncrement(psum);
+    for (i=0; i<NLOOPS_SHORT; i++)
+    {
+        p_vcomp_fork(1, 1, _test_omp_in_parallel_nested_worker, psum);
+        if (pomp_in_parallel())
+            InterlockedIncrement(psum);
+        Sleep(SLEEP_MS_SHORT);
+    }
+}
+
+static void test_omp_in_parallel(void)
+{
+    int par;
+    int old_nt;
+    LONG volatile ncalls;
+
+    old_nt = pomp_get_num_threads();
+    pomp_set_num_threads(1);
+
+    ncalls = 0;
+    p_vcomp_fork(1, 1, _test_omp_in_parallel_worker, &ncalls);
+
+    ok(ncalls == 1 + 2 * NLOOPS_SHORT,
+        "omp_in_parallel false in parallel region?!\n");
+
+    par = pomp_in_parallel();
+    ok(par == 0, "omp_in_parallel true outside parallel region?!\n");
+
+    pomp_set_num_threads(old_nt);
+}
+
 START_TEST(fork)
 {
     if (!init())
@@ -150,4 +199,5 @@ START_TEST(fork)
     test_vcomp_fork_ptr();
     test_vcomp_fork_uintptr();
     test_vcomp_fork_float();
+    test_omp_in_parallel();
 }
