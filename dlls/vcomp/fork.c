@@ -25,6 +25,22 @@
 #include "windef.h"
 #include "winbase.h"
 #include "wine/debug.h"
+#include "vcomp_private.h"
+
+struct vcomp_team
+{
+    struct vcomp_team *parent;
+};
+
+static inline struct vcomp_team *vcomp_get_team(void)
+{
+    return (struct vcomp_team *)TlsGetValue(vcomp_context_tls);
+}
+
+static inline void vcomp_set_team(struct vcomp_team *team)
+{
+    TlsSetValue(vcomp_context_tls, team);
+}
 
 WINE_DEFAULT_DEBUG_CHANNEL(vcomp);
 
@@ -75,10 +91,18 @@ void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args)
 void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
 {
     __ms_va_list valist;
+    struct vcomp_team team;
+
     TRACE("(%d, %d, %p, ...)\n", ifval, nargs, wrapper);
+
+    team.parent = vcomp_get_team();
+    vcomp_set_team(&team);
+
     __ms_va_start(valist, wrapper);
     _vcomp_fork_call_wrapper(wrapper, nargs, valist);
     __ms_va_end(valist);
+
+    vcomp_set_team(team.parent);
 }
 
 #if defined(__i386__)
@@ -159,3 +183,11 @@ void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args)
 }
 
 #endif
+
+int CDECL omp_in_parallel(void)
+{
+    int val = (vcomp_get_team() != NULL);
+
+    TRACE("returning %d\n", val);
+    return val;
+}
