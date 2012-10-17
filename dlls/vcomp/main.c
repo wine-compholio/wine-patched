@@ -26,8 +26,11 @@
 #include "windef.h"
 #include "winbase.h"
 #include "wine/debug.h"
+#include "vcomp_private.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(vcomp);
+
+DWORD vcomp_context_tls;
 
 int CDECL omp_get_dynamic(void)
 {
@@ -117,6 +120,15 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
             return FALSE;    /* prefer native version */
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(hinstDLL);
+
+            if ((vcomp_context_tls = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+            {
+                ERR("Failed to allocate TLS index\n");
+                return FALSE;
+            }
+            break;
+        case DLL_PROCESS_DETACH:
+            TlsFree(vcomp_context_tls);
             break;
     }
 
