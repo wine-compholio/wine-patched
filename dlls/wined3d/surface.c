@@ -665,7 +665,9 @@ static void surface_depth_blt_fbo(const struct wined3d_device *device,
             dst_rect->left, dst_rect->top, dst_rect->right, dst_rect->bottom, gl_mask, GL_NEAREST);
     checkGLcall("glBlitFramebuffer()");
 
-    if (wined3d_settings.strict_draw_ordering)
+    if (wined3d_settings.cs_multithreaded)
+        gl_info->gl_ops.gl.p_glFinish();
+    else if (wined3d_settings.strict_draw_ordering)
         gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
 
     context_release(context);
@@ -792,7 +794,9 @@ static void surface_blt_fbo(const struct wined3d_device *device,
             dst_rect.left, dst_rect.top, dst_rect.right, dst_rect.bottom, GL_COLOR_BUFFER_BIT, gl_filter);
     checkGLcall("glBlitFramebuffer()");
 
-    if (wined3d_settings.strict_draw_ordering
+    if (wined3d_settings.cs_multithreaded)
+        gl_info->gl_ops.gl.p_glFinish();
+    else if (wined3d_settings.strict_draw_ordering
             || (dst_location == WINED3D_LOCATION_DRAWABLE
             && dst_surface->container->swapchain->front_buffer == dst_surface->container))
         gl_info->gl_ops.gl.p_glFlush();
@@ -1334,7 +1338,9 @@ void wined3d_surface_upload_data(struct wined3d_surface *surface, const struct w
         checkGLcall("glBindBuffer");
     }
 
-    if (wined3d_settings.strict_draw_ordering)
+    if (wined3d_settings.cs_multithreaded)
+        gl_info->gl_ops.gl.p_glFinish();
+    else if (wined3d_settings.strict_draw_ordering)
         gl_info->gl_ops.gl.p_glFlush();
 
     if (gl_info->quirks & WINED3D_QUIRK_FBO_TEX_UPDATE)
@@ -2889,7 +2895,9 @@ static void fb_copy_to_texture_hwstretch(struct wined3d_surface *dst_surface, st
         checkGLcall("glDeleteTextures(1, &backup)");
     }
 
-    if (wined3d_settings.strict_draw_ordering)
+    if (wined3d_settings.cs_multithreaded)
+        gl_info->gl_ops.gl.p_glFinish();
+    else if (wined3d_settings.strict_draw_ordering)
         gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
 
     context_release(context);
@@ -2997,7 +3005,9 @@ static void surface_blt_to_drawable(const struct wined3d_device *device,
     /* Leave the opengl state valid for blitting */
     device->blitter->unset_shader(context->gl_info);
 
-    if (wined3d_settings.strict_draw_ordering
+    if (wined3d_settings.cs_multithreaded)
+        gl_info->gl_ops.gl.p_glFinish();
+    else if (wined3d_settings.strict_draw_ordering
             || (dst_surface->container->swapchain
             && dst_surface->container->swapchain->front_buffer == dst_surface->container))
         gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
@@ -3362,7 +3372,9 @@ void surface_load_ds_location(struct wined3d_surface *surface, struct wined3d_co
 
         context_invalidate_state(context, STATE_FRAMEBUFFER);
 
-        if (wined3d_settings.strict_draw_ordering)
+        if (wined3d_settings.cs_multithreaded)
+            gl_info->gl_ops.gl.p_glFinish();
+        else if (wined3d_settings.strict_draw_ordering)
             gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
     }
     else if (location == WINED3D_LOCATION_DRAWABLE)
@@ -3378,7 +3390,9 @@ void surface_load_ds_location(struct wined3d_surface *surface, struct wined3d_co
 
         context_invalidate_state(context, STATE_FRAMEBUFFER);
 
-        if (wined3d_settings.strict_draw_ordering)
+        if (wined3d_settings.cs_multithreaded)
+            gl_info->gl_ops.gl.p_glFinish();
+        else if (wined3d_settings.strict_draw_ordering)
             gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
     }
     else
