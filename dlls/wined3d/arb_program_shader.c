@@ -7996,8 +7996,11 @@ static void arbfp_blit_surface(struct wined3d_device *device, enum wined3d_blit_
     /* Leave the opengl state valid for blitting */
     arbfp_blit_unset(context->gl_info);
 
-    if (wined3d_settings.strict_draw_ordering
-            || (dst_texture->swapchain && (dst_texture->swapchain->front_buffer == dst_texture)))
+    if (wined3d_settings.cs_multithreaded)
+        context->gl_info->gl_ops.gl.p_glFinish();
+    else if (wined3d_settings.strict_draw_ordering
+            || (dst_texture->swapchain
+            && (dst_texture->swapchain->front_buffer == dst_texture)))
         context->gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
 
     context_release(context);
