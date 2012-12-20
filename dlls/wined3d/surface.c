@@ -2570,7 +2570,7 @@ static HRESULT surface_blt_special(struct wined3d_surface *dst_surface, const RE
 {
     struct wined3d_texture *dst_texture = dst_surface->container;
     struct wined3d_device *device = dst_texture->resource.device;
-    const struct wined3d_surface *rt = wined3d_rendertarget_view_get_surface(device->fb.render_targets[0]);
+    const struct wined3d_surface *rt = wined3d_rendertarget_view_get_surface(device->state.fb.render_targets[0]);
     struct wined3d_swapchain *src_swapchain, *dst_swapchain;
     struct wined3d_texture *src_texture;
 
