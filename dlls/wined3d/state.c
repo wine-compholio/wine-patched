@@ -106,7 +106,7 @@ static void state_zenable(struct wined3d_context *context, const struct wined3d_
     static UINT once;
 
     /* No z test without depth stencil buffers */
-    if (!state->fb->depth_stencil)
+    if (!state->fb.depth_stencil)
     {
         TRACE("No Z buffer - disabling depth test\n");
         zenable = WINED3D_ZB_FALSE;
@@ -381,7 +381,7 @@ static GLenum gl_blend_factor(enum wined3d_blend factor, const struct wined3d_fo
 
 static void state_blend(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
 {
-    const struct wined3d_format *rt_format = state->fb->render_targets[0]->format;
+    const struct wined3d_format *rt_format = state->fb.render_targets[0]->format;
     const struct wined3d_gl_info *gl_info = context->gl_info;
     GLenum srcBlend, dstBlend;
     enum wined3d_blend d3d_blend;
@@ -826,7 +826,7 @@ static void state_stencil(struct wined3d_context *context, const struct wined3d_
     GLint depthFail_ccw;
 
     /* No stencil test without a stencil buffer. */
-    if (!state->fb->depth_stencil)
+    if (!state->fb.depth_stencil)
     {
         gl_info->gl_ops.gl.p_glDisable(GL_STENCIL_TEST);
         checkGLcall("glDisable GL_STENCIL_TEST");
@@ -912,7 +912,7 @@ static void state_stencil(struct wined3d_context *context, const struct wined3d_
 
 static void state_stencilwrite2s(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
 {
-    DWORD mask = state->fb->depth_stencil ? state->render_states[WINED3D_RS_STENCILWRITEMASK] : 0;
+    DWORD mask = state->fb.depth_stencil ? state->render_states[WINED3D_RS_STENCILWRITEMASK] : 0;
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
     GL_EXTCALL(glActiveStencilFaceEXT(GL_BACK));
@@ -926,7 +926,7 @@ static void state_stencilwrite2s(struct wined3d_context *context, const struct w
 
 static void state_stencilwrite(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
 {
-    DWORD mask = state->fb->depth_stencil ? state->render_states[WINED3D_RS_STENCILWRITEMASK] : 0;
+    DWORD mask = state->fb.depth_stencil ? state->render_states[WINED3D_RS_STENCILWRITEMASK] : 0;
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
     gl_info->gl_ops.gl.p_glStencilMask(mask);
@@ -1765,7 +1765,7 @@ static void state_depthbias(struct wined3d_context *context, const struct wined3
     if (state->render_states[WINED3D_RS_SLOPESCALEDEPTHBIAS]
             || state->render_states[WINED3D_RS_DEPTHBIAS])
     {
-        const struct wined3d_rendertarget_view *depth = state->fb->depth_stencil;
+        const struct wined3d_rendertarget_view *depth = state->fb.depth_stencil;
         float scale;
 
         union
@@ -4653,7 +4653,7 @@ void vertexdeclaration(struct wined3d_context *context, const struct wined3d_sta
 
 static void viewport_miscpart(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
 {
-    const struct wined3d_rendertarget_view *target = state->fb->render_targets[0];
+    const struct wined3d_rendertarget_view *target = state->fb.render_targets[0];
     const struct wined3d_gl_info *gl_info = context->gl_info;
     struct wined3d_viewport vp = state->viewport;
 
@@ -4833,7 +4833,7 @@ static void scissorrect(struct wined3d_context *context, const struct wined3d_st
     }
     else
     {
-        const struct wined3d_rendertarget_view *target = state->fb->render_targets[0];
+        const struct wined3d_rendertarget_view *target = state->fb.render_targets[0];
         UINT height;
         UINT width;
 
@@ -4900,7 +4900,7 @@ static void psorigin(struct wined3d_context *context, const struct wined3d_state
 
 void state_srgbwrite(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
 {
-    const struct wined3d_format *rt_format = state->fb->render_targets[0]->format;
+    const struct wined3d_format *rt_format = state->fb.render_targets[0]->format;
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
     TRACE("context %p, state %p, state_id %#x.\n", context, state, state_id);
