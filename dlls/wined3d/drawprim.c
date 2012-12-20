@@ -411,7 +411,7 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
         unsigned int start_idx, unsigned int index_count, unsigned int start_instance,
         unsigned int instance_count, BOOL indexed)
 {
-    const struct wined3d_fb_state *fb = state->fb;
+    const struct wined3d_fb_state *fb = &state->fb;
     const struct wined3d_stream_info *stream_info;
     struct wined3d_event_query *ib_query = NULL;
     struct wined3d_stream_info si_emulated;

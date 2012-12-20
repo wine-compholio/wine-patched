@@ -978,7 +978,7 @@ static void device_init_swapchain_state(struct wined3d_device *device, struct wi
     BOOL ds_enable = !!swapchain->desc.enable_auto_depth_stencil;
     unsigned int i;
 
-    if (device->fb.render_targets)
+    if (device->state.fb.render_targets)
     {
         for (i = 0; i < device->adapter->gl_info.limits.buffers; ++i)
         {
@@ -996,7 +996,6 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
         struct wined3d_swapchain_desc *swapchain_desc)
 {
     static const struct wined3d_color black = {0.0f, 0.0f, 0.0f, 0.0f};
-    const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     struct wined3d_swapchain *swapchain = NULL;
     struct wined3d_context *context;
     DWORD clear_flags = 0;
@@ -1008,9 +1007,6 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
         return WINED3DERR_INVALIDCALL;
     if (device->wined3d->flags & WINED3D_NO3D)
         return WINED3DERR_INVALIDCALL;
-
-    if (!(device->fb.render_targets = wined3d_calloc(gl_info->limits.buffers, sizeof(*device->fb.render_targets))))
-        return E_OUTOFMEMORY;
 
     if (FAILED(hr = device->shader_backend->shader_alloc_private(device,
             device->adapter->vertex_pipe, device->adapter->fragment_pipe)))
@@ -1085,7 +1081,6 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
     return WINED3D_OK;
 
 err_out:
-    HeapFree(GetProcessHeap(), 0, device->fb.render_targets);
     HeapFree(GetProcessHeap(), 0, device->swapchains);
     device->swapchain_count = 0;
     if (device->back_buffer_view)
@@ -1163,7 +1158,24 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
     if (device->cursor_texture)
         wined3d_texture_decref(device->cursor_texture);
 
+    /* Release the buffers (with sanity checks).
+     * FIXME: Move this move into a separate patch. I think the idea
+     * behind this is that those surfaces should be freed before unloading
+     * remaining resources below. */
+    if (device->onscreen_depth_stencil)
+    {
+        surface = device->onscreen_depth_stencil;
+        device->onscreen_depth_stencil = NULL;
+        wined3d_texture_decref(surface->container);
+    }
+
     state_unbind_resources(&device->state);
+
+    if (device->auto_depth_stencil_view)
+    {
+        wined3d_rendertarget_view_decref(device->auto_depth_stencil_view);
+        device->auto_depth_stencil_view = NULL;
+    }
 
     /* Unload resources */
     LIST_FOR_EACH_ENTRY_SAFE(resource, cursor, &device->resources, struct wined3d_resource, resource_list_entry)
@@ -1195,37 +1207,6 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
      * destroy the context. */
     context_release(context);
 
-    /* Release the buffers (with sanity checks)*/
-    if (device->onscreen_depth_stencil)
-    {
-        surface = device->onscreen_depth_stencil;
-        device->onscreen_depth_stencil = NULL;
-        wined3d_texture_decref(surface->container);
-    }
-
-    if (device->fb.depth_stencil)
-    {
-        struct wined3d_rendertarget_view *view = device->fb.depth_stencil;
-
-        TRACE("Releasing depth/stencil view %p.\n", view);
-
-        device->fb.depth_stencil = NULL;
-        wined3d_rendertarget_view_decref(view);
-    }
-
-    if (device->auto_depth_stencil_view)
-    {
-        struct wined3d_rendertarget_view *view = device->auto_depth_stencil_view;
-
-        device->auto_depth_stencil_view = NULL;
-        if (wined3d_rendertarget_view_decref(view))
-            ERR("Something's still holding the auto depth/stencil view (%p).\n", view);
-    }
-
-    for (i = 0; i < gl_info->limits.buffers; ++i)
-    {
-        wined3d_device_set_rendertarget_view(device, i, NULL, FALSE);
-    }
     if (device->back_buffer_view)
     {
         wined3d_rendertarget_view_decref(device->back_buffer_view);
@@ -1242,9 +1223,6 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
     HeapFree(GetProcessHeap(), 0, device->swapchains);
     device->swapchains = NULL;
     device->swapchain_count = 0;
-
-    HeapFree(GetProcessHeap(), 0, device->fb.render_targets);
-    device->fb.render_targets = NULL;
 
     device->d3d_initialized = FALSE;
 
@@ -2057,7 +2035,7 @@ static void resolve_depth_buffer(struct wined3d_state *state)
             || !(dst_texture->resource.format_flags & WINED3DFMT_FLAG_DEPTH))
         return;
 
-    if (!(src_view = state->fb->depth_stencil))
+    if (!(src_view = state->fb.depth_stencil))
         return;
     if (src_view->resource->type == WINED3D_RTYPE_BUFFER)
     {
@@ -3426,6 +3404,8 @@ HRESULT CDECL wined3d_device_end_scene(struct wined3d_device *device)
 HRESULT CDECL wined3d_device_clear(struct wined3d_device *device, DWORD rect_count,
         const RECT *rects, DWORD flags, const struct wined3d_color *color, float depth, DWORD stencil)
 {
+    const struct wined3d_fb_state *fb = &device->state.fb;
+
     TRACE("device %p, rect_count %u, rects %p, flags %#x, color %s, depth %.8e, stencil %u.\n",
             device, rect_count, rects, flags, debug_color(color), depth, stencil);
 
@@ -3437,7 +3417,7 @@ HRESULT CDECL wined3d_device_clear(struct wined3d_device *device, DWORD rect_cou
 
     if (flags & (WINED3DCLEAR_ZBUFFER | WINED3DCLEAR_STENCIL))
     {
-        struct wined3d_rendertarget_view *ds = device->fb.depth_stencil;
+        struct wined3d_rendertarget_view *ds = fb->depth_stencil;
         if (!ds)
         {
             WARN("Clearing depth and/or stencil without a depth stencil buffer attached, returning WINED3DERR_INVALIDCALL\n");
@@ -3446,8 +3426,8 @@ HRESULT CDECL wined3d_device_clear(struct wined3d_device *device, DWORD rect_cou
         }
         else if (flags & WINED3DCLEAR_TARGET)
         {
-            if (ds->width < device->fb.render_targets[0]->width
-                    || ds->height < device->fb.render_targets[0]->height)
+            if (ds->width < fb->render_targets[0]->width
+                    || ds->height < fb->render_targets[0]->height)
             {
                 WARN("Silently ignoring depth and target clear with mismatching sizes\n");
                 return WINED3D_OK;
@@ -3777,8 +3757,8 @@ HRESULT CDECL wined3d_device_validate_device(const struct wined3d_device *device
     if (state->render_states[WINED3D_RS_ZENABLE] || state->render_states[WINED3D_RS_ZWRITEENABLE]
             || state->render_states[WINED3D_RS_STENCILENABLE])
     {
-        struct wined3d_rendertarget_view *rt = device->fb.render_targets[0];
-        struct wined3d_rendertarget_view *ds = device->fb.depth_stencil;
+        struct wined3d_rendertarget_view *rt = state->fb.render_targets[0];
+        struct wined3d_rendertarget_view *ds = state->fb.depth_stencil;
 
         if (ds && rt && (ds->width < rt->width || ds->height < rt->height))
         {
@@ -4236,20 +4216,21 @@ struct wined3d_rendertarget_view * CDECL wined3d_device_get_rendertarget_view(co
         return NULL;
     }
 
-    return device->fb.render_targets[view_idx];
+    return device->state.fb.render_targets[view_idx];
 }
 
 struct wined3d_rendertarget_view * CDECL wined3d_device_get_depth_stencil_view(const struct wined3d_device *device)
 {
     TRACE("device %p.\n", device);
 
-    return device->fb.depth_stencil;
+    return device->state.fb.depth_stencil;
 }
 
 HRESULT CDECL wined3d_device_set_rendertarget_view(struct wined3d_device *device,
         unsigned int view_idx, struct wined3d_rendertarget_view *view, BOOL set_viewport)
 {
     struct wined3d_rendertarget_view *prev;
+    struct wined3d_fb_state *fb = &device->state.fb;
 
     TRACE("device %p, view_idx %u, view %p, set_viewport %#x.\n",
             device, view_idx, view, set_viewport);
@@ -4289,13 +4270,13 @@ HRESULT CDECL wined3d_device_set_rendertarget_view(struct wined3d_device *device
     }
 
 
-    prev = device->fb.render_targets[view_idx];
+    prev = fb->render_targets[view_idx];
     if (view == prev)
         return WINED3D_OK;
 
     if (view)
         wined3d_rendertarget_view_incref(view);
-    device->fb.render_targets[view_idx] = view;
+    fb->render_targets[view_idx] = view;
     wined3d_cs_emit_set_rendertarget_view(device->cs, view_idx, view);
     /* Release after the assignment, to prevent device_resource_released()
      * from seeing the surface as still in use. */
@@ -4307,18 +4288,19 @@ HRESULT CDECL wined3d_device_set_rendertarget_view(struct wined3d_device *device
 
 void CDECL wined3d_device_set_depth_stencil_view(struct wined3d_device *device, struct wined3d_rendertarget_view *view)
 {
+    struct wined3d_fb_state *fb = &device->state.fb;
     struct wined3d_rendertarget_view *prev;
 
     TRACE("device %p, view %p.\n", device, view);
 
-    prev = device->fb.depth_stencil;
+    prev = fb->depth_stencil;
     if (prev == view)
     {
         TRACE("Trying to do a NOP SetRenderTarget operation.\n");
         return;
     }
 
-    if ((device->fb.depth_stencil = view))
+    if ((fb->depth_stencil = view))
         wined3d_rendertarget_view_incref(view);
     wined3d_cs_emit_set_depth_stencil_view(device->cs, view);
     if (prev)
@@ -4681,10 +4663,9 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
             wined3d_texture_decref(device->cursor_texture);
             device->cursor_texture = NULL;
         }
-        state_unbind_resources(&device->state);
     }
 
-    if (device->fb.render_targets)
+    if (device->state.fb.render_targets)
     {
         for (i = 0; i < device->adapter->gl_info.limits.buffers; ++i)
         {
@@ -4692,6 +4673,11 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
         }
     }
     wined3d_device_set_depth_stencil_view(device, NULL);
+
+    if (reset_state)
+    {
+        state_unbind_resources(&device->state);
+    }
 
     if (device->onscreen_depth_stencil)
     {
@@ -4916,30 +4902,30 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
         if (device->d3d_initialized)
             delete_opengl_contexts(device, swapchain);
 
-        state_init(&device->state, &device->fb, &device->adapter->gl_info,
-                &device->adapter->d3d_info, WINED3D_STATE_INIT_DEFAULT);
+        if (FAILED(hr = state_init(&device->state, &device->adapter->gl_info,
+                &device->adapter->d3d_info, WINED3D_STATE_INIT_DEFAULT)))
+            ERR("Failed to initialize device state, hr %#x.\n", hr);
         device->update_state = &device->state;
 
         device_init_swapchain_state(device, swapchain);
     }
     else if (device->back_buffer_view)
     {
-        struct wined3d_rendertarget_view *view = device->back_buffer_view;
         struct wined3d_state *state = &device->state;
 
-        wined3d_device_set_rendertarget_view(device, 0, view, FALSE);
+        wined3d_device_set_rendertarget_view(device, 0, device->back_buffer_view, FALSE);
 
         /* Note the min_z / max_z is not reset. */
         state->viewport.x = 0;
         state->viewport.y = 0;
-        state->viewport.width = view->width;
-        state->viewport.height = view->height;
+        state->viewport.width = swapchain->desc.backbuffer_width;
+        state->viewport.height = swapchain->desc.backbuffer_height;
         wined3d_cs_emit_set_viewport(device->cs, &state->viewport);
 
         state->scissor_rect.top = 0;
         state->scissor_rect.left = 0;
-        state->scissor_rect.right = view->width;
-        state->scissor_rect.bottom = view->height;
+        state->scissor_rect.right = swapchain->desc.backbuffer_width;
+        state->scissor_rect.bottom = swapchain->desc.backbuffer_height;
         wined3d_cs_emit_set_scissor_rect(device->cs, &state->scissor_rect);
     }
 
@@ -5031,11 +5017,11 @@ void device_resource_released(struct wined3d_device *device, struct wined3d_reso
 
     for (i = 0; i < device->adapter->gl_info.limits.buffers; ++i)
     {
-        if ((rtv = device->fb.render_targets[i]) && rtv->resource == resource)
+        if ((rtv = device->state.fb.render_targets[i]) && rtv->resource == resource)
             ERR("Resource %p is still in use as render target %u.\n", resource, i);
     }
 
-    if ((rtv = device->fb.depth_stencil) && rtv->resource == resource)
+    if ((rtv = device->state.fb.depth_stencil) && rtv->resource == resource)
         ERR("Resource %p is still in use as depth/stencil buffer.\n", resource);
 
     switch (type)
@@ -5171,8 +5157,12 @@ HRESULT device_init(struct wined3d_device *device, struct wined3d *wined3d,
 
     device->blitter = adapter->blitter;
 
-    state_init(&device->state, &device->fb, &adapter->gl_info,
-            &adapter->d3d_info, WINED3D_STATE_INIT_DEFAULT);
+    if (FAILED(hr = state_init(&device->state, &adapter->gl_info,
+            &adapter->d3d_info, WINED3D_STATE_INIT_DEFAULT)))
+    {
+        ERR("Failed to initialize device state, hr %#x.\n", hr);
+        goto err;
+    }
     device->update_state = &device->state;
 
     if (!(device->cs = wined3d_cs_create(device)))

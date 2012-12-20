@@ -430,6 +430,7 @@ void state_unbind_resources(struct wined3d_state *state)
     struct wined3d_texture *texture;
     struct wined3d_buffer *buffer;
     struct wined3d_shader *shader;
+    struct wined3d_rendertarget_view *view;
     unsigned int i, j;
 
     if ((decl = state->vertex_declaration))
@@ -506,6 +507,31 @@ void state_unbind_resources(struct wined3d_state *state)
             }
         }
     }
+
+    if (state->fb.depth_stencil)
+    {
+        view = state->fb.depth_stencil;
+
+        TRACE("Releasing depth/stencil buffer %p.\n", view);
+
+        state->fb.depth_stencil = NULL;
+        wined3d_rendertarget_view_decref(view);
+    }
+
+    if (state->fb.render_targets)
+    {
+        for (i = 0; i < state->fb.rt_size; i++)
+        {
+            view = state->fb.render_targets[i];
+            TRACE("Setting rendertarget %u to NULL\n", i);
+            state->fb.render_targets[i] = NULL;
+            if (view)
+            {
+                TRACE("Releasing the rendertarget view at %p\n", view);
+                wined3d_rendertarget_view_decref(view);
+            }
+        }
+    }
 }
 
 void state_cleanup(struct wined3d_state *state)
@@ -530,6 +556,8 @@ void state_cleanup(struct wined3d_state *state)
             HeapFree(GetProcessHeap(), 0, light);
         }
     }
+
+    HeapFree(GetProcessHeap(), 0, state->fb.render_targets);
 }
 
 ULONG CDECL wined3d_stateblock_decref(struct wined3d_stateblock *stateblock)
@@ -1241,32 +1269,41 @@ static void state_init_default(struct wined3d_state *state, const struct wined3d
     }
 }
 
-void state_init(struct wined3d_state *state, struct wined3d_fb_state *fb,
-        const struct wined3d_gl_info *gl_info, const struct wined3d_d3d_info *d3d_info,
-        DWORD flags)
+HRESULT state_init(struct wined3d_state *state, const struct wined3d_gl_info *gl_info,
+        const struct wined3d_d3d_info *d3d_info, DWORD flags)
 {
     unsigned int i;
 
     state->flags = flags;
-    state->fb = fb;
 
     for (i = 0; i < LIGHTMAP_SIZE; i++)
     {
         list_init(&state->light_map[i]);
     }
 
+    state->fb.rt_size = gl_info->limits.buffers;
+    if (!(state->fb.render_targets = wined3d_calloc(state->fb.rt_size,
+            sizeof(*state->fb.render_targets))))
+        return E_OUTOFMEMORY;
+
     if (flags & WINED3D_STATE_INIT_DEFAULT)
         state_init_default(state, gl_info);
+
+    return WINED3D_OK;
 }
 
 static HRESULT stateblock_init(struct wined3d_stateblock *stateblock,
         struct wined3d_device *device, enum wined3d_stateblock_type type)
 {
+    const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     const struct wined3d_d3d_info *d3d_info = &device->adapter->d3d_info;
+    HRESULT hr;
 
     stateblock->ref = 1;
     stateblock->device = device;
-    state_init(&stateblock->state, NULL, &device->adapter->gl_info, d3d_info, 0);
+
+    if (FAILED(hr = state_init(&stateblock->state, gl_info, d3d_info, 0)))
+        return hr;
 
     if (type == WINED3D_SBT_RECORDED)
         return WINED3D_OK;
