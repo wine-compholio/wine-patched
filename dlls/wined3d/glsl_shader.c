@@ -957,7 +957,7 @@ static void shader_generate_glsl_declarations(const struct wined3d_context *cont
     const struct wined3d_state *state = &shader->device->state;
     const struct ps_compile_args *ps_args = ctx_priv->cur_ps_args;
     const struct wined3d_gl_info *gl_info = context->gl_info;
-    const struct wined3d_fb_state *fb = &shader->device->fb;
+    const struct wined3d_fb_state *fb = &state->fb;
     unsigned int i, extra_constants_needed = 0;
     const struct wined3d_shader_lconst *lconst;
     const char *prefix;
