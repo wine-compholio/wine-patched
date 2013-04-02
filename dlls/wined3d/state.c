@@ -1168,7 +1168,7 @@ void state_fog_fragpart(struct wined3d_context *context, const struct wined3d_st
 
                 case WINED3D_FOG_NONE:
                     /* Both are none? According to msdn the alpha channel of the specular
-                     * color contains a fog factor. Set it in drawStridedSlow.
+                     * color contains a fog factor. Set it in draw_strided_slow.
                      * Same happens with Vertexfog on transformed vertices
                      */
                     new_source = FOGSOURCE_COORD;
@@ -4296,7 +4296,7 @@ static void load_vertex_data(struct wined3d_context *context,
                 }
             }
         } else {
-            /* TODO: support blends in drawStridedSlow
+            /* TODO: support blends in draw_strided_slow
              * No need to write a FIXME here, this is done after the general vertex decl decoding
              */
             WARN("unsupported blending in openGl\n");
