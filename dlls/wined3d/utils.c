@@ -3160,7 +3160,7 @@ void set_texture_matrix(const struct wined3d_gl_info *gl_info, const float *smat
                 * check for pixel shaders, and the shader has to undo the default gl divide.
                 *
                 * A more serious problem occurs if the app passes 4 coordinates in, and the
-                * 4th is != 1.0(opengl default). This would have to be fixed in drawStridedSlow
+                * 4th is != 1.0(opengl default). This would have to be fixed in draw_strided_slow
                 * or a replacement shader. */
                 default:
                     mat[3] = mat[7] = mat[11] = 0; mat[15] = 1;
