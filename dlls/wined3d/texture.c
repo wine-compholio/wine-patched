@@ -479,6 +479,12 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
 
     TRACE("texture %p.\n", texture);
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        texture->resource.device->cs->ops->finish(texture->resource.device->cs);
+    }
+
     for (i = 0; i < sub_count; ++i)
     {
         if (!(buffer_object = texture->sub_resources[i].buffer_object))
