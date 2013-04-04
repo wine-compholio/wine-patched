@@ -4215,6 +4215,13 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
         flags &= ~WINED3D_BLT_DO_NOT_WAIT;
     }
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
+
     if (!device->d3d_initialized)
     {
         WARN("D3D not initialized, using fallback.\n");
