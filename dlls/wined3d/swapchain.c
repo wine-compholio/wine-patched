@@ -478,10 +478,10 @@ static void wined3d_swapchain_rotate(struct wined3d_swapchain *swapchain, struct
 }
 
 static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
-        const RECT *src_rect, const RECT *dst_rect, DWORD flags)
+        const RECT *src_rect, const RECT *dst_rect, DWORD flags,
+        struct wined3d_rendertarget_view *depth_stencil)
 {
     struct wined3d_surface *back_buffer = swapchain->back_buffers[0]->sub_resources[0].u.surface;
-    const struct wined3d_fb_state *fb = &swapchain->device->state.fb;
     const struct wined3d_gl_info *gl_info;
     struct wined3d_texture *logo_texture;
     struct wined3d_context *context;
@@ -617,15 +617,15 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
         wined3d_texture_validate_location(swapchain->back_buffers[swapchain->desc.backbuffer_count - 1],
                 0, WINED3D_LOCATION_DISCARDED);
 
-    if (fb->depth_stencil)
+    if (depth_stencil)
     {
-        struct wined3d_surface *ds = wined3d_rendertarget_view_get_surface(fb->depth_stencil);
+        struct wined3d_surface *ds = wined3d_rendertarget_view_get_surface(depth_stencil);
 
         if (ds && (swapchain->desc.flags & WINED3DPRESENTFLAG_DISCARD_DEPTHSTENCIL
                 || ds->container->flags & WINED3D_TEXTURE_DISCARD))
         {
             surface_modify_ds_location(ds, WINED3D_LOCATION_DISCARDED,
-                    fb->depth_stencil->width, fb->depth_stencil->height);
+                    depth_stencil->width, depth_stencil->height);
             if (ds == swapchain->device->onscreen_depth_stencil)
             {
                 wined3d_texture_decref(swapchain->device->onscreen_depth_stencil->container);
@@ -700,7 +700,8 @@ static void swapchain_gdi_frontbuffer_updated(struct wined3d_swapchain *swapchai
 }
 
 static void swapchain_gdi_present(struct wined3d_swapchain *swapchain,
-        const RECT *src_rect, const RECT *dst_rect, DWORD flags)
+        const RECT *src_rect, const RECT *dst_rect, DWORD flags,
+        struct wined3d_rendertarget_view *depth_stencil)
 {
     struct wined3d_surface *front, *back;
     HBITMAP bitmap;

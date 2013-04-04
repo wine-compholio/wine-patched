@@ -3101,7 +3101,8 @@ struct wined3d_shader_resource_view
 struct wined3d_swapchain_ops
 {
     void (*swapchain_present)(struct wined3d_swapchain *swapchain,
-            const RECT *src_rect, const RECT *dst_rect, DWORD flags);
+            const RECT *src_rect, const RECT *dst_rect, DWORD flags,
+            struct wined3d_rendertarget_view *depth_stencil);
     void (*swapchain_frontbuffer_updated)(struct wined3d_swapchain *swapchain);
 };
 
