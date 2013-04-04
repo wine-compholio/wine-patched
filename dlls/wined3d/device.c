@@ -2885,6 +2885,13 @@ static HRESULT process_vertices_strided(const struct wined3d_device *device, DWO
         return hr;
     }
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
+
     wined3d_device_get_transform(device, WINED3D_TS_VIEW, &view_mat);
     wined3d_device_get_transform(device, WINED3D_TS_PROJECTION, &proj_mat);
     wined3d_device_get_transform(device, WINED3D_TS_WORLD_MATRIX(0), &world_mat);
@@ -3677,6 +3684,13 @@ HRESULT CDECL wined3d_device_update_texture(struct wined3d_device *device,
         ++src_skip_levels;
     }
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
+
     /* Make sure that the destination texture is loaded. */
     context = context_acquire(device, NULL);
     wined3d_texture_load(dst_texture, context, FALSE);
@@ -4207,6 +4221,13 @@ HRESULT CDECL wined3d_device_clear_rendertarget_view(struct wined3d_device *devi
         return WINED3DERR_INVALIDCALL;
     }
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
+
     if (blit_op == WINED3D_BLIT_OP_COLOR_FILL)
         return blitter->color_fill(device, view, rect, color);
     else
@@ -4530,6 +4551,13 @@ void CDECL wined3d_device_evict_managed_resources(struct wined3d_device *device)
 
     TRACE("device %p.\n", device);
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
+
     LIST_FOR_EACH_ENTRY_SAFE(resource, cursor, &device->resources, struct wined3d_resource, resource_list_entry)
     {
         TRACE("Checking resource %p for eviction.\n", resource);
@@ -4651,6 +4679,13 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
 
     TRACE("device %p, swapchain_desc %p, mode %p, callback %p, reset_state %#x.\n",
             device, swapchain_desc, mode, callback, reset_state);
+
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
 
     if (!(swapchain = wined3d_device_get_swapchain(device, 0)))
     {
