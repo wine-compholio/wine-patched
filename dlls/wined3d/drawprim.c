@@ -469,8 +469,8 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
         {
             RECT current_rect, draw_rect, r;
 
-            if (!context->render_offscreen && ds != device->onscreen_depth_stencil)
-                device_switch_onscreen_ds(device, context, ds);
+            if (!context->render_offscreen && ds != device->cs->onscreen_depth_stencil)
+                wined3d_cs_switch_onscreen_ds(device->cs, context, ds);
 
             if (surface_get_sub_resource(ds)->locations & location)
                 SetRect(&current_rect, 0, 0, ds->ds_current_size.cx, ds->ds_current_size.cy);
