@@ -613,10 +613,10 @@ static UINT wined3d_cs_exec_set_depth_stencil_view(struct wined3d_cs *cs, const 
                 || prev_surface->container->flags & WINED3D_TEXTURE_DISCARD))
         {
             surface_modify_ds_location(prev_surface, WINED3D_LOCATION_DISCARDED, prev->width, prev->height);
-            if (prev_surface == device->onscreen_depth_stencil)
+            if (prev_surface == cs->onscreen_depth_stencil)
             {
-                wined3d_texture_decref(device->onscreen_depth_stencil->container);
-                device->onscreen_depth_stencil = NULL;
+                wined3d_texture_decref(cs->onscreen_depth_stencil->container);
+                cs->onscreen_depth_stencil = NULL;
             }
         }
     }
@@ -1455,6 +1455,26 @@ static void wined3d_cs_emit_stop(struct wined3d_cs *cs)
     op->opcode = WINED3D_CS_OP_STOP;
 
     wined3d_cs_flush(cs);
+}
+
+void wined3d_cs_switch_onscreen_ds(struct wined3d_cs *cs,
+        struct wined3d_context *context, struct wined3d_surface *depth_stencil)
+{
+    if (cs->onscreen_depth_stencil)
+    {
+        struct wined3d_texture *texture = cs->onscreen_depth_stencil->container;
+
+        wined3d_texture_load_location(texture,
+                surface_get_sub_resource_idx(cs->onscreen_depth_stencil),
+                context, WINED3D_LOCATION_TEXTURE_RGB);
+
+        surface_modify_ds_location(cs->onscreen_depth_stencil, WINED3D_LOCATION_TEXTURE_RGB,
+                cs->onscreen_depth_stencil->ds_current_size.cx,
+                cs->onscreen_depth_stencil->ds_current_size.cy);
+        wined3d_texture_decref(texture);
+    }
+    cs->onscreen_depth_stencil = depth_stencil;
+    wined3d_texture_incref(cs->onscreen_depth_stencil->container);
 }
 
 static DWORD WINAPI wined3d_cs_run(void *thread_param)

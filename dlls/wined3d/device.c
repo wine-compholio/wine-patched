@@ -198,25 +198,6 @@ void device_context_remove(struct wined3d_device *device, struct wined3d_context
     device->contexts = new_array;
 }
 
-void device_switch_onscreen_ds(struct wined3d_device *device,
-        struct wined3d_context *context, struct wined3d_surface *depth_stencil)
-{
-    if (device->onscreen_depth_stencil)
-    {
-        struct wined3d_texture *texture = device->onscreen_depth_stencil->container;
-        wined3d_texture_load_location(texture,
-                surface_get_sub_resource_idx(device->onscreen_depth_stencil),
-                context, WINED3D_LOCATION_TEXTURE_RGB);
-
-        surface_modify_ds_location(device->onscreen_depth_stencil, WINED3D_LOCATION_TEXTURE_RGB,
-                device->onscreen_depth_stencil->ds_current_size.cx,
-                device->onscreen_depth_stencil->ds_current_size.cy);
-        wined3d_texture_decref(texture);
-    }
-    device->onscreen_depth_stencil = depth_stencil;
-    wined3d_texture_incref(device->onscreen_depth_stencil->container);
-}
-
 static BOOL is_full_clear(const struct wined3d_surface *target, const RECT *draw_rect, const RECT *clear_rect)
 {
     unsigned int height = wined3d_texture_get_level_height(target->container, target->texture_level);
@@ -362,8 +343,8 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
     {
         DWORD location = render_offscreen ? dsv->resource->draw_binding : WINED3D_LOCATION_DRAWABLE;
 
-        if (!render_offscreen && depth_stencil != device->onscreen_depth_stencil)
-            device_switch_onscreen_ds(device, context, depth_stencil);
+        if (!render_offscreen && depth_stencil != device->cs->onscreen_depth_stencil)
+            wined3d_cs_switch_onscreen_ds(device->cs, context, depth_stencil);
         prepare_ds_clear(depth_stencil, context, location,
                 draw_rect, rect_count, clear_rect, &ds_rect);
     }
@@ -1161,11 +1142,12 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
     /* Release the buffers (with sanity checks).
      * FIXME: Move this move into a separate patch. I think the idea
      * behind this is that those surfaces should be freed before unloading
-     * remaining resources below. */
-    if (device->onscreen_depth_stencil)
+     * remaining resources below.
+     * FIXME 2: Shouldn't the cs take care of onscreen_depth_stencil? */
+    if (device->cs->onscreen_depth_stencil)
     {
-        surface = device->onscreen_depth_stencil;
-        device->onscreen_depth_stencil = NULL;
+        surface = device->cs->onscreen_depth_stencil;
+        device->cs->onscreen_depth_stencil = NULL;
         wined3d_texture_decref(surface->container);
     }
 
@@ -4722,10 +4704,10 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
         state_unbind_resources(&device->state);
     }
 
-    if (device->onscreen_depth_stencil)
+    if (device->cs->onscreen_depth_stencil)
     {
-        wined3d_texture_decref(device->onscreen_depth_stencil->container);
-        device->onscreen_depth_stencil = NULL;
+        wined3d_texture_decref(device->cs->onscreen_depth_stencil->container);
+        device->cs->onscreen_depth_stencil = NULL;
     }
 
     if (reset_state)
