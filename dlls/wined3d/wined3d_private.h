@@ -2393,6 +2393,7 @@ LRESULT device_process_message(struct wined3d_device *device, HWND window, BOOL 
 void device_resource_add(struct wined3d_device *device, struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void device_resource_released(struct wined3d_device *device, struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void device_invalidate_state(const struct wined3d_device *device, DWORD state) DECLSPEC_HIDDEN;
+void device_invalidate_shader_constants(const struct wined3d_device *device, DWORD mask) DECLSPEC_HIDDEN;
 
 static inline BOOL isStateDirty(const struct wined3d_context *context, DWORD state)
 {
@@ -2971,6 +2972,8 @@ void wined3d_cs_emit_set_vertex_declaration(struct wined3d_cs *cs,
 void wined3d_cs_emit_set_viewport(struct wined3d_cs *cs, const struct wined3d_viewport *viewport) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_set_consts_f(struct wined3d_cs *cs, unsigned int start_idx,
         unsigned int count, const struct wined3d_vec4 *constants, enum wined3d_shader_type type) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_set_consts_b(struct wined3d_cs *cs, unsigned int start_idx,
+        unsigned int count, const BOOL *constants, enum wined3d_shader_type type) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_glfinish(struct wined3d_cs *cs) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_set_base_vertex_index(struct wined3d_cs *cs,
         UINT base_vertex_index) DECLSPEC_HIDDEN;
