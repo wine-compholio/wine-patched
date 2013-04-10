@@ -601,6 +601,13 @@ DWORD CDECL wined3d_texture_set_lod(struct wined3d_texture *texture, DWORD lod)
 
     if (texture->lod != lod)
     {
+        if (wined3d_settings.cs_multithreaded)
+        {
+            struct wined3d_device *device = texture->resource.device;
+            FIXME("Waiting for cs.\n");
+            device->cs->ops->finish(device->cs);
+        }
+
         texture->lod = lod;
 
         texture->texture_rgb.states[WINED3DTEXSTA_MAXMIPLEVEL] = ~0U;
