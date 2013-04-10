@@ -2456,7 +2456,8 @@ HRESULT CDECL wined3d_device_set_vs_consts_i(struct wined3d_device *device,
     }
     else
     {
-        device_invalidate_shader_constants(device, WINED3D_SHADER_CONST_VS_I);
+        wined3d_cs_emit_set_consts_i(device->cs, start_idx, count,
+                constants, WINED3D_SHADER_TYPE_VERTEX);
     }
 
     return WINED3D_OK;
@@ -2691,7 +2692,8 @@ HRESULT CDECL wined3d_device_set_ps_consts_i(struct wined3d_device *device,
     }
     else
     {
-        device_invalidate_shader_constants(device, WINED3D_SHADER_CONST_PS_I);
+        wined3d_cs_emit_set_consts_i(device->cs, start_idx, count,
+                constants, WINED3D_SHADER_TYPE_PIXEL);
     }
 
     return WINED3D_OK;
