@@ -476,6 +476,8 @@ static UINT wined3d_cs_exec_present(struct wined3d_cs *cs, const void *data)
     swapchain->swapchain_ops->swapchain_present(swapchain, &op->src_rect, &op->dst_rect, op->flags,
             cs->state.fb.depth_stencil);
 
+    InterlockedDecrement(&cs->pending_presents);
+
     return sizeof(*op);
 }
 
@@ -483,6 +485,7 @@ void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *sw
         const RECT *src_rect, const RECT *dst_rect, HWND dst_window_override, DWORD flags)
 {
     struct wined3d_cs_present *op;
+    LONG pending;
 
     op = cs->ops->require_space(cs, sizeof(*op));
     op->opcode = WINED3D_CS_OP_PRESENT;
@@ -492,7 +495,12 @@ void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *sw
     op->dst_rect = *dst_rect;
     op->flags = flags;
 
+    pending = InterlockedIncrement(&cs->pending_presents);
+
     cs->ops->submit(cs);
+
+    while (pending > 1)
+        pending = InterlockedCompareExchange(&cs->pending_presents, 0, 0);
 }
 
 static UINT wined3d_cs_exec_clear(struct wined3d_cs *cs, const void *data)
