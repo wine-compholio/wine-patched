@@ -1498,14 +1498,6 @@ HRESULT CDECL wined3d_device_set_light(struct wined3d_device *device,
     TRACE("... Range(%f), Falloff(%f), Theta(%f), Phi(%f)\n",
             light->range, light->falloff, light->theta, light->phi);
 
-    /* Update the live definitions if the light is currently assigned a glIndex. */
-    if (object->glIndex != -1 && !device->recording)
-    {
-        if (object->OriginalParms.type != light->type)
-            device_invalidate_state(device, STATE_LIGHT_TYPE);
-        device_invalidate_state(device, STATE_ACTIVELIGHT(object->glIndex));
-    }
-
     /* Save away the information. */
     object->OriginalParms = *light;
 
@@ -1585,6 +1577,9 @@ HRESULT CDECL wined3d_device_set_light(struct wined3d_device *device,
             FIXME("Unrecognized light type %#x.\n", light->type);
     }
 
+    if (!device->recording)
+        wined3d_cs_emit_set_light(device->cs, object);
+
     return WINED3D_OK;
 }
 
@@ -1657,12 +1652,6 @@ HRESULT CDECL wined3d_device_set_light_enable(struct wined3d_device *device, UIN
     {
         if (light_info->glIndex != -1)
         {
-            if (!device->recording)
-            {
-                device_invalidate_state(device, STATE_LIGHT_TYPE);
-                device_invalidate_state(device, STATE_ACTIVELIGHT(light_info->glIndex));
-            }
-
             device->update_state->lights[light_info->glIndex] = NULL;
             light_info->glIndex = -1;
         }
@@ -1704,15 +1693,11 @@ HRESULT CDECL wined3d_device_set_light_enable(struct wined3d_device *device, UIN
                 WARN("Too many concurrently active lights\n");
                 return WINED3D_OK;
             }
-
-            /* i == light_info->glIndex */
-            if (!device->recording)
-            {
-                device_invalidate_state(device, STATE_LIGHT_TYPE);
-                device_invalidate_state(device, STATE_ACTIVELIGHT(i));
-            }
         }
     }
+
+    if (!device->recording)
+        wined3d_cs_emit_set_light_enable(device->cs, light_idx, enable);
 
     return WINED3D_OK;
 }
@@ -3406,7 +3391,6 @@ HRESULT CDECL wined3d_device_draw_primitive(struct wined3d_device *device, UINT 
         return WINED3DERR_INVALIDCALL;
     }
 
-    wined3d_cs_emit_transfer_stateblock(device->cs, &device->state);
     wined3d_cs_emit_draw(device->cs, start_vertex, vertex_count, 0, 0, FALSE);
 
     return WINED3D_OK;
@@ -3441,8 +3425,6 @@ HRESULT CDECL wined3d_device_draw_indexed_primitive(struct wined3d_device *devic
         return WINED3DERR_INVALIDCALL;
     }
 
-
-    wined3d_cs_emit_transfer_stateblock(device->cs, &device->state);
     wined3d_cs_emit_draw(device->cs, start_idx, index_count, 0, 0, TRUE);
 
     return WINED3D_OK;
@@ -3454,7 +3436,6 @@ void CDECL wined3d_device_draw_indexed_primitive_instanced(struct wined3d_device
     TRACE("device %p, start_idx %u, index_count %u, start_instance %u, instance_count %u.\n",
             device, start_idx, index_count, start_instance, instance_count);
 
-    wined3d_cs_emit_transfer_stateblock(device->cs, &device->state);
     wined3d_cs_emit_draw(device->cs, start_idx, index_count, start_instance, instance_count, TRUE);
 }
 
