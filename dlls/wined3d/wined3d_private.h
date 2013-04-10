@@ -2974,6 +2974,8 @@ void wined3d_cs_emit_set_consts_f(struct wined3d_cs *cs, unsigned int start_idx,
         unsigned int count, const struct wined3d_vec4 *constants, enum wined3d_shader_type type) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_set_consts_b(struct wined3d_cs *cs, unsigned int start_idx,
         unsigned int count, const BOOL *constants, enum wined3d_shader_type type) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_set_consts_i(struct wined3d_cs *cs, unsigned int start_idx,
+        unsigned int count, const struct wined3d_ivec4 *constants, enum wined3d_shader_type type) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_glfinish(struct wined3d_cs *cs) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_set_base_vertex_index(struct wined3d_cs *cs,
         UINT base_vertex_index) DECLSPEC_HIDDEN;
