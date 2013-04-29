@@ -4614,7 +4614,7 @@ const struct blit_shader cpu_blit =  {
     cpu_blit_blit_surface,
 };
 
-HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst_rect,
+void surface_blt_ugly(struct wined3d_surface *dst_surface, const RECT *dst_rect,
         struct wined3d_surface *src_surface, const RECT *src_rect, DWORD flags,
         const struct wined3d_blt_fx *fx, enum wined3d_texture_filter_type filter)
 {
@@ -4631,84 +4631,6 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
             | WINED3D_BLT_DEPTH_FILL
             | WINED3D_BLT_DO_NOT_WAIT
             | WINED3D_BLT_ALPHA_TEST;
-
-    TRACE("dst_surface %p, dst_rect %s, src_surface %p, src_rect %s, flags %#x, fx %p, filter %s.\n",
-            dst_surface, wine_dbgstr_rect(dst_rect), src_surface, wine_dbgstr_rect(src_rect),
-            flags, fx, debug_d3dtexturefiltertype(filter));
-    TRACE("Usage is %s.\n", debug_d3dusage(dst_surface->resource.usage));
-
-    if (fx)
-    {
-        TRACE("fx %#x.\n", fx->fx);
-        TRACE("fill_color 0x%08x.\n", fx->fill_color);
-        TRACE("dst_color_key {0x%08x, 0x%08x}.\n",
-                fx->dst_color_key.color_space_low_value,
-                fx->dst_color_key.color_space_high_value);
-        TRACE("src_color_key {0x%08x, 0x%08x}.\n",
-                fx->src_color_key.color_space_low_value,
-                fx->src_color_key.color_space_high_value);
-    }
-
-    if (dst_surface->resource.map_count || (src_surface && src_surface->resource.map_count))
-    {
-        WARN("Surface is busy, returning WINEDDERR_SURFACEBUSY.\n");
-        return WINEDDERR_SURFACEBUSY;
-    }
-
-    if (dst_rect->left >= dst_rect->right || dst_rect->top >= dst_rect->bottom
-            || dst_rect->left > dst_surface->resource.width || dst_rect->left < 0
-            || dst_rect->top > dst_surface->resource.height || dst_rect->top < 0
-            || dst_rect->right > dst_surface->resource.width || dst_rect->right < 0
-            || dst_rect->bottom > dst_surface->resource.height || dst_rect->bottom < 0)
-    {
-        WARN("The application gave us a bad destination rectangle.\n");
-        return WINEDDERR_INVALIDRECT;
-    }
-
-    if (src_surface)
-    {
-        if (src_rect->left >= src_rect->right || src_rect->top >= src_rect->bottom
-                || src_rect->left > src_surface->resource.width || src_rect->left < 0
-                || src_rect->top > src_surface->resource.height || src_rect->top < 0
-                || src_rect->right > src_surface->resource.width || src_rect->right < 0
-                || src_rect->bottom > src_surface->resource.height || src_rect->bottom < 0)
-        {
-            WARN("The application gave us a bad source rectangle.\n");
-            return WINEDDERR_INVALIDRECT;
-        }
-    }
-
-    if (!fx || !(fx->fx))
-        flags &= ~WINED3D_BLT_FX;
-
-    if (flags & WINED3D_BLT_WAIT)
-        flags &= ~WINED3D_BLT_WAIT;
-
-    if (flags & WINED3D_BLT_ASYNC)
-    {
-        static unsigned int once;
-
-        if (!once++)
-            FIXME("Can't handle WINED3D_BLT_ASYNC flag.\n");
-        flags &= ~WINED3D_BLT_ASYNC;
-    }
-
-    /* WINED3D_BLT_DO_NOT_WAIT appeared in DX7. */
-    if (flags & WINED3D_BLT_DO_NOT_WAIT)
-    {
-        static unsigned int once;
-
-        if (!once++)
-            FIXME("Can't handle WINED3D_BLT_DO_NOT_WAIT flag.\n");
-        flags &= ~WINED3D_BLT_DO_NOT_WAIT;
-    }
-
-    if (wined3d_settings.cs_multithreaded)
-    {
-        FIXME("Waiting for cs.\n");
-        wined3d_cs_emit_glfinish(device->cs);
-        device->cs->ops->finish(device->cs);
-    }
 
     if (!device->d3d_initialized)
     {
@@ -4773,22 +4695,16 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
             TRACE("Depth fill.\n");
 
             if (!surface_convert_depth_to_float(dst_surface, fx->fill_color, &depth))
-                return WINED3DERR_INVALIDCALL;
+                return;
 
             if (SUCCEEDED(wined3d_surface_depth_fill(dst_surface, dst_rect, depth)))
-                return WINED3D_OK;
+                return;
         }
         else
         {
-            if (src_ds_flags != dst_ds_flags)
-            {
-                WARN("Rejecting depth / stencil blit between incompatible formats.\n");
-                return WINED3DERR_INVALIDCALL;
-            }
-
             if (SUCCEEDED(wined3d_surface_depth_blt(src_surface, src_surface->container->resource.draw_binding,
                     src_rect, dst_surface, dst_surface->container->resource.draw_binding, dst_rect)))
-                return WINED3D_OK;
+                return;
         }
     }
     else
@@ -4820,7 +4736,7 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
                 goto fallback;
 
             if (SUCCEEDED(surface_color_fill(dst_surface, dst_rect, &color)))
-                return WINED3D_OK;
+                return;
         }
         else
         {
@@ -4863,7 +4779,7 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
                                     dst_surface->container->resource.draw_binding);
                             context_release(context);
                         }
-                        return WINED3D_OK;
+                        return;
                     }
                 }
             }
@@ -4887,7 +4803,7 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
                 wined3d_swapchain_present(dst_swapchain, NULL, NULL, dst_swapchain->win_handle, NULL, 0);
                 dst_swapchain->desc.swap_effect = swap_effect;
 
-                return WINED3D_OK;
+                return;
             }
 
             if (fbo_blit_supported(&device->adapter->gl_info, blit_op,
@@ -4906,7 +4822,7 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
                 wined3d_resource_validate_location(&dst_surface->resource, dst_surface->container->resource.draw_binding);
                 wined3d_resource_invalidate_location(&dst_surface->resource, ~dst_surface->container->resource.draw_binding);
 
-                return WINED3D_OK;
+                return;
             }
 
             blitter = wined3d_select_blitter(&device->adapter->gl_info, &device->adapter->d3d_info, blit_op,
@@ -4916,18 +4832,132 @@ HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst
             {
                 blitter->blit_surface(device, blit_op, filter, src_surface,
                         src_rect, dst_surface, dst_rect, color_key);
-                return WINED3D_OK;
+                return;
             }
         }
     }
 
 fallback:
     /* Special cases for render targets. */
-    if (SUCCEEDED(surface_blt_special(dst_surface, dst_rect, src_surface, src_rect, flags, fx, filter)))
-        return WINED3D_OK;
+    if ((dst_surface->resource.usage & WINED3DUSAGE_RENDERTARGET)
+            || (src_surface && (src_surface->resource.usage & WINED3DUSAGE_RENDERTARGET)))
+    {
+        if (SUCCEEDED(surface_blt_special(dst_surface, dst_rect, src_surface, src_rect, flags, fx, filter)))
+            return;
+    }
 
 cpu:
-    return surface_cpu_blt(dst_surface, dst_rect, src_surface, src_rect, flags, fx, filter);
+    surface_cpu_blt(dst_surface, dst_rect, src_surface, src_rect, flags, fx, filter);
+    return;
+}
+
+HRESULT wined3d_surface_blt(struct wined3d_surface *dst_surface, const RECT *dst_rect,
+        struct wined3d_surface *src_surface, const RECT *src_rect, DWORD flags,
+        const struct wined3d_blt_fx *fx, enum wined3d_texture_filter_type filter)
+{
+    struct wined3d_device *device = dst_surface->resource.device;
+
+    TRACE("dst_surface %p, dst_rect %s, src_surface %p, src_rect %s, flags %#x, fx %p, filter %s.\n",
+            dst_surface, wine_dbgstr_rect(dst_rect), src_surface, wine_dbgstr_rect(src_rect),
+            flags, fx, debug_d3dtexturefiltertype(filter));
+    TRACE("Usage is %s.\n", debug_d3dusage(dst_surface->resource.usage));
+
+    if (fx)
+    {
+        TRACE("fx %#x.\n", fx->fx);
+        TRACE("fill_color 0x%08x.\n", fx->fill_color);
+        TRACE("dst_color_key {0x%08x, 0x%08x}.\n",
+                fx->dst_color_key.color_space_low_value,
+                fx->dst_color_key.color_space_high_value);
+        TRACE("src_color_key {0x%08x, 0x%08x}.\n",
+                fx->src_color_key.color_space_low_value,
+                fx->src_color_key.color_space_high_value);
+    }
+
+    if (dst_surface->resource.map_count || (src_surface && src_surface->resource.map_count))
+    {
+        /* TODO: Separate application maps from internal maps */
+        if (!wined3d_settings.cs_multithreaded)
+        {
+            WARN("Surface is busy, returning WINEDDERR_SURFACEBUSY.\n");
+            return WINEDDERR_SURFACEBUSY;
+        }
+
+        wined3d_cs_emit_glfinish(dst_surface->resource.device->cs);
+        dst_surface->resource.device->cs->ops->finish(dst_surface->resource.device->cs);
+
+        if (dst_surface->resource.map_count || (src_surface && src_surface->resource.map_count))
+        {
+            WARN("Surface is busy, returning WINEDDERR_SURFACEBUSY.\n");
+            return WINEDDERR_SURFACEBUSY;
+        }
+    }
+
+    if (dst_rect->left >= dst_rect->right || dst_rect->top >= dst_rect->bottom
+            || dst_rect->left > dst_surface->resource.width || dst_rect->left < 0
+            || dst_rect->top > dst_surface->resource.height || dst_rect->top < 0
+            || dst_rect->right > dst_surface->resource.width || dst_rect->right < 0
+            || dst_rect->bottom > dst_surface->resource.height || dst_rect->bottom < 0)
+    {
+        WARN("The application gave us a bad destination rectangle.\n");
+        return WINEDDERR_INVALIDRECT;
+    }
+
+    if (src_surface)
+    {
+        DWORD src_ds_flags, dst_ds_flags;
+
+        if (src_rect->left >= src_rect->right || src_rect->top >= src_rect->bottom
+                || src_rect->left > src_surface->resource.width || src_rect->left < 0
+                || src_rect->top > src_surface->resource.height || src_rect->top < 0
+                || src_rect->right > src_surface->resource.width || src_rect->right < 0
+                || src_rect->bottom > src_surface->resource.height || src_rect->bottom < 0)
+        {
+            WARN("The application gave us a bad source rectangle.\n");
+            return WINEDDERR_INVALIDRECT;
+        }
+
+        dst_ds_flags = dst_surface->container->resource.format_flags
+                & (WINED3DFMT_FLAG_DEPTH | WINED3DFMT_FLAG_STENCIL);
+        src_ds_flags = src_surface->container->resource.format_flags
+                & (WINED3DFMT_FLAG_DEPTH | WINED3DFMT_FLAG_STENCIL);
+        if (src_ds_flags != dst_ds_flags)
+        {
+            WARN("Rejecting depth / stencil blit between incompatible formats.\n");
+            return WINED3DERR_INVALIDCALL;
+        }
+    }
+
+    if (!fx || !(fx->fx))
+        flags &= ~WINED3D_BLT_FX;
+
+    if (flags & WINED3D_BLT_WAIT)
+        flags &= ~WINED3D_BLT_WAIT;
+
+    if (flags & WINED3D_BLT_ASYNC)
+    {
+        static unsigned int once;
+
+        if (!once++)
+            FIXME("Can't handle WINED3D_BLT_ASYNC flag.\n");
+        flags &= ~WINED3D_BLT_ASYNC;
+    }
+
+    /* WINEDDBLT_DONOTWAIT appeared in DX7. */
+    if (flags & WINED3D_BLT_DO_NOT_WAIT)
+    {
+        static unsigned int once;
+
+        if (!once++)
+            FIXME("Can't handle WINED3D_BLT_DO_NOT_WAIT flag.\n");
+        flags &= ~WINED3D_BLT_DO_NOT_WAIT;
+    }
+
+    TRACE("Emitting blit %p <== %p\n", dst_surface, src_surface);
+    wined3d_cs_emit_blt(device->cs, dst_surface, dst_rect, src_surface, src_rect,
+            flags, fx, filter);
+
+    return WINED3D_OK;
 }
 
 static const struct wined3d_resource_ops surface_resource_ops =
