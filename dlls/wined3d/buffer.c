@@ -1351,6 +1351,9 @@ static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device 
         buffer->flags |= WINED3D_BUFFER_USE_BO;
     }
 
+    if (wined3d_settings.cs_multithreaded)
+        buffer->flags |= WINED3D_BUFFER_DOUBLEBUFFER;
+
     if (!(buffer->maps = HeapAlloc(GetProcessHeap(), 0, sizeof(*buffer->maps))))
     {
         ERR("Out of memory.\n");
