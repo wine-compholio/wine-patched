@@ -1360,16 +1360,8 @@ static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device 
         buffer->flags |= WINED3D_BUFFER_CREATEBO;
     }
 
-    if (data)
-    {
-        if (FAILED(hr = wined3d_buffer_upload_data(buffer, NULL, data->data)))
-        {
-            ERR("Failed to upload data, hr %#x.\n", hr);
-            buffer_unload(&buffer->resource);
-            resource_cleanup(&buffer->resource);
-            return hr;
-        }
-    }
+    if (wined3d_settings.cs_multithreaded)
+        buffer->flags |= WINED3D_BUFFER_DOUBLEBUFFER;
 
     buffer->maps = HeapAlloc(GetProcessHeap(), 0, sizeof(*buffer->maps));
     if (!buffer->maps)
@@ -1380,6 +1372,18 @@ static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device 
         return E_OUTOFMEMORY;
     }
     buffer->maps_size = 1;
+
+    if (data)
+    {
+        if (FAILED(hr = wined3d_buffer_upload_data(buffer, NULL, data->data)))
+        {
+            ERR("Failed to upload data, hr %#x.\n", hr);
+            HeapFree(GetProcessHeap(), 0, buffer->maps);
+            buffer_unload(&buffer->resource);
+            resource_cleanup(&buffer->resource);
+            return hr;
+        }
+    }
 
     return WINED3D_OK;
 }
