@@ -667,6 +667,12 @@ HRESULT CDECL wined3d_texture_set_color_key(struct wined3d_texture *texture,
         return WINED3DERR_INVALIDCALL;
     }
 
+    if (wined3d_settings.cs_multithreaded)
+    {
+        FIXME("waiting for cs\n");
+        texture->resource.device->cs->ops->finish(texture->resource.device->cs);
+    }
+
     if (color_key)
     {
         switch (flags & ~WINEDDCKEY_COLORSPACE)
