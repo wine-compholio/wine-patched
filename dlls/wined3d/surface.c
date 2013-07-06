@@ -630,9 +630,7 @@ static void surface_blt_fbo(const struct wined3d_device *device,
             dst_rect.left, dst_rect.top, dst_rect.right, dst_rect.bottom, GL_COLOR_BUFFER_BIT, gl_filter);
     checkGLcall("glBlitFramebuffer()");
 
-    if (wined3d_settings.cs_multithreaded)
-        gl_info->gl_ops.gl.p_glFinish();
-    else if (wined3d_settings.strict_draw_ordering
+    if (wined3d_settings.strict_draw_ordering
             || (dst_location == WINED3D_LOCATION_DRAWABLE
             && dst_texture->swapchain->front_buffer == dst_texture))
         gl_info->gl_ops.gl.p_glFlush();
