@@ -237,6 +237,9 @@ static void wined3d_query_destroy_object(void *object)
 {
     struct wined3d_query *query = object;
 
+    if (!list_empty(&query->poll_list_entry))
+        list_remove(&query->poll_list_entry);
+
     /* Queries are specific to the GL context that created them. Not
      * deleting the query will obviously leak it, but that's still better
      * than potentially deleting a different query with the same id in this
@@ -272,18 +275,7 @@ ULONG CDECL wined3d_query_decref(struct wined3d_query *query)
     TRACE("%p decreasing refcount to %u.\n", query, refcount);
 
     if (!refcount)
-    {
-        if (wined3d_settings.cs_multithreaded)
-        {
-            struct wined3d_device *device = query->device;
-
-            FIXME("waiting for cs\n");
-            wined3d_cs_emit_glfinish(device->cs);
-            device->cs->ops->finish(device->cs);
-        }
-
         wined3d_cs_emit_destroy_object(query->device->cs, wined3d_query_destroy_object, query);
-    }
 
     return refcount;
 }
