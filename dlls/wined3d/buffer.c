@@ -461,7 +461,8 @@ void buffer_get_memory(struct wined3d_buffer *buffer, struct wined3d_context *co
     data->buffer_object = buffer->buffer_object;
     if (!buffer->buffer_object)
     {
-        if ((buffer->flags & WINED3D_BUFFER_USE_BO) && !buffer->resource.map_count)
+        if ((!buffer->resource.map_count || buffer->flags & WINED3D_BUFFER_DOUBLEBUFFER)
+                && buffer->flags & WINED3D_BUFFER_USE_BO)
         {
             buffer_create_buffer_object(buffer, context);
             if (buffer->buffer_object)
@@ -737,12 +738,6 @@ void buffer_internal_preload(struct wined3d_buffer *buffer, struct wined3d_conte
 
     TRACE("buffer %p.\n", buffer);
 
-    if (buffer->resource.map_count)
-    {
-        WARN("Buffer is mapped, skipping preload.\n");
-        return;
-    }
-
     buffer_mark_used(buffer);
 
     if (!buffer->buffer_object)
@@ -932,6 +927,12 @@ void CDECL wined3d_buffer_preload(struct wined3d_buffer *buffer)
 {
     struct wined3d_context *context;
     struct wined3d_device *device = buffer->resource.device;
+
+    if (buffer->resource.map_count)
+    {
+        WARN("Buffer is mapped, skipping preload.\n");
+        return;
+    }
 
     if (wined3d_settings.cs_multithreaded)
     {
