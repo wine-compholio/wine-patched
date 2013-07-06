@@ -1303,6 +1303,7 @@ struct wined3d_occlusion_query
     struct list entry;
     GLuint id;
     struct wined3d_context *context;
+    DWORD samples;
 };
 
 union wined3d_gl_query_object
@@ -1338,6 +1339,7 @@ struct wined3d_timestamp_query
     struct list entry;
     GLuint id;
     struct wined3d_context *context;
+    UINT64 timestamp;
 };
 
 void context_alloc_timestamp_query(struct wined3d_context *context, struct wined3d_timestamp_query *query) DECLSPEC_HIDDEN;
@@ -2920,6 +2922,7 @@ struct wined3d_cs
     struct wined3d_cs_queue queue;
 
     LONG pending_presents;
+    struct list query_poll_list;
 };
 
 struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device) DECLSPEC_HIDDEN;
@@ -3016,6 +3019,7 @@ enum query_state {
 struct wined3d_query_ops
 {
     HRESULT (*query_get_data)(struct wined3d_query *query, void *data, DWORD data_size, DWORD flags);
+    BOOL (*query_poll)(struct wined3d_query *query);
     void (*query_issue)(struct wined3d_query *query, DWORD flags);
 };
 
@@ -3031,7 +3035,8 @@ struct wined3d_query
     DWORD data_size;
     void                     *extendedData;
 
-    LONG                     counter_main, counter_worker;
+    LONG                     counter_main, counter_retrieved;
+    struct list              poll_list_entry;
 };
 
 /* TODO: Add tests and support for FLOAT16_4 POSITIONT, D3DCOLOR position, other
