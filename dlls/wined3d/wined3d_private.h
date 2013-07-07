@@ -2871,7 +2871,6 @@ void buffer_get_memory(struct wined3d_buffer *buffer, struct wined3d_context *co
 BYTE *buffer_get_sysmem(struct wined3d_buffer *This, struct wined3d_context *context) DECLSPEC_HIDDEN;
 void buffer_internal_preload(struct wined3d_buffer *buffer, struct wined3d_context *context,
         const struct wined3d_state *state) DECLSPEC_HIDDEN;
-void buffer_mark_used(struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
 HRESULT wined3d_buffer_upload_data(struct wined3d_buffer *buffer,
         const struct wined3d_box *box, const void *data) DECLSPEC_HIDDEN;
 
