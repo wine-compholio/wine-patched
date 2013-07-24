@@ -1052,6 +1052,7 @@ struct wined3d_occlusion_query
     GLuint id;
     struct wined3d_context *context;
     DWORD samples;
+    BOOL started;
 };
 
 union wined3d_gl_query_object
