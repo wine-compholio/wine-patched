@@ -3516,34 +3516,17 @@ void CDECL wined3d_device_draw_indexed_primitive_instanced(struct wined3d_device
     wined3d_cs_emit_draw(device->cs, start_idx, index_count, start_instance, instance_count, TRUE);
 }
 
-static HRESULT wined3d_device_update_texture_3d(struct wined3d_device *device,
+/* Context activation is done by the caller. */
+static void wined3d_device_update_texture_3d(struct wined3d_context *context,
         struct wined3d_texture *src_texture, unsigned int src_level,
         struct wined3d_texture *dst_texture, unsigned int level_count)
 {
     struct wined3d_const_bo_address data;
-    struct wined3d_context *context;
     struct wined3d_map_desc src;
-    HRESULT hr = WINED3D_OK;
     unsigned int i;
 
-    TRACE("device %p, src_texture %p, src_level %u, dst_texture %p, level_count %u.\n",
-            device, src_texture, src_level, dst_texture, level_count);
-
-    if (src_texture->resource.format != dst_texture->resource.format)
-    {
-        WARN("Source and destination formats do not match.\n");
-        return WINED3DERR_INVALIDCALL;
-    }
-
-    if (wined3d_texture_get_level_width(src_texture, src_level) != dst_texture->resource.width
-            || wined3d_texture_get_level_height(src_texture, src_level) != dst_texture->resource.height
-            || wined3d_texture_get_level_depth(src_texture, src_level) != dst_texture->resource.depth)
-    {
-        WARN("Source and destination dimensions do not match.\n");
-        return WINED3DERR_INVALIDCALL;
-    }
-
-    context = context_acquire(device, NULL);
+    TRACE("context %p, src_texture %p, src_level %u, dst_texture %p, level_count %u.\n",
+            context, src_texture, src_level, dst_texture, level_count);
 
     /* Only a prepare, since we're uploading entire volumes. */
     wined3d_texture_prepare_texture(dst_texture, context, FALSE);
@@ -3551,32 +3534,89 @@ static HRESULT wined3d_device_update_texture_3d(struct wined3d_device *device,
 
     for (i = 0; i < level_count; ++i)
     {
-        if (FAILED(hr = wined3d_resource_map(&src_texture->resource,
+        if (FAILED(wined3d_resource_map(&src_texture->resource,
                 src_level + i, &src, NULL, WINED3D_MAP_READONLY)))
-            goto done;
+            return;
 
         data.buffer_object = 0;
         data.addr = src.data;
         wined3d_volume_upload_data(dst_texture, i, context, &data);
         wined3d_texture_invalidate_location(dst_texture, i, ~WINED3D_LOCATION_TEXTURE_RGB);
 
-        if (FAILED(hr = wined3d_resource_unmap(&src_texture->resource, src_level + i)))
-            goto done;
+        if (FAILED(wined3d_resource_unmap(&src_texture->resource, src_level + i)))
+            return;
+    }
+}
+
+/* Context activation is done by the caller */
+void device_exec_update_texture(struct wined3d_context *context, struct wined3d_texture *src_texture,
+        struct wined3d_texture *dst_texture)
+{
+    unsigned int src_size, dst_size, src_skip_levels = 0;
+    unsigned int level_count, i, j;
+
+    level_count = min(wined3d_texture_get_level_count(src_texture),
+            wined3d_texture_get_level_count(dst_texture));
+
+    src_size = max(src_texture->resource.width, src_texture->resource.height);
+    dst_size = max(dst_texture->resource.width, dst_texture->resource.height);
+    if (dst_texture->resource.type == WINED3D_RTYPE_TEXTURE_3D)
+    {
+        src_size = max(src_size, src_texture->resource.depth);
+        dst_size = max(dst_size, dst_texture->resource.depth);
+    }
+    while (src_size > dst_size)
+    {
+        src_size >>= 1;
+        ++src_skip_levels;
     }
 
-done:
-    context_release(context);
-    return hr;
+    /* Make sure that the destination texture is loaded. */
+    wined3d_texture_load(dst_texture, context, FALSE);
+
+    /* Update every surface level of the texture. */
+    switch (dst_texture->resource.type)
+    {
+        case WINED3D_RTYPE_TEXTURE_2D:
+        {
+            unsigned int src_levels = src_texture->level_count;
+            unsigned int dst_levels = dst_texture->level_count;
+            struct wined3d_surface *src_surface;
+            struct wined3d_surface *dst_surface;
+
+            for (i = 0; i < src_texture->layer_count; ++i)
+            {
+                for (j = 0; j < level_count; ++j)
+                {
+                    HRESULT hr;
+                    src_surface = src_texture->sub_resources[i * src_levels + j + src_skip_levels].u.surface;
+                    dst_surface = dst_texture->sub_resources[i * dst_levels + j].u.surface;
+                    if (FAILED(hr = surface_upload_from_surface(dst_surface, NULL, src_surface, NULL)))
+                    {
+                        WARN("Failed to update surface, hr %#x.\n", hr);
+                        return;
+                    }
+                }
+            }
+            break;
+        }
+
+        case WINED3D_RTYPE_TEXTURE_3D:
+            wined3d_device_update_texture_3d(context,
+                    src_texture, src_skip_levels, dst_texture, level_count);
+            break;
+
+        default:
+            FIXME("Unsupported texture type %#x.\n", dst_texture->resource.type);
+    }
 }
 
 HRESULT CDECL wined3d_device_update_texture(struct wined3d_device *device,
         struct wined3d_texture *src_texture, struct wined3d_texture *dst_texture)
 {
     unsigned int src_size, dst_size, src_skip_levels = 0;
-    unsigned int layer_count, level_count, i, j;
+    unsigned int layer_count;
     enum wined3d_resource_type type;
-    HRESULT hr;
-    struct wined3d_context *context;
 
     TRACE("device %p, src_texture %p, dst_texture %p.\n", device, src_texture, dst_texture);
 
@@ -3613,70 +3653,48 @@ HRESULT CDECL wined3d_device_update_texture(struct wined3d_device *device,
         return WINED3DERR_INVALIDCALL;
     }
 
-    level_count = min(wined3d_texture_get_level_count(src_texture),
-            wined3d_texture_get_level_count(dst_texture));
-
-    src_size = max(src_texture->resource.width, src_texture->resource.height);
-    dst_size = max(dst_texture->resource.width, dst_texture->resource.height);
-    if (type == WINED3D_RTYPE_TEXTURE_3D)
+    /* FIXME: This isn't necessary for 2D textures, but currently surface_upload_from_surface
+     * rejects mismatching formats, and we can't report the error back after dispatching the
+     * call. */
+    if (src_texture->resource.format != dst_texture->resource.format)
     {
-        src_size = max(src_size, src_texture->resource.depth);
-        dst_size = max(dst_size, dst_texture->resource.depth);
-    }
-    while (src_size > dst_size)
-    {
-        src_size >>= 1;
-        ++src_skip_levels;
+        WARN("Source and destination formats do not match.\n");
+        return WINED3DERR_INVALIDCALL;
     }
 
-    if (wined3d_settings.cs_multithreaded)
-    {
-        FIXME("Waiting for cs.\n");
-        wined3d_cs_emit_glfinish(device->cs);
-        device->cs->ops->finish(device->cs);
-    }
-
-    /* Make sure that the destination texture is loaded. */
-    context = context_acquire(device, NULL);
-    wined3d_texture_load(dst_texture, context, FALSE);
-    context_release(context);
-
-    /* Update every surface level of the texture. */
     switch (type)
     {
         case WINED3D_RTYPE_TEXTURE_2D:
-        {
-            unsigned int src_levels = src_texture->level_count;
-            unsigned int dst_levels = dst_texture->level_count;
-            struct wined3d_surface *src_surface;
-            struct wined3d_surface *dst_surface;
-
-            for (i = 0; i < layer_count; ++i)
-            {
-                for (j = 0; j < level_count; ++j)
-                {
-                    src_surface = src_texture->sub_resources[i * src_levels + j + src_skip_levels].u.surface;
-                    dst_surface = dst_texture->sub_resources[i * dst_levels + j].u.surface;
-                    if (FAILED(hr = surface_upload_from_surface(dst_surface, NULL, src_surface, NULL)))
-                    {
-                        WARN("Failed to update surface, hr %#x.\n", hr);
-                        return hr;
-                    }
-                }
-            }
-            return WINED3D_OK;
-        }
+            break;
 
         case WINED3D_RTYPE_TEXTURE_3D:
-            if (FAILED(hr = wined3d_device_update_texture_3d(device,
-                    src_texture, src_skip_levels, dst_texture, level_count)))
-                WARN("Failed to update 3D texture, hr %#x.\n", hr);
-            return hr;
+            src_size = max(src_texture->resource.width, src_texture->resource.height);
+            src_size = max(src_size, src_texture->resource.depth);
+            dst_size = max(dst_texture->resource.width, dst_texture->resource.height);
+            dst_size = max(dst_size, dst_texture->resource.depth);
+
+            while (src_size > dst_size)
+            {
+                src_size >>= 1;
+                ++src_skip_levels;
+            }
+
+            if (wined3d_texture_get_level_width(src_texture, src_skip_levels) != dst_texture->resource.width
+                    || wined3d_texture_get_level_height(src_texture, src_skip_levels) != dst_texture->resource.height
+                    || wined3d_texture_get_level_depth(src_texture, src_skip_levels) != dst_texture->resource.depth)
+            {
+                WARN("Source and destination dimensions do not match.\n");
+                return WINED3DERR_INVALIDCALL;
+            }
+            break;
 
         default:
-            FIXME("Unsupported texture type %#x.\n", type);
-            return WINED3DERR_INVALIDCALL;
+            break;
     }
+
+    wined3d_cs_emit_update_texture(device->cs, src_texture, dst_texture);
+
+    return WINED3D_OK;
 }
 
 HRESULT CDECL wined3d_device_validate_device(const struct wined3d_device *device, DWORD *num_passes)
