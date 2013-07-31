@@ -2856,6 +2856,8 @@ struct wined3d_vertex_declaration
     BOOL half_float_conv_needed;
 };
 
+void wined3d_vertex_declaration_destroy(struct wined3d_vertex_declaration *declaration) DECLSPEC_HIDDEN;
+
 struct wined3d_saved_states
 {
     DWORD transform[(HIGHEST_TRANSFORMSTATE >> 5) + 1];
@@ -3061,6 +3063,8 @@ void wined3d_cs_emit_buffer_invalidate_bo_range(struct wined3d_cs *cs,
         struct wined3d_buffer *buffer, unsigned int offset, unsigned int size) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_buffer_preload(struct wined3d_cs *cs, struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_view_destroy(struct wined3d_cs *cs, struct wined3d_rendertarget_view *view) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_vertex_declaration_destroy(struct wined3d_cs *cs,
+        struct wined3d_vertex_declaration *declaration) DECLSPEC_HIDDEN;
 
 /* Direct3D terminology with little modifications. We do not have an issued state
  * because only the driver knows about it, but we have a created state because d3d
