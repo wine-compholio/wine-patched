@@ -1763,7 +1763,7 @@ static void shader_trace_init(const struct wined3d_shader_frontend *fe, void *fe
     }
 }
 
-static void shader_cleanup(struct wined3d_shader *shader)
+void shader_cleanup(struct wined3d_shader *shader)
 {
     HeapFree(GetProcessHeap(), 0, shader->signature_strings);
     shader->device->shader_backend->shader_destroy(shader);
@@ -2018,14 +2018,10 @@ ULONG CDECL wined3d_shader_decref(struct wined3d_shader *shader)
 
     if (!refcount)
     {
-        if (wined3d_settings.cs_multithreaded)
-        {
-            FIXME("Waiting for cs.\n");
-            shader->device->cs->ops->finish(shader->device->cs);
-        }
-        shader_cleanup(shader);
+        const struct wined3d_device *device = shader->device;
+
         shader->parent_ops->wined3d_object_destroyed(shader->parent);
-        HeapFree(GetProcessHeap(), 0, shader);
+        wined3d_cs_emit_shader_cleanup(device->cs, shader);
     }
 
     return refcount;
