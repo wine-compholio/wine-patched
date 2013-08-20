@@ -2495,7 +2495,8 @@ HRESULT CDECL wined3d_device_set_vs_consts_f(struct wined3d_device *device,
         memset(&device->recording->changed.vertexShaderConstantsF[start_idx], 1,
                 count * sizeof(*device->recording->changed.vertexShaderConstantsF));
     else
-        device->shader_backend->shader_update_float_vertex_constants(device, start_idx, count);
+        wined3d_cs_emit_set_consts_f(device->cs, start_idx, constants, count,
+                WINED3D_SHADER_TYPE_VERTEX);
 
     return WINED3D_OK;
 }
@@ -2723,7 +2724,8 @@ HRESULT CDECL wined3d_device_set_ps_consts_f(struct wined3d_device *device,
         memset(&device->recording->changed.pixelShaderConstantsF[start_idx], 1,
                 count * sizeof(*device->recording->changed.pixelShaderConstantsF));
     else
-        device->shader_backend->shader_update_float_pixel_constants(device, start_idx, count);
+        wined3d_cs_emit_set_consts_f(device->cs, start_idx, constants, count,
+                WINED3D_SHADER_TYPE_PIXEL);
 
     return WINED3D_OK;
 }
