@@ -3521,8 +3521,7 @@ static void wined3d_device_update_texture_3d(struct wined3d_context *context,
         struct wined3d_texture *src_texture, unsigned int src_level,
         struct wined3d_texture *dst_texture, unsigned int level_count)
 {
-    struct wined3d_const_bo_address data;
-    struct wined3d_map_desc src;
+    struct wined3d_bo_address data;
     unsigned int i;
 
     TRACE("context %p, src_texture %p, src_level %u, dst_texture %p, level_count %u.\n",
@@ -3534,17 +3533,11 @@ static void wined3d_device_update_texture_3d(struct wined3d_context *context,
 
     for (i = 0; i < level_count; ++i)
     {
-        if (FAILED(wined3d_resource_map(&src_texture->resource,
-                src_level + i, &src, NULL, WINED3D_MAP_READONLY)))
-            return;
+        wined3d_texture_get_memory(src_texture, src_level + i, &data,
+                src_texture->resource.map_binding);
 
-        data.buffer_object = 0;
-        data.addr = src.data;
-        wined3d_volume_upload_data(dst_texture, i, context, &data);
+        wined3d_volume_upload_data(dst_texture, i, context, wined3d_const_bo_address(&data));
         wined3d_texture_invalidate_location(dst_texture, i, ~WINED3D_LOCATION_TEXTURE_RGB);
-
-        if (FAILED(wined3d_resource_unmap(&src_texture->resource, src_level + i)))
-            return;
     }
 }
 
