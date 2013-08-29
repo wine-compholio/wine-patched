@@ -3401,9 +3401,7 @@ void CDECL wined3d_device_draw_indexed_primitive_instanced(struct wined3d_device
 static HRESULT device_update_volume(struct wined3d_context *context,
         struct wined3d_volume *src_volume, struct wined3d_volume *dst_volume)
 {
-    struct wined3d_const_bo_address data;
-    struct wined3d_map_desc src;
-    HRESULT hr;
+    struct wined3d_bo_address data;
 
     TRACE("src_volume %p, dst_volume %p.\n",
             src_volume, dst_volume);
@@ -3421,20 +3419,13 @@ static HRESULT device_update_volume(struct wined3d_context *context,
         return WINED3DERR_INVALIDCALL;
     }
 
-    if (FAILED(hr = wined3d_volume_map(src_volume, &src, NULL, WINED3D_MAP_READONLY)))
-        return hr;
-
     /* Only a prepare, since we're uploading the entire volume. */
     wined3d_texture_prepare_texture(dst_volume->container, context, FALSE);
-
-    data.buffer_object = 0;
-    data.addr = src.data;
-    wined3d_volume_upload_data(dst_volume, context, &data);
+    wined3d_resource_get_memory(&src_volume->resource, src_volume->resource.map_binding, &data);
+    wined3d_volume_upload_data(dst_volume, context, wined3d_const_bo_address(&data));
     wined3d_resource_invalidate_location(&dst_volume->resource, ~WINED3D_LOCATION_TEXTURE_RGB);
 
-    hr = wined3d_volume_unmap(src_volume);
-
-    return hr;
+    return WINED3D_OK;
 }
 
 /* Context activation is done by the caller */
