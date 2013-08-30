@@ -174,7 +174,7 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
             }
             else if (sub_resource->locations & WINED3D_LOCATION_BUFFER)
             {
-                struct wined3d_const_bo_address data = {sub_resource->buffer_object, NULL};
+                struct wined3d_const_bo_address data = {sub_resource->buffer->name, NULL};
                 wined3d_texture_bind_and_dirtify(texture, context,
                         location == WINED3D_LOCATION_TEXTURE_SRGB);
                 wined3d_volume_upload_data(texture, sub_resource_idx, context, &data);
@@ -219,7 +219,7 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
         case WINED3D_LOCATION_BUFFER:
             if (sub_resource->locations & (WINED3D_LOCATION_TEXTURE_RGB | WINED3D_LOCATION_TEXTURE_SRGB))
             {
-                struct wined3d_bo_address data = {sub_resource->buffer_object, NULL};
+                struct wined3d_bo_address data = {sub_resource->buffer->name, NULL};
 
                 if (sub_resource->locations & WINED3D_LOCATION_TEXTURE_RGB)
                     wined3d_texture_bind_and_dirtify(texture, context, FALSE);
