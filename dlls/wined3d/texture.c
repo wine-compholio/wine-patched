@@ -195,7 +195,7 @@ void wined3d_texture_unmap_bo_address(const struct wined3d_bo_address *data,
 }
 
 void wined3d_texture_get_memory(struct wined3d_texture *texture, unsigned int sub_resource_idx,
-        struct wined3d_bo_address *data, DWORD locations)
+        struct wined3d_bo_address *data, DWORD locations, BOOL map)
 {
     struct wined3d_texture_sub_resource *sub_resource;
 
@@ -206,7 +206,10 @@ void wined3d_texture_get_memory(struct wined3d_texture *texture, unsigned int su
     if (locations & WINED3D_LOCATION_BUFFER)
     {
         data->addr = NULL;
-        data->buffer_object = sub_resource->buffer->name;
+        if (map)
+            data->buffer_object = sub_resource->map_buffer->name;
+        else
+            data->buffer_object = sub_resource->buffer->name;
         return;
     }
     if (locations & WINED3D_LOCATION_USER_MEMORY)
@@ -308,8 +311,13 @@ static void wined3d_texture_remove_buffer_object(struct wined3d_texture *texture
     struct wined3d_gl_bo *buffer = texture->sub_resources[sub_resource_idx].buffer;
     GLuint name = buffer->name;
 
+    if (buffer != texture->sub_resources[sub_resource_idx].map_buffer)
+        ERR("Buffer is %p, map buffer is %p.\n", buffer,
+                texture->sub_resources[sub_resource_idx].map_buffer);
+
     wined3d_device_release_bo(texture->resource.device, buffer, context);
     texture->sub_resources[sub_resource_idx].buffer = NULL;
+    texture->sub_resources[sub_resource_idx].map_buffer = NULL;
     wined3d_texture_invalidate_location(texture, sub_resource_idx, WINED3D_LOCATION_BUFFER);
 
     TRACE("Deleted buffer object %u for texture %p, sub-resource %u.\n",
@@ -485,6 +493,10 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
 
     for (i = 0; i < sub_count; ++i)
     {
+        if (texture->sub_resources[i].buffer != texture->sub_resources[i].map_buffer)
+            ERR("Buffer is %p, map buffer is %p.\n", texture->sub_resources[i].buffer,
+                    texture->sub_resources[i].map_buffer);
+
         if (!(buffer = texture->sub_resources[i].buffer))
             continue;
 
@@ -497,6 +509,7 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
 
         wined3d_device_release_bo(device, buffer, context);
         texture->sub_resources[i].buffer = NULL;
+        texture->sub_resources[i].map_buffer = NULL;
     }
     if (context)
         context_release(context);
@@ -1165,6 +1178,7 @@ static void wined3d_texture_prepare_buffer_object(struct wined3d_texture *textur
 
     sub_resource->buffer = wined3d_device_get_bo(texture->resource.device,
             sub_resource->size, GL_STREAM_DRAW, GL_PIXEL_UNPACK_BUFFER, context);
+    sub_resource->map_buffer = sub_resource->buffer;
 
     TRACE("Created buffer object %u for texture %p, sub-resource %u.\n",
             sub_resource->buffer->name, texture, sub_resource_idx);
@@ -1653,7 +1667,7 @@ void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int
     if (!(flags & (WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY)))
         sub_resource->unmap_dirtify = TRUE;
 
-    wined3d_texture_get_memory(texture, sub_resource_idx, &bo_data, texture->resource.map_binding);
+    wined3d_texture_get_memory(texture, sub_resource_idx, &bo_data, texture->resource.map_binding, TRUE);
     data = wined3d_texture_map_bo_address(&bo_data, sub_resource->size,
             context->gl_info, GL_PIXEL_UNPACK_BUFFER, flags);
 
@@ -1787,7 +1801,7 @@ void wined3d_texture_unmap_internal(struct wined3d_texture *texture, unsigned in
     if (texture->resource.device->d3d_initialized)
         context = context_acquire(texture->resource.device, NULL);
 
-    wined3d_texture_get_memory(texture, sub_resource_idx, &data, texture->resource.map_binding);
+    wined3d_texture_get_memory(texture, sub_resource_idx, &data, texture->resource.map_binding, TRUE);
     wined3d_texture_unmap_bo_address(&data, context->gl_info, GL_PIXEL_UNPACK_BUFFER);
 
     if (context)
@@ -2738,9 +2752,9 @@ static BOOL wined3d_texture_copy_sysmem_location(struct wined3d_texture *texture
 
     wined3d_texture_prepare_location(texture, sub_resource_idx, context, location);
 
-    wined3d_texture_get_memory(texture, sub_resource_idx, &dst, location);
+    wined3d_texture_get_memory(texture, sub_resource_idx, &dst, location, FALSE);
     wined3d_texture_get_memory(texture, sub_resource_idx, &src,
-            texture->sub_resources[sub_resource_idx].locations);
+            texture->sub_resources[sub_resource_idx].locations, FALSE);
 
     if (dst.buffer_object)
     {
