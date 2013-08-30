@@ -206,7 +206,7 @@ void wined3d_texture_get_memory(struct wined3d_texture *texture, unsigned int su
     if (locations & WINED3D_LOCATION_BUFFER)
     {
         data->addr = NULL;
-        data->buffer_object = sub_resource->buffer_object;
+        data->buffer_object = sub_resource->buffer->name;
         return;
     }
     if (locations & WINED3D_LOCATION_USER_MEMORY)
@@ -303,18 +303,17 @@ static HRESULT wined3d_texture_init(struct wined3d_texture *texture, const struc
 
 /* Context activation is done by the caller. */
 static void wined3d_texture_remove_buffer_object(struct wined3d_texture *texture,
-        unsigned int sub_resource_idx, const struct wined3d_gl_info *gl_info)
+        unsigned int sub_resource_idx, struct wined3d_context *context)
 {
-    GLuint *buffer_object;
+    struct wined3d_gl_bo *buffer = texture->sub_resources[sub_resource_idx].buffer;
+    GLuint name = buffer->name;
 
-    buffer_object = &texture->sub_resources[sub_resource_idx].buffer_object;
-    GL_EXTCALL(glDeleteBuffers(1, buffer_object));
-    checkGLcall("glDeleteBuffers");
+    wined3d_device_release_bo(texture->resource.device, buffer, context);
+    texture->sub_resources[sub_resource_idx].buffer = NULL;
     wined3d_texture_invalidate_location(texture, sub_resource_idx, WINED3D_LOCATION_BUFFER);
-    *buffer_object = 0;
 
     TRACE("Deleted buffer object %u for texture %p, sub-resource %u.\n",
-            *buffer_object, texture, sub_resource_idx);
+            name, texture, sub_resource_idx);
 }
 
 static void wined3d_texture_update_map_binding(struct wined3d_texture *texture)
@@ -334,7 +333,7 @@ static void wined3d_texture_update_map_binding(struct wined3d_texture *texture)
                 && !wined3d_texture_load_location(texture, i, context, map_binding))
             ERR("Failed to load location %s.\n", wined3d_debug_location(map_binding));
         if (texture->resource.map_binding == WINED3D_LOCATION_BUFFER)
-            wined3d_texture_remove_buffer_object(texture, i, context->gl_info);
+            wined3d_texture_remove_buffer_object(texture, i, context);
     }
 
     if (context)
@@ -473,8 +472,7 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
     unsigned int sub_count = texture->level_count * texture->layer_count;
     struct wined3d_device *device = texture->resource.device;
     struct wined3d_context *context = NULL;
-    const struct wined3d_gl_info *gl_info;
-    GLuint buffer_object;
+    struct wined3d_gl_bo *buffer;
     unsigned int i;
 
     TRACE("texture %p.\n", texture);
@@ -487,20 +485,18 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
 
     for (i = 0; i < sub_count; ++i)
     {
-        if (!(buffer_object = texture->sub_resources[i].buffer_object))
+        if (!(buffer = texture->sub_resources[i].buffer))
             continue;
 
-        TRACE("Deleting buffer object %u.\n", buffer_object);
+        TRACE("Deleting buffer object %u.\n", buffer->name);
 
         /* We may not be able to get a context in wined3d_texture_cleanup() in
          * general, but if a buffer object was previously created we can. */
         if (!context)
-        {
             context = context_acquire(device, NULL);
-            gl_info = context->gl_info;
-        }
 
-        GL_EXTCALL(glDeleteBuffers(1, &buffer_object));
+        wined3d_device_release_bo(device, buffer, context);
+        texture->sub_resources[i].buffer = NULL;
     }
     if (context)
         context_release(context);
@@ -1159,22 +1155,19 @@ HRESULT CDECL wined3d_texture_update_desc(struct wined3d_texture *texture, UINT 
 
 /* Context activation is done by the caller. */
 static void wined3d_texture_prepare_buffer_object(struct wined3d_texture *texture,
-        unsigned int sub_resource_idx, const struct wined3d_gl_info *gl_info)
+        unsigned int sub_resource_idx, struct wined3d_context *context)
 {
     struct wined3d_texture_sub_resource *sub_resource;
 
     sub_resource = &texture->sub_resources[sub_resource_idx];
-    if (sub_resource->buffer_object)
+    if (sub_resource->buffer)
         return;
 
-    GL_EXTCALL(glGenBuffers(1, &sub_resource->buffer_object));
-    GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, sub_resource->buffer_object));
-    GL_EXTCALL(glBufferData(GL_PIXEL_UNPACK_BUFFER, sub_resource->size, NULL, GL_STREAM_DRAW));
-    GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
-    checkGLcall("Create buffer object");
+    sub_resource->buffer = wined3d_device_get_bo(texture->resource.device,
+            sub_resource->size, GL_STREAM_DRAW, GL_PIXEL_UNPACK_BUFFER, context);
 
     TRACE("Created buffer object %u for texture %p, sub-resource %u.\n",
-            sub_resource->buffer_object, texture, sub_resource_idx);
+            sub_resource->buffer->name, texture, sub_resource_idx);
 }
 
 static void wined3d_texture_force_reload(struct wined3d_texture *texture)
@@ -1300,7 +1293,7 @@ BOOL wined3d_texture_prepare_location(struct wined3d_texture *texture, unsigned 
             return TRUE;
 
         case WINED3D_LOCATION_BUFFER:
-            wined3d_texture_prepare_buffer_object(texture, sub_resource_idx, context->gl_info);
+            wined3d_texture_prepare_buffer_object(texture, sub_resource_idx, context);
             return TRUE;
 
         case WINED3D_LOCATION_TEXTURE_RGB:
@@ -1596,8 +1589,8 @@ static void wined3d_texture_unload(struct wined3d_resource *resource)
             wined3d_texture_invalidate_location(texture, i, ~WINED3D_LOCATION_DISCARDED);
         }
 
-        if (sub_resource->buffer_object)
-            wined3d_texture_remove_buffer_object(texture, i, context->gl_info);
+        if (sub_resource->buffer)
+            wined3d_texture_remove_buffer_object(texture, i, context);
 
         if (resource->type == WINED3D_RTYPE_TEXTURE_2D)
         {
