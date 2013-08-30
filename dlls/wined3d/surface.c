@@ -3080,7 +3080,7 @@ static HRESULT surface_load_texture(struct wined3d_surface *surface,
     /* Don't use PBOs for converted surfaces. During PBO conversion we look at
      * WINED3D_TEXTURE_CONVERTED but it isn't set (yet) in all cases it is
      * getting called. */
-    if ((format.convert || conversion) && texture->sub_resources[sub_resource_idx].buffer_object)
+    if ((format.convert || conversion) && texture->sub_resources[sub_resource_idx].buffer)
     {
         TRACE("Removing the pbo attached to surface %p.\n", surface);
 
