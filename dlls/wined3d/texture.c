@@ -1735,6 +1735,8 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
 
     flags = wined3d_resource_sanitize_map_flags(resource, flags);
 
+    wined3d_resource_wait_fence(&texture->resource);
+
     base_memory = wined3d_cs_emit_texture_map(device->cs, texture, sub_resource_idx, flags);
 
     if (fmt_flags & WINED3DFMT_FLAG_BROKEN_PITCH)
