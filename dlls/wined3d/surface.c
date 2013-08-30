@@ -48,7 +48,7 @@ static void surface_cleanup(struct wined3d_surface *surface)
         surface->resource.device->cs->ops->finish(surface->resource.device->cs);
     }
 
-    if (surface->resource.buffer_object || surface->rb_multisample
+    if (surface->resource.buffer || surface->rb_multisample
             || surface->rb_resolved || !list_empty(&surface->renderbuffers))
     {
         struct wined3d_renderbuffer_entry *entry, *entry2;
@@ -3734,7 +3734,7 @@ static HRESULT surface_load_texture(struct wined3d_surface *surface,
     /* Don't use PBOs for converted surfaces. During PBO conversion we look at
      * WINED3D_TEXTURE_CONVERTED but it isn't set (yet) in all cases it is
      * getting called. */
-    if ((format.convert || conversion) && surface->resource.buffer_object)
+    if ((format.convert || conversion) && surface->resource.buffer)
     {
         TRACE("Removing the pbo attached to surface %p.\n", surface);
 
