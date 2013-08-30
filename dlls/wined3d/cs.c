@@ -1971,6 +1971,9 @@ static UINT wined3d_cs_exec_update_texture(struct wined3d_cs *cs, const void *da
     device_exec_update_texture(context, op->src, op->dst);
     context_release(context);
 
+    wined3d_resource_release(&op->src->resource);
+    wined3d_resource_release(&op->dst->resource);
+
     return sizeof(*op);
 }
 
@@ -1983,6 +1986,9 @@ void wined3d_cs_emit_update_texture(struct wined3d_cs *cs, struct wined3d_textur
     op->opcode = WINED3D_CS_OP_UPDATE_TEXTURE;
     op->src = src;
     op->dst = dst;
+
+    wined3d_resource_acquire(&op->src->resource);
+    wined3d_resource_acquire(&op->dst->resource);
 
     cs->ops->submit(cs, sizeof(*op));
 }
