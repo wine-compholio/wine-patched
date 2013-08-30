@@ -3534,7 +3534,7 @@ static void wined3d_device_update_texture_3d(struct wined3d_context *context,
     for (i = 0; i < level_count; ++i)
     {
         wined3d_texture_get_memory(src_texture, src_level + i, &data,
-                src_texture->resource.map_binding);
+                src_texture->resource.map_binding, FALSE);
 
         wined3d_volume_upload_data(dst_texture, i, context, wined3d_const_bo_address(&data));
         wined3d_texture_invalidate_location(dst_texture, i, ~WINED3D_LOCATION_TEXTURE_RGB);
