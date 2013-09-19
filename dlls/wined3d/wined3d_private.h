@@ -2091,6 +2091,7 @@ struct wined3d_resource
     UINT size;
     DWORD priority;
     void *heap_memory;
+    UINT custom_row_pitch, custom_slice_pitch;
     struct list resource_list_entry;
 
     void *parent;
@@ -2314,7 +2315,6 @@ struct wined3d_surface
 
     DWORD flags;
 
-    UINT pitch;
     UINT pow2Width;
     UINT pow2Height;
 
