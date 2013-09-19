@@ -579,11 +579,13 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
     wined3d_resource_invalidate_location(&front->resource, ~WINED3D_LOCATION_DRAWABLE);
     /* If the swapeffect is DISCARD, the back buffer is undefined. That means the SYSMEM
      * and INTEXTURE copies can keep their old content if they have any defined content.
-     * If the swapeffect is COPY, the content remains the same.
-     *
-     * The FLIP swap effect is not implemented yet. We could mark WINED3D_LOCATION_DRAWABLE
-     * up to date and hope WGL flipped front and back buffers and read this data into
-     * the FBO. Don't bother about this for now. */
+     * If the swapeffect is COPY, the content remains the same. If it is FLIP however,
+     * the texture / sysmem copy needs to be reloaded from the drawable. */
+    if (swapchain->desc.swap_effect == WINED3D_SWAP_EFFECT_FLIP)
+    {
+        wined3d_resource_validate_location(&back_buffer->resource, back_buffer->container->resource.draw_binding);
+        wined3d_resource_invalidate_location(&back_buffer->resource, ~back_buffer->container->resource.draw_binding);
+    }
 
     if (fb->depth_stencil)
     {
