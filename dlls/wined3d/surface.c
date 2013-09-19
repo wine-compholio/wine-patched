@@ -399,7 +399,7 @@ HRESULT surface_create_dib_section(struct wined3d_surface *surface)
         return E_OUTOFMEMORY;
 
     b_info->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    wined3d_texture_get_pitch(surface->container, surface->texture_level, &row_pitch, &slice_pitch);
+    wined3d_resource_get_pitch(&surface->resource, &row_pitch, &slice_pitch);
     b_info->bmiHeader.biWidth = row_pitch / format->byte_count;
     b_info->bmiHeader.biHeight = 0 - surface->resource.height;
     b_info->bmiHeader.biSizeImage = slice_pitch;
@@ -1326,7 +1326,7 @@ static void surface_download_data(struct wined3d_surface *surface, const struct 
         {
             unsigned char alignment = surface->resource.device->surface_alignment;
             src_pitch = format->byte_count * surface->pow2Width;
-            wined3d_texture_get_pitch(surface->container, surface->texture_level, &dst_row_pitch, &dst_slice_pitch);
+            wined3d_resource_get_pitch(&surface->resource, &dst_row_pitch, &dst_slice_pitch);
             src_pitch = (src_pitch + alignment - 1) & ~(alignment - 1);
             mem = HeapAlloc(GetProcessHeap(), 0, src_pitch * surface->pow2Height);
         }
@@ -1674,7 +1674,7 @@ HRESULT surface_upload_from_surface(struct wined3d_surface *dst_surface, const P
     wined3d_texture_bind_and_dirtify(dst_surface->container, context, FALSE);
 
     surface_get_memory(src_surface, &data, src_surface->locations);
-    wined3d_texture_get_pitch(src_surface->container, src_surface->texture_level, &src_row_pitch, &src_slice_pitch);
+    wined3d_resource_get_pitch(&src_surface->resource, &src_row_pitch, &src_slice_pitch);
 
     wined3d_surface_upload_data(dst_surface, gl_info, src_format, src_rect,
             src_row_pitch, dst_point, FALSE, wined3d_const_bo_address(&data));
@@ -1915,20 +1915,21 @@ HRESULT wined3d_surface_update_desc(struct wined3d_surface *surface,
         surface->resource.map_binding = WINED3D_LOCATION_USER_MEMORY;
         valid_location = WINED3D_LOCATION_USER_MEMORY;
     }
-    surface->pitch = pitch;
+    surface->resource.custom_row_pitch = pitch;
+    surface->resource.custom_slice_pitch = pitch * surface->resource.height;
     surface->resource.format = texture_resource->format;
     surface->resource.multisample_type = texture_resource->multisample_type;
     surface->resource.multisample_quality = texture_resource->multisample_quality;
-    if (surface->pitch)
+    if (surface->resource.custom_row_pitch)
     {
-        surface->resource.size = height * surface->pitch;
+        surface->resource.size = height * surface->resource.custom_row_pitch;
     }
     else
     {
         /* User memory surfaces don't have the regular surface alignment. */
         surface->resource.size = wined3d_format_calculate_size(texture_resource->format,
                 1, width, height, 1);
-        surface->pitch = wined3d_format_calculate_pitch(texture_resource->format, width);
+        surface->resource.custom_row_pitch = wined3d_format_calculate_pitch(texture_resource->format, width);
     }
 
     /* The format might be changed to a format that needs conversion.
@@ -2554,8 +2555,7 @@ HRESULT wined3d_surface_map(struct wined3d_surface *surface, struct wined3d_map_
     }
     else
     {
-        wined3d_texture_get_pitch(surface->container, surface->texture_level,
-                &map_desc->row_pitch, &map_desc->slice_pitch);
+        wined3d_resource_get_pitch(&surface->resource, &map_desc->row_pitch, &map_desc->slice_pitch);
     }
 
     if (!box)
@@ -2647,7 +2647,7 @@ static void read_from_framebuffer(struct wined3d_surface *surface,
         checkGLcall("glBindBuffer");
     }
 
-    wined3d_texture_get_pitch(surface->container, surface->texture_level, &row_pitch, &slice_pitch);
+    wined3d_resource_get_pitch(&surface->resource, &row_pitch, &slice_pitch);
 
     /* Setup pixel store pack state -- to glReadPixels into the correct place */
     gl_info->gl_ops.gl.p_glPixelStorei(GL_PACK_ROW_LENGTH, row_pitch / surface->resource.format->byte_count);
@@ -3904,7 +3904,7 @@ static HRESULT surface_load_texture(struct wined3d_surface *surface,
 
     wined3d_texture_prepare_texture(texture, context, srgb);
     wined3d_texture_bind_and_dirtify(texture, context, srgb);
-    wined3d_texture_get_pitch(texture, surface->texture_level, &src_row_pitch, &src_slice_pitch);
+    wined3d_resource_get_pitch(&surface->resource, &src_row_pitch, &src_slice_pitch);
 
     width = surface->resource.width;
 
