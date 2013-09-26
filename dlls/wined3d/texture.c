@@ -1462,6 +1462,20 @@ HRESULT CDECL wined3d_texture_get_dc(struct wined3d_texture *texture, unsigned i
 
     surface = surface_from_resource(sub_resource);
 
+    if (!(surface->container->resource.format_flags & WINED3DFMT_FLAG_GETDC))
+    {
+        WARN("Cannot use GetDC on a %s surface.\n", debug_d3dformat(surface->resource.format->id));
+        return WINED3DERR_INVALIDCALL;
+    }
+
+    if (wined3d_settings.cs_multithreaded)
+    {
+        struct wined3d_device *device = surface->resource.device;
+        FIXME("Waiting for cs.\n");
+        wined3d_cs_emit_glfinish(device->cs);
+        device->cs->ops->finish(device->cs);
+    }
+
     /* Give more detailed info for ddraw. */
     if (surface->flags & SFLAG_DCINUSE)
         return WINEDDERR_DCALREADYCREATED;
