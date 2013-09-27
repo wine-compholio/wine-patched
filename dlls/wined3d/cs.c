@@ -549,6 +549,30 @@ void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *
     cs->ops->submit(cs, size);
 }
 
+static inline BOOL wined3d_cs_colorwrite_enabled(const struct wined3d_state *state, unsigned int i)
+{
+    switch (i)
+    {
+        case 0:
+            return !!state->render_states[WINED3D_RS_COLORWRITEENABLE];
+        case 1:
+            return !!state->render_states[WINED3D_RS_COLORWRITEENABLE1];
+        case 2:
+            return !!state->render_states[WINED3D_RS_COLORWRITEENABLE2];
+        case 3:
+            return !!state->render_states[WINED3D_RS_COLORWRITEENABLE3];
+        default:
+            ERR("Unexpected color target %u.\n", i);
+            return TRUE;
+    }
+}
+
+static inline BOOL wined3d_cs_depth_stencil_enabled(const struct wined3d_state *state)
+{
+    return state->render_states[WINED3D_RS_ZENABLE]
+            || state->render_states[WINED3D_RS_STENCILENABLE];
+}
+
 static UINT wined3d_cs_exec_draw(struct wined3d_cs *cs, const void *data)
 {
     struct wined3d_state *state = &cs->state;
@@ -592,6 +616,13 @@ static UINT wined3d_cs_exec_draw(struct wined3d_cs *cs, const void *data)
         if (cs->state.textures[i])
             wined3d_resource_dec_fence(&cs->state.textures[i]->resource);
     }
+    for (i = 0; i < gl_info->limits.buffers; i++)
+    {
+        if (cs->state.fb.render_targets[i] && wined3d_cs_colorwrite_enabled(&cs->state, i))
+            wined3d_resource_dec_fence(cs->state.fb.render_targets[i]->resource);
+    }
+    if (cs->state.fb.depth_stencil && wined3d_cs_depth_stencil_enabled(&cs->state))
+        wined3d_resource_dec_fence(cs->state.fb.depth_stencil->resource);
 
     return sizeof(*op);
 }
@@ -624,6 +655,13 @@ void wined3d_cs_emit_draw(struct wined3d_cs *cs, int base_vertex_idx, unsigned i
         if (state->textures[i])
             wined3d_resource_inc_fence(&state->textures[i]->resource);
     }
+    for (i = 0; i < cs->device->adapter->gl_info.limits.buffers; i++)
+    {
+        if (state->fb.render_targets[i] && wined3d_cs_colorwrite_enabled(state, i))
+            wined3d_resource_inc_fence(state->fb.render_targets[i]->resource);
+    }
+    if (state->fb.depth_stencil && wined3d_cs_depth_stencil_enabled(state))
+        wined3d_resource_inc_fence(state->fb.depth_stencil->resource);
 
     cs->ops->submit(cs, sizeof(*op));
 }
