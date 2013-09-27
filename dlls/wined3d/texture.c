@@ -104,6 +104,7 @@ static void wined3d_texture_evict_sysmem(struct wined3d_texture *texture)
         sub_resource->locations &= ~WINED3D_LOCATION_SYSMEM;
     }
     wined3d_resource_free_sysmem(&texture->resource);
+    texture->resource.map_heap_memory = NULL;
 }
 
 void wined3d_texture_validate_location(struct wined3d_texture *texture,
@@ -220,7 +221,10 @@ void wined3d_texture_get_memory(struct wined3d_texture *texture, unsigned int su
     }
     if (locations & WINED3D_LOCATION_SYSMEM)
     {
-        data->addr = texture->resource.heap_memory;
+        if (map)
+            data->addr = texture->resource.map_heap_memory;
+        else
+            data->addr = texture->resource.heap_memory;
         data->addr += sub_resource->offset;
         data->buffer_object = 0;
         return;
@@ -1105,6 +1109,7 @@ HRESULT CDECL wined3d_texture_update_desc(struct wined3d_texture *texture, UINT 
     }
 
     wined3d_resource_free_sysmem(&texture->resource);
+    texture->resource.map_heap_memory = NULL;
 
     if ((texture->row_pitch = pitch))
         texture->slice_pitch = height * pitch;
@@ -1299,6 +1304,7 @@ BOOL wined3d_texture_prepare_location(struct wined3d_texture *texture, unsigned 
                 ERR("Failed to allocate system memory.\n");
                 return FALSE;
             }
+            texture->resource.heap_memory = texture->resource.map_heap_memory;
             return TRUE;
 
         case WINED3D_LOCATION_USER_MEMORY:
@@ -1656,6 +1662,12 @@ void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int
                 ret = !!sub_resource->map_buffer;
                 break;
 
+            case WINED3D_LOCATION_SYSMEM:
+                if (!sub_resource_idx)
+                    wined3d_resource_allocate_sysmem(&texture->resource);
+                ret = !!texture->resource.heap_memory;
+                break;
+
             default:
                 ret = wined3d_texture_prepare_location(texture, sub_resource_idx,
                         context, texture->resource.map_binding);
@@ -1761,7 +1773,21 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
     if (flags & WINED3D_MAP_NOOVERWRITE)
         FIXME("WINED3D_MAP_NOOVERWRITE is not implemented yet.\n");
 
-    if (!(flags & WINED3D_MAP_DISCARD) || texture->resource.map_binding != WINED3D_LOCATION_BUFFER)
+    if (flags & WINED3D_MAP_DISCARD)
+    {
+        switch (resource->map_binding)
+        {
+            case WINED3D_LOCATION_BUFFER:
+            case WINED3D_LOCATION_SYSMEM:
+                break;
+
+            default:
+                FIXME("Implement discard maps with %s map binding.\n",
+                        wined3d_debug_location(texture->resource.map_binding));
+                wined3d_resource_wait_fence(&texture->resource);
+        }
+    }
+    else
         wined3d_resource_wait_fence(&texture->resource);
 
     base_memory = wined3d_cs_emit_texture_map(device->cs, texture, sub_resource_idx, flags);
@@ -1837,7 +1863,7 @@ void wined3d_texture_unmap_internal(struct wined3d_texture *texture, unsigned in
 }
 
 void wined3d_texture_changed(struct wined3d_texture *texture, unsigned int sub_resource_idx,
-        struct wined3d_gl_bo *swap_buffer)
+        struct wined3d_gl_bo *swap_buffer, void *swap_heap_memory)
 {
     struct wined3d_texture_sub_resource *sub_resource = &texture->sub_resources[sub_resource_idx];
 
@@ -1848,6 +1874,12 @@ void wined3d_texture_changed(struct wined3d_texture *texture, unsigned int sub_r
         wined3d_device_release_bo(device, sub_resource->buffer, context);
         context_release(context);
         sub_resource->buffer = swap_buffer;
+    }
+
+    if (swap_heap_memory && swap_heap_memory != texture->resource.heap_memory && !sub_resource_idx)
+    {
+        wined3d_resource_free_sysmem(&texture->resource);
+        texture->resource.heap_memory = swap_heap_memory;
     }
 
     wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
@@ -1877,7 +1909,8 @@ static HRESULT texture_resource_sub_resource_unmap(struct wined3d_resource *reso
 
     if (sub_resource->unmap_dirtify)
     {
-        wined3d_cs_emit_texture_changed(device->cs, texture, sub_resource_idx, sub_resource->map_buffer);
+        wined3d_cs_emit_texture_changed(device->cs, texture, sub_resource_idx, sub_resource->map_buffer,
+                resource->map_heap_memory);
         sub_resource->unmap_dirtify = FALSE;
     }
 
@@ -2332,6 +2365,7 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
     if (wined3d_texture_use_pbo(texture, gl_info))
     {
         wined3d_resource_free_sysmem(&texture->resource);
+        texture->resource.map_heap_memory = NULL;
         texture->resource.map_binding = WINED3D_LOCATION_BUFFER;
     }
 
