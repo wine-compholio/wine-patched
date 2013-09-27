@@ -486,6 +486,7 @@ static void surface_evict_sysmem(struct wined3d_surface *surface)
         return;
 
     wined3d_resource_free_sysmem(&surface->resource);
+    surface->resource.map_heap_memory = NULL;
     wined3d_resource_invalidate_location(&surface->resource, WINED3D_LOCATION_SYSMEM);
 }
 
@@ -1971,6 +1972,7 @@ HRESULT wined3d_surface_update_desc(struct wined3d_surface *surface,
 
     surface->resource.locations = 0;
     wined3d_resource_free_sysmem(&surface->resource);
+    surface->resource.map_heap_memory = NULL;
 
     width = texture_resource->width;
     height = texture_resource->height;
@@ -5462,6 +5464,7 @@ static HRESULT surface_init(struct wined3d_surface *surface, struct wined3d_text
     if (surface->resource.map_binding == WINED3D_LOCATION_DIB)
     {
         wined3d_resource_free_sysmem(&surface->resource);
+        surface->resource.map_heap_memory = NULL;
         wined3d_resource_validate_location(&surface->resource, WINED3D_LOCATION_DIB);
         wined3d_resource_invalidate_location(&surface->resource, WINED3D_LOCATION_SYSMEM);
     }
