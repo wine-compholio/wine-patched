@@ -2456,7 +2456,7 @@ struct wined3d_resource
     UINT depth;
     UINT size;
     DWORD priority;
-    void *heap_memory;
+    void *heap_memory, *map_heap_memory;
     struct list resource_list_entry;
     LONG access_fence;
 
@@ -2653,7 +2653,8 @@ void wined3d_texture_bind(struct wined3d_texture *texture,
 void wined3d_texture_bind_and_dirtify(struct wined3d_texture *texture,
         struct wined3d_context *context, BOOL srgb) DECLSPEC_HIDDEN;
 void wined3d_texture_changed(struct wined3d_texture *texture,
-        unsigned int sub_resource_idx, struct wined3d_gl_bo *swap_buffer) DECLSPEC_HIDDEN;
+        unsigned int sub_resource_idx, struct wined3d_gl_bo *swap_buffer,
+        void *swap_heap_memory) DECLSPEC_HIDDEN;
 BOOL wined3d_texture_check_block_align(const struct wined3d_texture *texture,
         unsigned int level, const struct wined3d_box *box) DECLSPEC_HIDDEN;
 GLenum wined3d_texture_get_gl_buffer(const struct wined3d_texture *texture) DECLSPEC_HIDDEN;
@@ -3036,7 +3037,8 @@ void wined3d_cs_emit_clear_rtv(struct wined3d_cs *cs, struct wined3d_rendertarge
         const RECT *rect, DWORD flags, const struct wined3d_color *color, float depth, DWORD stencil,
         const struct blit_shader *blitter) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_texture_changed(struct wined3d_cs *cs, struct wined3d_texture *texture,
-        unsigned int sub_resource_idx, struct wined3d_gl_bo *swap_buffer) DECLSPEC_HIDDEN;
+        unsigned int sub_resource_idx, struct wined3d_gl_bo *swap_buffer,
+        void *swap_heap_memory) DECLSPEC_HIDDEN;
 void *wined3d_cs_emit_texture_map(struct wined3d_cs *cs, struct wined3d_texture *texture,
         unsigned int sub_resource_idx, DWORD flags) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_texture_unmap(struct wined3d_cs *cs, struct wined3d_texture *texture,

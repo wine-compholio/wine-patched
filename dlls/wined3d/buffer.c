@@ -496,6 +496,7 @@ BYTE *buffer_get_sysmem(struct wined3d_buffer *buffer, struct wined3d_context *c
 
     if (!wined3d_resource_allocate_sysmem(&buffer->resource))
         ERR("Failed to allocate system memory.\n");
+    buffer->resource.heap_memory = buffer->resource.map_heap_memory;
 
     buffer_bind(buffer, context);
     GL_EXTCALL(glGetBufferSubData(buffer->buffer_type_hint, 0, buffer->resource.size, buffer->resource.heap_memory));
