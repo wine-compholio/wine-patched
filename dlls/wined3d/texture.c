@@ -1735,6 +1735,10 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
 
     flags = wined3d_resource_sanitize_map_flags(resource, flags);
 
+    if (flags & (WINED3D_MAP_NOOVERWRITE | WINED3D_MAP_DISCARD))
+    {
+        FIXME("Dynamic resource map is inefficient\n");
+    }
     wined3d_resource_wait_fence(&texture->resource);
 
     base_memory = wined3d_cs_emit_texture_map(device->cs, texture, sub_resource_idx, flags);
