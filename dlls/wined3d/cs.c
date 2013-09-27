@@ -519,12 +519,24 @@ static UINT wined3d_cs_exec_clear(struct wined3d_cs *cs, const void *data)
     struct wined3d_device *device;
     RECT draw_rect;
     size_t size = FIELD_OFFSET(struct wined3d_cs_clear, rects[op->rect_count]);
+    unsigned int i;
 
     device = cs->device;
     wined3d_get_draw_rect(&cs->state, &draw_rect);
     device_clear_render_targets(device, device->adapter->gl_info.limits.buffers,
             &cs->state.fb, op->rect_count, op->rects, &draw_rect, op->flags,
             &op->color, op->depth, op->stencil);
+
+    if (op->flags & WINED3DCLEAR_TARGET)
+    {
+        for (i = 0; i < device->adapter->gl_info.limits.buffers; i++)
+        {
+            if (cs->state.fb.render_targets[i])
+                wined3d_resource_dec_fence(cs->state.fb.render_targets[i]->resource);
+        }
+    }
+    if (op->flags & (WINED3DCLEAR_ZBUFFER | WINED3DCLEAR_STENCIL))
+        wined3d_resource_dec_fence(cs->state.fb.depth_stencil->resource);
 
     return size;
 }
@@ -534,6 +546,9 @@ void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *
 {
     struct wined3d_cs_clear *op;
     size_t size = FIELD_OFFSET(struct wined3d_cs_clear, rects[rect_count]);
+    const struct wined3d_state *state = &cs->device->state;
+    unsigned int i;
+
     op = cs->ops->require_space(cs, size);
     op->opcode = WINED3D_CS_OP_CLEAR;
     op->flags = flags;
@@ -542,6 +557,17 @@ void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *
     op->stencil = stencil;
     op->rect_count = rect_count;
     memcpy(op->rects, rects, sizeof(*rects) * rect_count);
+
+    if (flags & WINED3DCLEAR_TARGET)
+    {
+        for (i = 0; i < cs->device->adapter->gl_info.limits.buffers; i++)
+        {
+            if (state->fb.render_targets[i])
+                wined3d_resource_inc_fence(state->fb.render_targets[i]->resource);
+        }
+    }
+    if (flags & (WINED3DCLEAR_ZBUFFER | WINED3DCLEAR_STENCIL))
+        wined3d_resource_inc_fence(state->fb.depth_stencil->resource);
 
     cs->ops->submit(cs, size);
 }
