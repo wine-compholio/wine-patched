@@ -1828,6 +1828,8 @@ static UINT wined3d_cs_exec_clear_rtv(struct wined3d_cs *cs, const void *data)
     else
         op->blitter->depth_fill(device, op->view, &op->rect, op->flags, op->depth, op->stencil);
 
+    wined3d_resource_dec_fence(op->view->resource);
+
     return sizeof(*op);
 }
 
@@ -1847,6 +1849,8 @@ void wined3d_cs_emit_clear_rtv(struct wined3d_cs *cs, struct wined3d_rendertarge
     op->depth = depth;
     op->stencil = stencil;
     op->blitter = blitter;
+
+    wined3d_resource_inc_fence(view->resource);
 
     cs->ops->submit(cs, sizeof(*op));
 }
