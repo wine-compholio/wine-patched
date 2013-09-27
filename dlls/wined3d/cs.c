@@ -540,13 +540,24 @@ static UINT wined3d_cs_exec_clear(struct wined3d_cs *cs, const void *data)
     const struct wined3d_cs_clear *op = data;
     struct wined3d_device *device;
     RECT draw_rect;
-    unsigned int extra_rects = op->rect_count ? op->rect_count - 1 : 0;
+    unsigned int extra_rects = op->rect_count ? op->rect_count - 1 : 0, i;
 
     device = cs->device;
     wined3d_get_draw_rect(&cs->state, &draw_rect);
     device_clear_render_targets(device, device->adapter->gl_info.limits.buffers,
             &cs->state.fb, op->rect_count, op->rect_count ? op->rects : NULL, &draw_rect, op->flags,
             &op->color, op->depth, op->stencil);
+
+    if (op->flags & WINED3DCLEAR_TARGET)
+    {
+        for (i = 0; i < sizeof(cs->state.fb.render_targets) / sizeof(*cs->state.fb.render_targets); i++)
+        {
+            if (cs->state.fb.render_targets[i])
+                wined3d_resource_dec_fence(cs->state.fb.render_targets[i]->resource);
+        }
+    }
+    if (op->flags & (WINED3DCLEAR_ZBUFFER | WINED3DCLEAR_STENCIL))
+        wined3d_resource_dec_fence(cs->state.fb.depth_stencil->resource);
 
     return sizeof(*op) + sizeof(*op->rects) * extra_rects;
 }
@@ -555,8 +566,9 @@ void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *
         DWORD flags, const struct wined3d_color *color, float depth, DWORD stencil)
 {
     struct wined3d_cs_clear *op;
-    unsigned int extra_rects = rect_count ? rect_count - 1 : 0;
+    unsigned int extra_rects = rect_count ? rect_count - 1 : 0, i;
     size_t size = sizeof(*op) + sizeof(*op->rects) * extra_rects;
+    const struct wined3d_state *state = &cs->device->state;
 
     op = cs->ops->require_space(cs, size);
     op->opcode = WINED3D_CS_OP_CLEAR;
@@ -567,6 +579,17 @@ void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *
     op->color = *color;
     op->depth = depth;
     op->stencil = stencil;
+
+    if (flags & WINED3DCLEAR_TARGET)
+    {
+        for (i = 0; i < sizeof(state->fb.render_targets) / sizeof(*state->fb.render_targets); i++)
+        {
+            if (state->fb.render_targets[i])
+                wined3d_resource_inc_fence(state->fb.render_targets[i]->resource);
+        }
+    }
+    if (flags & (WINED3DCLEAR_ZBUFFER | WINED3DCLEAR_STENCIL))
+        wined3d_resource_inc_fence(state->fb.depth_stencil->resource);
 
     cs->ops->submit(cs, size);
 }
