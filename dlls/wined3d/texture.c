@@ -1643,10 +1643,26 @@ void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int
 
     if (flags & WINED3D_MAP_DISCARD)
     {
+        /* MSDN says DISCARD on sub resource 0 discards the entire texture, whereas DISCARD on all other
+         * sub resources is ignored. Currently we can do it the MSDN way for sysmem, but not for buffers. */
+        if (sub_resource_idx != 0)
+            FIXME("Discard of sub resource %u.\n", sub_resource_idx);
+
+        switch(texture->resource.map_binding)
+        {
+            case WINED3D_LOCATION_BUFFER:
+                sub_resource->map_buffer = wined3d_device_get_bo(device, sub_resource->size,
+                        GL_STREAM_DRAW, GL_PIXEL_UNPACK_BUFFER, context);
+                ret = !!sub_resource->map_buffer;
+                break;
+
+            default:
+                ret = wined3d_texture_prepare_location(texture, sub_resource_idx,
+                        context, texture->resource.map_binding);
+        }
         TRACE("WINED3D_MAP_DISCARD flag passed, marking %s as up to date.\n",
                 wined3d_debug_location(texture->resource.map_binding));
-        if ((ret = wined3d_texture_prepare_location(texture, sub_resource_idx,
-                context, texture->resource.map_binding)))
+        if (ret)
             wined3d_texture_validate_location(texture, sub_resource_idx, texture->resource.map_binding);
     }
     else
@@ -1742,11 +1758,11 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
 
     flags = wined3d_resource_sanitize_map_flags(resource, flags);
 
-    if (flags & (WINED3D_MAP_NOOVERWRITE | WINED3D_MAP_DISCARD))
-    {
-        FIXME("Dynamic resource map is inefficient\n");
-    }
-    wined3d_resource_wait_fence(&texture->resource);
+    if (flags & WINED3D_MAP_NOOVERWRITE)
+        FIXME("WINED3D_MAP_NOOVERWRITE is not implemented yet.\n");
+
+    if (!(flags & WINED3D_MAP_DISCARD) || texture->resource.map_binding != WINED3D_LOCATION_BUFFER)
+        wined3d_resource_wait_fence(&texture->resource);
 
     base_memory = wined3d_cs_emit_texture_map(device->cs, texture, sub_resource_idx, flags);
 
@@ -1820,8 +1836,20 @@ void wined3d_texture_unmap_internal(struct wined3d_texture *texture, unsigned in
     }
 }
 
-void wined3d_texture_changed(struct wined3d_texture *texture, unsigned int sub_resource_idx)
+void wined3d_texture_changed(struct wined3d_texture *texture, unsigned int sub_resource_idx,
+        struct wined3d_gl_bo *swap_buffer)
 {
+    struct wined3d_texture_sub_resource *sub_resource = &texture->sub_resources[sub_resource_idx];
+
+    if (swap_buffer && swap_buffer != sub_resource->buffer)
+    {
+        struct wined3d_device *device = texture->resource.device;
+        struct wined3d_context *context = context_acquire(device, NULL);
+        wined3d_device_release_bo(device, sub_resource->buffer, context);
+        context_release(context);
+        sub_resource->buffer = swap_buffer;
+    }
+
     wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
 }
 
@@ -1849,7 +1877,7 @@ static HRESULT texture_resource_sub_resource_unmap(struct wined3d_resource *reso
 
     if (sub_resource->unmap_dirtify)
     {
-        wined3d_cs_emit_texture_changed(device->cs, texture, sub_resource_idx);
+        wined3d_cs_emit_texture_changed(device->cs, texture, sub_resource_idx, sub_resource->map_buffer);
         sub_resource->unmap_dirtify = FALSE;
     }
 

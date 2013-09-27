@@ -384,6 +384,7 @@ struct wined3d_cs_texture_changed
     enum wined3d_cs_op opcode;
     struct wined3d_texture *texture;
     unsigned int sub_resource_idx;
+    struct wined3d_gl_bo *swap_buffer;
 };
 
 struct wined3d_cs_skip
@@ -1913,13 +1914,13 @@ static UINT wined3d_cs_exec_texture_changed(struct wined3d_cs *cs, const void *d
 {
     const struct wined3d_cs_texture_changed *op = data;
 
-    wined3d_texture_changed(op->texture, op->sub_resource_idx);
+    wined3d_texture_changed(op->texture, op->sub_resource_idx, op->swap_buffer);
 
     return sizeof(*op);
 }
 
 void wined3d_cs_emit_texture_changed(struct wined3d_cs *cs, struct wined3d_texture *texture,
-        unsigned int sub_resource_idx)
+        unsigned int sub_resource_idx, struct wined3d_gl_bo *swap_buffer)
 {
     struct wined3d_cs_texture_changed *op;
 
@@ -1927,6 +1928,7 @@ void wined3d_cs_emit_texture_changed(struct wined3d_cs *cs, struct wined3d_textu
     op->opcode = WINED3D_CS_OP_TEXTURE_CHANGED;
     op->texture = texture;
     op->sub_resource_idx = sub_resource_idx;
+    op->swap_buffer = swap_buffer;
 
     cs->ops->submit(cs, sizeof(*op));
 }
