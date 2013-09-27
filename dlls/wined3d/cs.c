@@ -1906,20 +1906,16 @@ void *wined3d_cs_emit_texture_map(struct wined3d_cs *cs, struct wined3d_texture 
     struct wined3d_cs_texture_map *op;
     void *ret;
 
-    op = cs->ops->require_space(cs, sizeof(*op));
+    op = cs->ops->require_space_prio(cs, sizeof(*op));
     op->opcode = WINED3D_CS_OP_TEXTURE_MAP;
     op->texture = texture;
     op->sub_resource_idx = sub_resource_idx;
     op->flags = flags;
     op->mem = &ret;
 
-    cs->ops->submit(cs, sizeof(*op));
+    cs->ops->submit_prio(cs, sizeof(*op));
 
-    if (flags & (WINED3D_MAP_NOOVERWRITE | WINED3D_MAP_DISCARD))
-    {
-        FIXME("Dynamic resource map is inefficient\n");
-    }
-    cs->ops->finish(cs);
+    cs->ops->finish_prio(cs);
 
     return ret;
 }
@@ -1938,12 +1934,12 @@ void wined3d_cs_emit_texture_unmap(struct wined3d_cs *cs, struct wined3d_texture
 {
     struct wined3d_cs_texture_unmap *op;
 
-    op = cs->ops->require_space(cs, sizeof(*op));
+    op = cs->ops->require_space_prio(cs, sizeof(*op));
     op->opcode = WINED3D_CS_OP_TEXTURE_UNMAP;
     op->texture = texture;
     op->sub_resource_idx = sub_resource_idx;
 
-    cs->ops->submit(cs, sizeof(*op));
+    cs->ops->submit_prio(cs, sizeof(*op));
 }
 
 static UINT wined3d_cs_exec_query_issue(struct wined3d_cs *cs, const void *data)
