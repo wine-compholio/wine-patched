@@ -3519,6 +3519,7 @@ HRESULT CDECL wined3d_device_draw_primitive(struct wined3d_device *device, UINT 
 {
     TRACE("device %p, start_vertex %u, vertex_count %u.\n", device, start_vertex, vertex_count);
 
+    wined3d_cs_emit_transfer_stateblock(device->cs, &device->state);
     wined3d_cs_emit_draw(device->cs, 0, start_vertex, vertex_count, 0, 0, FALSE);
 
     return WINED3D_OK;
@@ -3547,6 +3548,7 @@ HRESULT CDECL wined3d_device_draw_indexed_primitive(struct wined3d_device *devic
         return WINED3DERR_INVALIDCALL;
     }
 
+    wined3d_cs_emit_transfer_stateblock(device->cs, &device->state);
     wined3d_cs_emit_draw(device->cs, device->state.base_vertex_index, start_idx, index_count, 0, 0, TRUE);
 
     return WINED3D_OK;
@@ -3558,6 +3560,7 @@ void CDECL wined3d_device_draw_indexed_primitive_instanced(struct wined3d_device
     TRACE("device %p, start_idx %u, index_count %u, start_instance %u, instance_count %u.\n",
             device, start_idx, index_count, start_instance, instance_count);
 
+    wined3d_cs_emit_transfer_stateblock(device->cs, &device->state);
     wined3d_cs_emit_draw(device->cs, device->state.base_vertex_index,
             start_idx, index_count, start_instance, instance_count, TRUE);
 }
