@@ -24,8 +24,19 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3d);
 
 #define WINED3D_INITIAL_CS_SIZE 4096
 
+static CRITICAL_SECTION wined3d_cs_list_mutex;
+static CRITICAL_SECTION_DEBUG wined3d_cs_list_mutex_debug =
+{
+    0, 0, &wined3d_cs_list_mutex,
+    {&wined3d_cs_list_mutex_debug.ProcessLocksList,
+    &wined3d_cs_list_mutex_debug.ProcessLocksList},
+    0, 0, {(DWORD_PTR)(__FILE__ ": wined3d_cs_list_mutex")}
+};
+static CRITICAL_SECTION wined3d_cs_list_mutex = {&wined3d_cs_list_mutex_debug, -1, 0, 0, 0, 0};
+
 enum wined3d_cs_op
 {
+    WINED3D_CS_OP_FENCE,
     WINED3D_CS_OP_PRESENT,
     WINED3D_CS_OP_CLEAR,
     WINED3D_CS_OP_DRAW,
@@ -53,6 +64,18 @@ enum wined3d_cs_op
     WINED3D_CS_OP_SET_MATERIAL,
     WINED3D_CS_OP_RESET_STATE,
     WINED3D_CS_OP_DESTROY_OBJECT,
+    WINED3D_CS_OP_STOP,
+};
+
+struct wined3d_cs_stop
+{
+    enum wined3d_cs_op opcode;
+};
+
+struct wined3d_cs_fence
+{
+    enum wined3d_cs_op opcode;
+    BOOL *signalled;
 };
 
 struct wined3d_cs_present
@@ -260,7 +283,134 @@ struct wined3d_cs_destroy_object
     void *object;
 };
 
-static void wined3d_cs_exec_present(struct wined3d_cs *cs, const void *data)
+/* FIXME: The list synchronization probably isn't particularly fast. */
+static void wined3d_cs_list_enqueue(struct wined3d_cs_list *list, struct wined3d_cs_block *block)
+{
+    EnterCriticalSection(&wined3d_cs_list_mutex);
+    list_add_tail(&list->blocks, &block->entry);
+    LeaveCriticalSection(&wined3d_cs_list_mutex);
+}
+
+static struct wined3d_cs_block *wined3d_cs_list_dequeue(struct wined3d_cs_list *list)
+{
+    struct list *head;
+
+    EnterCriticalSection(&wined3d_cs_list_mutex);
+    if (!(head = list_head(&list->blocks)))
+    {
+        LeaveCriticalSection(&wined3d_cs_list_mutex);
+        return NULL;
+    }
+    list_remove(head);
+    LeaveCriticalSection(&wined3d_cs_list_mutex);
+
+    return LIST_ENTRY(head, struct wined3d_cs_block, entry);
+}
+
+static struct wined3d_cs_block *wined3d_cs_list_dequeue_blocking(struct wined3d_cs_list *list)
+{
+    struct wined3d_cs_block *block;
+
+    /* FIXME: Use an event to wait after a couple of spins. */
+    for (;;)
+    {
+        if ((block = wined3d_cs_list_dequeue(list)))
+            return block;
+    }
+}
+
+static void wined3d_cs_list_init(struct wined3d_cs_list *list)
+{
+    list_init(&list->blocks);
+}
+
+static struct wined3d_cs_block *wined3d_cs_get_thread_block(const struct wined3d_cs *cs)
+{
+    return TlsGetValue(cs->tls_idx);
+}
+
+static void wined3d_cs_set_thread_block(const struct wined3d_cs *cs, struct wined3d_cs_block *block)
+{
+    if (!TlsSetValue(cs->tls_idx, block))
+        ERR("Failed to set thread block.\n");
+}
+
+static void wined3d_cs_flush(struct wined3d_cs *cs)
+{
+    wined3d_cs_list_enqueue(&cs->exec_list, wined3d_cs_get_thread_block(cs));
+    wined3d_cs_set_thread_block(cs, NULL);
+}
+
+static struct wined3d_cs_block *wined3d_cs_get_block(struct wined3d_cs *cs)
+{
+    struct wined3d_cs_block *block;
+
+    if (!(block = wined3d_cs_list_dequeue(&cs->free_list)))
+    {
+        if (!(block = HeapAlloc(GetProcessHeap(), 0, sizeof(*block))))
+        {
+            ERR("Failed to get new block.\n");
+            return NULL;
+        }
+    }
+
+    block->pos = 0;
+
+    return block;
+}
+
+static void *wined3d_cs_mt_require_space(struct wined3d_cs *cs, size_t size)
+{
+    struct wined3d_cs_block *block = wined3d_cs_get_thread_block(cs);
+    void *data;
+
+    if (!block || block->pos + size > sizeof(block->data))
+    {
+        if (block)
+            wined3d_cs_flush(cs);
+        block = wined3d_cs_get_block(cs);
+        wined3d_cs_set_thread_block(cs, block);
+    }
+
+    data = &block->data[block->pos];
+    block->pos += size;
+
+    return data;
+}
+
+static UINT wined3d_cs_exec_fence(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_fence *op = data;
+
+    InterlockedExchange(op->signalled, TRUE);
+
+    return sizeof(*op);
+}
+
+static void wined3d_cs_emit_fence(struct wined3d_cs *cs, BOOL *signalled)
+{
+    struct wined3d_cs_fence *op;
+
+    *signalled = FALSE;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_FENCE;
+    op->signalled = signalled;
+}
+
+static void wined3d_cs_flush_and_wait(struct wined3d_cs *cs)
+{
+    BOOL fence;
+
+    wined3d_cs_emit_fence(cs, &fence);
+    wined3d_cs_flush(cs);
+
+    /* A busy wait should be fine, we're not supposed to have to wait very
+     * long. */
+    while (!InterlockedCompareExchange(&fence, TRUE, TRUE));
+}
+
+static UINT wined3d_cs_exec_present(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_present *op = data;
     struct wined3d_swapchain *swapchain;
@@ -269,6 +419,8 @@ static void wined3d_cs_exec_present(struct wined3d_cs *cs, const void *data)
     wined3d_swapchain_set_window(swapchain, op->dst_window_override);
 
     swapchain->swapchain_ops->swapchain_present(swapchain, &op->src_rect, &op->dst_rect, op->flags);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *swapchain,
@@ -287,17 +439,20 @@ void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *sw
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_clear(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_clear(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_clear *op = data;
     struct wined3d_device *device;
     RECT draw_rect;
+    size_t size = FIELD_OFFSET(struct wined3d_cs_clear, rects[op->rect_count]);
 
     device = cs->device;
     wined3d_get_draw_rect(&device->state, &draw_rect);
     device_clear_render_targets(device, device->adapter->gl_info.limits.buffers,
             &cs->state.fb, op->rect_count, op->rects, &draw_rect, op->flags,
             &op->color, op->depth, op->stencil);
+
+    return size;
 }
 
 void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *rects,
@@ -317,7 +472,7 @@ void wined3d_cs_emit_clear(struct wined3d_cs *cs, DWORD rect_count, const RECT *
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_draw(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_draw(struct wined3d_cs *cs, const void *data)
 {
     struct wined3d_state *state = &cs->device->state;
     const struct wined3d_cs_draw *op = data;
@@ -331,6 +486,8 @@ static void wined3d_cs_exec_draw(struct wined3d_cs *cs, const void *data)
 
     draw_primitive(cs->device, state, op->base_vertex_idx, op->start_idx,
             op->index_count, op->start_instance, op->instance_count, op->indexed);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_draw(struct wined3d_cs *cs, int base_vertex_idx, unsigned int start_idx,
@@ -350,12 +507,14 @@ void wined3d_cs_emit_draw(struct wined3d_cs *cs, int base_vertex_idx, unsigned i
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_predication(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_predication(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_predication *op = data;
 
     cs->state.predicate = op->predicate;
     cs->state.predicate_value = op->value;
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_predication(struct wined3d_cs *cs, struct wined3d_query *predicate, BOOL value)
@@ -370,12 +529,14 @@ void wined3d_cs_emit_set_predication(struct wined3d_cs *cs, struct wined3d_query
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_viewport(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_viewport(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_viewport *op = data;
 
     cs->state.viewport = op->viewport;
     device_invalidate_state(cs->device, STATE_VIEWPORT);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_viewport(struct wined3d_cs *cs, const struct wined3d_viewport *viewport)
@@ -389,12 +550,14 @@ void wined3d_cs_emit_set_viewport(struct wined3d_cs *cs, const struct wined3d_vi
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_scissor_rect(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_scissor_rect(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_scissor_rect *op = data;
 
     cs->state.scissor_rect = op->rect;
     device_invalidate_state(cs->device, STATE_SCISSORRECT);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_scissor_rect(struct wined3d_cs *cs, const RECT *rect)
@@ -408,12 +571,14 @@ void wined3d_cs_emit_set_scissor_rect(struct wined3d_cs *cs, const RECT *rect)
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_rendertarget_view(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_rendertarget_view(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_rendertarget_view *op = data;
 
     cs->state.fb.render_targets[op->view_idx] = op->view;
     device_invalidate_state(cs->device, STATE_FRAMEBUFFER);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_rendertarget_view(struct wined3d_cs *cs, unsigned int view_idx,
@@ -429,7 +594,7 @@ void wined3d_cs_emit_set_rendertarget_view(struct wined3d_cs *cs, unsigned int v
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_depth_stencil_view(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_depth_stencil_view(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_depth_stencil_view *op = data;
     struct wined3d_device *device = cs->device;
@@ -468,6 +633,8 @@ static void wined3d_cs_exec_set_depth_stencil_view(struct wined3d_cs *cs, const 
     }
 
     device_invalidate_state(device, STATE_FRAMEBUFFER);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_depth_stencil_view(struct wined3d_cs *cs, struct wined3d_rendertarget_view *view)
@@ -481,12 +648,14 @@ void wined3d_cs_emit_set_depth_stencil_view(struct wined3d_cs *cs, struct wined3
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_vertex_declaration(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_vertex_declaration(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_vertex_declaration *op = data;
 
     cs->state.vertex_declaration = op->declaration;
     device_invalidate_state(cs->device, STATE_VDECL);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_vertex_declaration(struct wined3d_cs *cs, struct wined3d_vertex_declaration *declaration)
@@ -500,7 +669,7 @@ void wined3d_cs_emit_set_vertex_declaration(struct wined3d_cs *cs, struct wined3
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_stream_source(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_stream_source(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_stream_source *op = data;
     struct wined3d_stream_state *stream;
@@ -518,6 +687,8 @@ static void wined3d_cs_exec_set_stream_source(struct wined3d_cs *cs, const void 
         InterlockedDecrement(&prev->resource.bind_count);
 
     device_invalidate_state(cs->device, STATE_STREAMSRC);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_stream_source(struct wined3d_cs *cs, UINT stream_idx,
@@ -535,7 +706,7 @@ void wined3d_cs_emit_set_stream_source(struct wined3d_cs *cs, UINT stream_idx,
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_stream_source_freq(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_stream_source_freq(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_stream_source_freq *op = data;
     struct wined3d_stream_state *stream;
@@ -545,6 +716,8 @@ static void wined3d_cs_exec_set_stream_source_freq(struct wined3d_cs *cs, const 
     stream->flags = op->flags;
 
     device_invalidate_state(cs->device, STATE_STREAMSRC);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_stream_source_freq(struct wined3d_cs *cs, UINT stream_idx, UINT frequency, UINT flags)
@@ -560,7 +733,7 @@ void wined3d_cs_emit_set_stream_source_freq(struct wined3d_cs *cs, UINT stream_i
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_stream_output(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_stream_output(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_stream_output *op = data;
     struct wined3d_stream_output *stream;
@@ -575,6 +748,8 @@ static void wined3d_cs_exec_set_stream_output(struct wined3d_cs *cs, const void 
         InterlockedIncrement(&op->buffer->resource.bind_count);
     if (prev)
         InterlockedDecrement(&prev->resource.bind_count);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_stream_output(struct wined3d_cs *cs, UINT stream_idx,
@@ -591,7 +766,7 @@ void wined3d_cs_emit_set_stream_output(struct wined3d_cs *cs, UINT stream_idx,
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_index_buffer(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_index_buffer(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_index_buffer *op = data;
     struct wined3d_buffer *prev;
@@ -607,6 +782,8 @@ static void wined3d_cs_exec_set_index_buffer(struct wined3d_cs *cs, const void *
         InterlockedDecrement(&prev->resource.bind_count);
 
     device_invalidate_state(cs->device, STATE_INDEXBUFFER);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_index_buffer(struct wined3d_cs *cs, struct wined3d_buffer *buffer,
@@ -623,7 +800,7 @@ void wined3d_cs_emit_set_index_buffer(struct wined3d_cs *cs, struct wined3d_buff
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_constant_buffer(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_constant_buffer(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_constant_buffer *op = data;
     struct wined3d_buffer *prev;
@@ -637,6 +814,7 @@ static void wined3d_cs_exec_set_constant_buffer(struct wined3d_cs *cs, const voi
         InterlockedDecrement(&prev->resource.bind_count);
 
     device_invalidate_state(cs->device, STATE_CONSTANT_BUFFER(op->type));
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_constant_buffer(struct wined3d_cs *cs, enum wined3d_shader_type type,
@@ -653,7 +831,7 @@ void wined3d_cs_emit_set_constant_buffer(struct wined3d_cs *cs, enum wined3d_sha
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_texture(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_texture(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_gl_info *gl_info = &cs->device->adapter->gl_info;
     const struct wined3d_d3d_info *d3d_info = &cs->device->adapter->d3d_info;
@@ -730,6 +908,8 @@ static void wined3d_cs_exec_set_texture(struct wined3d_cs *cs, const void *data)
 
     if (new_use_color_key)
         device_invalidate_state(cs->device, STATE_COLOR_KEY);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_texture(struct wined3d_cs *cs, UINT stage, struct wined3d_texture *texture)
@@ -744,12 +924,14 @@ void wined3d_cs_emit_set_texture(struct wined3d_cs *cs, UINT stage, struct wined
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_shader_resource_view(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_shader_resource_view(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_shader_resource_view *op = data;
 
     cs->state.shader_resource_view[op->type][op->view_idx] = op->view;
     device_invalidate_state(cs->device, STATE_SHADER_RESOURCE_BINDING);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_shader_resource_view(struct wined3d_cs *cs, enum wined3d_shader_type type,
@@ -766,12 +948,14 @@ void wined3d_cs_emit_set_shader_resource_view(struct wined3d_cs *cs, enum wined3
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_sampler(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_sampler(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_sampler *op = data;
 
     cs->state.sampler[op->type][op->sampler_idx] = op->sampler;
     device_invalidate_state(cs->device, STATE_SHADER_RESOURCE_BINDING);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_sampler(struct wined3d_cs *cs, enum wined3d_shader_type type,
@@ -788,13 +972,15 @@ void wined3d_cs_emit_set_sampler(struct wined3d_cs *cs, enum wined3d_shader_type
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_shader(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_shader(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_shader *op = data;
 
     cs->state.shader[op->type] = op->shader;
     device_invalidate_state(cs->device, STATE_SHADER(op->type));
     device_invalidate_state(cs->device, STATE_SHADER_RESOURCE_BINDING);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_shader(struct wined3d_cs *cs, enum wined3d_shader_type type, struct wined3d_shader *shader)
@@ -809,12 +995,14 @@ void wined3d_cs_emit_set_shader(struct wined3d_cs *cs, enum wined3d_shader_type 
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_render_state(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_render_state(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_render_state *op = data;
 
     cs->state.render_states[op->state] = op->value;
     device_invalidate_state(cs->device, STATE_RENDER(op->state));
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_render_state(struct wined3d_cs *cs, enum wined3d_render_state state, DWORD value)
@@ -829,12 +1017,14 @@ void wined3d_cs_emit_set_render_state(struct wined3d_cs *cs, enum wined3d_render
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_texture_state(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_texture_state(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_texture_state *op = data;
 
     cs->state.texture_states[op->stage][op->state] = op->value;
     device_invalidate_state(cs->device, STATE_TEXTURESTAGE(op->stage, op->state));
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_texture_state(struct wined3d_cs *cs, UINT stage,
@@ -851,12 +1041,14 @@ void wined3d_cs_emit_set_texture_state(struct wined3d_cs *cs, UINT stage,
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_sampler_state(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_sampler_state(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_sampler_state *op = data;
 
     cs->state.sampler_states[op->sampler_idx][op->state] = op->value;
     device_invalidate_state(cs->device, STATE_SAMPLER(op->sampler_idx));
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_sampler_state(struct wined3d_cs *cs, UINT sampler_idx,
@@ -873,13 +1065,15 @@ void wined3d_cs_emit_set_sampler_state(struct wined3d_cs *cs, UINT sampler_idx,
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_transform(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_transform(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_transform *op = data;
 
     cs->state.transforms[op->state] = op->matrix;
     if (op->state < WINED3D_TS_WORLD_MATRIX(cs->device->adapter->d3d_info.limits.ffp_vertex_blend_matrices))
         device_invalidate_state(cs->device, STATE_TRANSFORM(op->state));
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_transform(struct wined3d_cs *cs, enum wined3d_transform_state state,
@@ -895,12 +1089,14 @@ void wined3d_cs_emit_set_transform(struct wined3d_cs *cs, enum wined3d_transform
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_clip_plane(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_clip_plane(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_clip_plane *op = data;
 
     cs->state.clip_planes[op->plane_idx] = op->plane;
     device_invalidate_state(cs->device, STATE_CLIPPLANE(op->plane_idx));
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_clip_plane(struct wined3d_cs *cs, UINT plane_idx, const struct wined3d_vec4 *plane)
@@ -915,7 +1111,7 @@ void wined3d_cs_emit_set_clip_plane(struct wined3d_cs *cs, UINT plane_idx, const
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_color_key(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_color_key(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_color_key *op = data;
     struct wined3d_texture *texture = op->texture;
@@ -976,6 +1172,8 @@ static void wined3d_cs_exec_set_color_key(struct wined3d_cs *cs, const void *dat
                 break;
         }
     }
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_color_key(struct wined3d_cs *cs, struct wined3d_texture *texture,
@@ -998,12 +1196,14 @@ void wined3d_cs_emit_set_color_key(struct wined3d_cs *cs, struct wined3d_texture
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_set_material(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_set_material(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_set_material *op = data;
 
     cs->state.material = op->material;
     device_invalidate_state(cs->device, STATE_MATERIAL);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_set_material(struct wined3d_cs *cs, const struct wined3d_material *material)
@@ -1017,7 +1217,7 @@ void wined3d_cs_emit_set_material(struct wined3d_cs *cs, const struct wined3d_ma
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_reset_state(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_reset_state(struct wined3d_cs *cs, const void *data)
 {
     struct wined3d_adapter *adapter = cs->device->adapter;
     HRESULT hr;
@@ -1027,6 +1227,8 @@ static void wined3d_cs_exec_reset_state(struct wined3d_cs *cs, const void *data)
     if (FAILED(hr = state_init(&cs->state, &adapter->gl_info, &adapter->d3d_info,
             WINED3D_STATE_NO_REF | WINED3D_STATE_INIT_DEFAULT)))
         ERR("Failed to initialize CS state, hr %#x.\n", hr);
+
+    return sizeof(struct wined3d_cs_reset_state);
 }
 
 void wined3d_cs_emit_reset_state(struct wined3d_cs *cs)
@@ -1039,11 +1241,13 @@ void wined3d_cs_emit_reset_state(struct wined3d_cs *cs)
     cs->ops->submit(cs);
 }
 
-static void wined3d_cs_exec_destroy_object(struct wined3d_cs *cs, const void *data)
+static UINT wined3d_cs_exec_destroy_object(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_destroy_object *op = data;
 
     op->callback(op->object);
+
+    return sizeof(*op);
 }
 
 void wined3d_cs_emit_destroy_object(struct wined3d_cs *cs, void (*callback)(void *object), void *object)
@@ -1058,8 +1262,9 @@ void wined3d_cs_emit_destroy_object(struct wined3d_cs *cs, void (*callback)(void
     cs->ops->submit(cs);
 }
 
-static void (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void *data) =
+static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void *data) =
 {
+    /* WINED3D_CS_OP_FENCE                      */ wined3d_cs_exec_fence,
     /* WINED3D_CS_OP_PRESENT                    */ wined3d_cs_exec_present,
     /* WINED3D_CS_OP_CLEAR                      */ wined3d_cs_exec_clear,
     /* WINED3D_CS_OP_DRAW                       */ wined3d_cs_exec_draw,
@@ -1119,6 +1324,58 @@ static const struct wined3d_cs_ops wined3d_cs_st_ops =
     wined3d_cs_st_submit,
 };
 
+static const struct wined3d_cs_ops wined3d_cs_mt_ops =
+{
+    wined3d_cs_mt_require_space,
+    wined3d_cs_flush_and_wait,
+};
+
+/* FIXME: wined3d_device_uninit_3d() should either flush and wait, or be an
+ * OP itself. */
+static void wined3d_cs_emit_stop(struct wined3d_cs *cs)
+{
+    struct wined3d_cs_stop *op;
+
+    op = wined3d_cs_mt_require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_STOP;
+
+    wined3d_cs_flush(cs);
+}
+
+static DWORD WINAPI wined3d_cs_run(void *thread_param)
+{
+    struct wined3d_cs *cs = thread_param;
+
+    TRACE("Started.\n");
+
+    for (;;)
+    {
+        struct wined3d_cs_block *block;
+        UINT pos = 0;
+
+        block = wined3d_cs_list_dequeue_blocking(&cs->exec_list);
+        while (pos < block->pos)
+        {
+            enum wined3d_cs_op opcode = *(const enum wined3d_cs_op *)&block->data[pos];
+
+            if (opcode >= WINED3D_CS_OP_STOP)
+            {
+                if (opcode > WINED3D_CS_OP_STOP)
+                    ERR("Invalid opcode %#x.\n", opcode);
+                goto done;
+            }
+
+            pos += wined3d_cs_op_handlers[opcode](cs, &block->data[pos]);
+        }
+
+        wined3d_cs_list_enqueue(&cs->free_list, block);
+    }
+
+done:
+    TRACE("Stopped.\n");
+    return 0;
+}
+
 struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device)
 {
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
@@ -1145,12 +1402,60 @@ struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device)
         return NULL;
     }
 
+    if ((cs->tls_idx = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+    {
+        ERR("Failed to allocate cs TLS index, err %#x.\n", GetLastError());
+        HeapFree(GetProcessHeap(), 0, cs->data);
+        HeapFree(GetProcessHeap(), 0, cs);
+        return NULL;
+    }
+
+    if (wined3d_settings.cs_multithreaded)
+    {
+        cs->ops = &wined3d_cs_mt_ops;
+
+        wined3d_cs_list_init(&cs->free_list);
+        wined3d_cs_list_init(&cs->exec_list);
+
+        if (!(cs->thread = CreateThread(NULL, 0, wined3d_cs_run, cs, 0, NULL)))
+        {
+            ERR("Failed to create wined3d command stream thread.\n");
+            if (!TlsFree(cs->tls_idx))
+                ERR("Failed to free cs TLS index, err %#x.\n", GetLastError());
+            HeapFree(GetProcessHeap(), 0, cs->data);
+            HeapFree(GetProcessHeap(), 0, cs);
+            return NULL;
+        }
+    }
+
     return cs;
 }
 
 void wined3d_cs_destroy(struct wined3d_cs *cs)
 {
+    DWORD ret;
+
     state_cleanup(&cs->state);
+
+    if (wined3d_settings.cs_multithreaded)
+    {
+        wined3d_cs_emit_stop(cs);
+
+        ret = WaitForSingleObject(cs->thread, INFINITE);
+        CloseHandle(cs->thread);
+        if (ret != WAIT_OBJECT_0)
+            ERR("Wait failed (%#x).\n", ret);
+
+        /* FIXME: Cleanup the block lists on thread exit. */
+#if 0
+        wined3d_cs_list_cleanup(&cs->exec_list);
+        wined3d_cs_list_cleanup(&cs->free_list);
+#endif
+    }
+
+    if (!TlsFree(cs->tls_idx))
+        ERR("Failed to free cs TLS index, err %#x.\n", GetLastError());
+
     HeapFree(GetProcessHeap(), 0, cs->data);
     HeapFree(GetProcessHeap(), 0, cs);
 }
