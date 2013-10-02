@@ -237,6 +237,13 @@ HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *
     return WINED3D_OK;
 }
 
+void wined3d_resource_cleanup_cs(struct wined3d_resource *resource)
+{
+    wined3d_resource_free_sysmem(resource);
+    resource->map_heap_memory = NULL;
+    context_resource_released(resource->device, resource, resource->type);
+}
+
 void resource_cleanup(struct wined3d_resource *resource)
 {
     const struct wined3d *d3d = resource->device->wined3d;
@@ -249,10 +256,8 @@ void resource_cleanup(struct wined3d_resource *resource)
         adapter_adjust_memory(resource->device->adapter, (INT64)0 - resource->size);
     }
 
-    wined3d_resource_free_sysmem(resource);
-    resource->map_heap_memory = NULL;
-
     device_resource_released(resource->device, resource);
+    wined3d_cs_emit_resource_cleanup(resource->device->cs, resource);
 }
 
 void resource_unload(struct wined3d_resource *resource)
