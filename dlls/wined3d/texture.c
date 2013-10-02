@@ -127,6 +127,8 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
 
     wined3d_texture_unload_gl_texture(texture);
     resource_cleanup(&texture->resource);
+    if (wined3d_settings.cs_multithreaded)
+        texture->resource.device->cs->ops->finish(texture->resource.device->cs);
 }
 
 void wined3d_texture_set_swapchain(struct wined3d_texture *texture, struct wined3d_swapchain *swapchain)
