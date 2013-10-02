@@ -586,6 +586,9 @@ ULONG CDECL wined3d_buffer_decref(struct wined3d_buffer *buffer)
         }
 
         resource_cleanup(&buffer->resource);
+        if (wined3d_settings.cs_multithreaded)
+            buffer->resource.device->cs->ops->finish(buffer->resource.device->cs);
+
         buffer->resource.parent_ops->wined3d_object_destroyed(buffer->resource.parent);
         HeapFree(GetProcessHeap(), 0, buffer->maps);
         HeapFree(GetProcessHeap(), 0, buffer);
@@ -1355,6 +1358,8 @@ static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device 
         ERR("Out of memory.\n");
         buffer_unload(&buffer->resource);
         resource_cleanup(&buffer->resource);
+        if (wined3d_settings.cs_multithreaded)
+            buffer->resource.device->cs->ops->finish(buffer->resource.device->cs);
         return E_OUTOFMEMORY;
     }
     buffer->maps_size = 1;
@@ -1365,6 +1370,8 @@ static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device 
         buffer_unload(&buffer->resource);
         resource_cleanup(&buffer->resource);
         HeapFree(GetProcessHeap(), 0, buffer->maps);
+        if (wined3d_settings.cs_multithreaded)
+            buffer->resource.device->cs->ops->finish(buffer->resource.device->cs);
         return hr;
     }
 
