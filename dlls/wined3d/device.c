@@ -1127,8 +1127,6 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
 
     if (device->logo_texture)
         wined3d_texture_decref(device->logo_texture);
-    if (device->cursor_texture)
-        wined3d_texture_decref(device->cursor_texture);
 
     /* Release the buffers (with sanity checks).
      * FIXME: Move this move into a separate patch. I think the idea
@@ -4301,48 +4299,6 @@ void CDECL wined3d_device_set_depth_stencil_view(struct wined3d_device *device, 
         wined3d_rendertarget_view_decref(prev);
 }
 
-static struct wined3d_texture *wined3d_device_create_cursor_texture(struct wined3d_device *device,
-        struct wined3d_surface *cursor_image)
-{
-    struct wined3d_sub_resource_data data;
-    struct wined3d_resource_desc desc;
-    struct wined3d_map_desc map_desc;
-    struct wined3d_texture *texture;
-    HRESULT hr;
-
-    if (FAILED(wined3d_surface_map(cursor_image, &map_desc, NULL, WINED3D_MAP_READONLY)))
-    {
-        ERR("Failed to map source surface.\n");
-        return NULL;
-    }
-
-    data.data = map_desc.data;
-    data.row_pitch = map_desc.row_pitch;
-    data.slice_pitch = map_desc.slice_pitch;
-
-    desc.resource_type = WINED3D_RTYPE_TEXTURE_2D;
-    desc.format = WINED3DFMT_B8G8R8A8_UNORM;
-    desc.multisample_type = WINED3D_MULTISAMPLE_NONE;
-    desc.multisample_quality = 0;
-    desc.usage = WINED3DUSAGE_DYNAMIC;
-    desc.pool = WINED3D_POOL_DEFAULT;
-    desc.width = cursor_image->resource.width;
-    desc.height = cursor_image->resource.height;
-    desc.depth = 1;
-    desc.size = 0;
-
-    hr = wined3d_texture_create(device, &desc, 1, WINED3D_TEXTURE_CREATE_MAPPABLE,
-            &data, NULL, &wined3d_null_parent_ops, &texture);
-    wined3d_surface_unmap(cursor_image);
-    if (FAILED(hr))
-    {
-        ERR("Failed to create cursor texture.\n");
-        return NULL;
-    }
-
-    return texture;
-}
-
 HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device,
         UINT x_hotspot, UINT y_hotspot, struct wined3d_texture *texture, unsigned int sub_resource_idx)
 {
@@ -4360,12 +4316,6 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
         return WINED3DERR_INVALIDCALL;
 
     cursor_image = surface_from_resource(sub_resource);
-
-    if (device->cursor_texture)
-    {
-        wined3d_texture_decref(device->cursor_texture);
-        device->cursor_texture = NULL;
-    }
 
     if (cursor_image->resource.format->id != WINED3DFMT_B8G8R8A8_UNORM)
     {
@@ -4394,11 +4344,6 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
      * release it after setting the cursor image. Windows doesn't
      * addref the set surface, so we can't do this either without
      * creating circular refcount dependencies. */
-    if (!(device->cursor_texture = wined3d_device_create_cursor_texture(device, cursor_image)))
-    {
-        ERR("Failed to create cursor texture.\n");
-        return WINED3DERR_INVALIDCALL;
-    }
 
     if (cursor_image->resource.width == 32 && cursor_image->resource.height == 32)
     {
@@ -4502,10 +4447,6 @@ BOOL CDECL wined3d_device_show_cursor(struct wined3d_device *device, BOOL show)
             SetCursor(device->hardwareCursor);
         else
             SetCursor(NULL);
-    }
-    else if (device->cursor_texture)
-    {
-        device->bCursorVisible = show;
     }
 
     return oldVisible;
@@ -4663,11 +4604,6 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
         {
             wined3d_texture_decref(device->logo_texture);
             device->logo_texture = NULL;
-        }
-        if (device->cursor_texture)
-        {
-            wined3d_texture_decref(device->cursor_texture);
-            device->cursor_texture = NULL;
         }
     }
 
