@@ -2233,7 +2233,6 @@ struct wined3d_device
     UINT                    xScreenSpace;
     UINT                    yScreenSpace;
     UINT                    cursorWidth, cursorHeight;
-    struct wined3d_texture *cursor_texture;
     HCURSOR                 hardwareCursor;
 
     /* The Wine logo texture */
