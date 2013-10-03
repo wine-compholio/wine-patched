@@ -460,35 +460,6 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
                 NULL, WINED3D_TEXF_POINT);
     }
 
-    if (swapchain->device->bCursorVisible && swapchain->device->cursor_texture
-            && !swapchain->device->hardwareCursor)
-    {
-        struct wined3d_surface *cursor = surface_from_resource(
-                wined3d_texture_get_sub_resource(swapchain->device->cursor_texture, 0));
-        RECT destRect =
-        {
-            swapchain->device->xScreenSpace - swapchain->device->xHotSpot,
-            swapchain->device->yScreenSpace - swapchain->device->yHotSpot,
-            swapchain->device->xScreenSpace + swapchain->device->cursorWidth - swapchain->device->xHotSpot,
-            swapchain->device->yScreenSpace + swapchain->device->cursorHeight - swapchain->device->yHotSpot,
-        };
-        RECT src_rect =
-        {
-            0, 0,
-            swapchain->device->cursor_texture->resource.width,
-            swapchain->device->cursor_texture->resource.height
-        };
-        const RECT clip_rect = {0, 0, back_buffer->resource.width, back_buffer->resource.height};
-
-        TRACE("Rendering the software cursor.\n");
-
-        if (swapchain->desc.windowed)
-            MapWindowPoints(NULL, swapchain->win_handle, (POINT *)&destRect, 2);
-        if (wined3d_clip_blit(&clip_rect, &destRect, &src_rect))
-            wined3d_surface_blt(back_buffer, &destRect, cursor, &src_rect, WINEDDBLT_ALPHATEST,
-                    NULL, WINED3D_TEXF_POINT);
-    }
-
     TRACE("Presenting HDC %p.\n", context->hdc);
 
     render_to_fbo = swapchain->render_to_fbo;
