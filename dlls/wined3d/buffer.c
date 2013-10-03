@@ -1193,6 +1193,13 @@ static void wined3d_buffer_location_invalidated(struct wined3d_resource *resourc
     ERR("Not yet implemented.\n");
 }
 
+/* Context activation is done by the caller. */
+static void wined3d_buffer_load_location(struct wined3d_resource *resource,
+        struct wined3d_context *context, DWORD location)
+{
+    ERR("Not yet implemented.\n");
+}
+
 static const struct wined3d_resource_ops buffer_resource_ops =
 {
     buffer_resource_incref,
@@ -1201,6 +1208,7 @@ static const struct wined3d_resource_ops buffer_resource_ops =
     buffer_resource_sub_resource_map,
     buffer_resource_sub_resource_unmap,
     wined3d_buffer_location_invalidated,
+    wined3d_buffer_load_location,
 };
 
 static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device *device,
