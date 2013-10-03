@@ -1223,6 +1223,13 @@ static void wined3d_surface_location_invalidated(struct wined3d_resource *resour
         wined3d_texture_set_dirty(surface->container);
 }
 
+/* Context activation is done by the caller. */
+static void wined3d_surface_load_location(struct wined3d_resource *resource,
+        struct wined3d_context *context, DWORD location)
+{
+    ERR("Not yet implemented.\n");
+}
+
 static const struct wined3d_resource_ops surface_resource_ops =
 {
     surface_resource_incref,
@@ -1231,6 +1238,7 @@ static const struct wined3d_resource_ops surface_resource_ops =
     surface_resource_sub_resource_map,
     surface_resource_sub_resource_unmap,
     wined3d_surface_location_invalidated,
+    wined3d_surface_load_location,
 };
 
 static const struct wined3d_surface_ops surface_ops =
@@ -3952,7 +3960,7 @@ void surface_load_ds_location(struct wined3d_surface *surface, struct wined3d_co
     surface->ds_current_size.cy = surface->resource.height;
 }
 
-static DWORD resource_access_from_location(DWORD location)
+static DWORD surface_access_from_location(DWORD location)
 {
     switch (location)
     {
@@ -4284,7 +4292,7 @@ void surface_load_location(struct wined3d_surface *surface, struct wined3d_conte
 
     if (WARN_ON(d3d_surface))
     {
-        DWORD required_access = resource_access_from_location(location);
+        DWORD required_access = surface_access_from_location(location);
         if ((surface->resource.access_flags & required_access) != required_access)
             WARN("Operation requires %#x access, but surface only has %#x.\n",
                     required_access, surface->resource.access_flags);
