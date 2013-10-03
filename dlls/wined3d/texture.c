@@ -1333,7 +1333,7 @@ static void texture3d_sub_resource_validate_location(struct wined3d_resource *su
 {
     struct wined3d_volume *volume = volume_from_resource(sub_resource);
 
-    wined3d_volume_validate_location(volume, location);
+    wined3d_resource_validate_location(&volume->resource, location);
 }
 
 static void texture3d_sub_resource_upload_data(struct wined3d_resource *sub_resource,
