@@ -941,6 +941,13 @@ static void wined3d_texture_load_location_invalidated(struct wined3d_resource *r
     ERR("Should not be called on textures.\n");
 }
 
+/* Context activation is done by the caller. */
+static void wined3d_texture_load_location(struct wined3d_resource *resource,
+        struct wined3d_context *context, DWORD location)
+{
+    ERR("Should not be called on textures.\n");
+}
+
 static const struct wined3d_resource_ops texture2d_resource_ops =
 {
     texture_resource_incref,
@@ -949,6 +956,7 @@ static const struct wined3d_resource_ops texture2d_resource_ops =
     texture2d_resource_sub_resource_map,
     texture2d_resource_sub_resource_unmap,
     wined3d_texture_load_location_invalidated,
+    wined3d_texture_load_location,
 };
 
 static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3d_resource_desc *desc,
