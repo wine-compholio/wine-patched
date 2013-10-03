@@ -342,6 +342,13 @@ void wined3d_resource_validate_location(struct wined3d_resource *resource, DWORD
     TRACE("new location flags are %s.\n", wined3d_debug_location(resource->locations));
 }
 
+void wined3d_resource_invalidate_location(struct wined3d_resource *resource, DWORD location)
+{
+    TRACE("Resource %p, setting %s.\n", resource, wined3d_debug_location(location));
+    resource->locations &= ~location;
+    TRACE("new location flags are %s.\n", wined3d_debug_location(resource->locations));
+}
+
 void CDECL wined3d_resource_get_pitch(const struct wined3d_resource *resource, UINT *row_pitch,
         UINT *slice_pitch)
 {
