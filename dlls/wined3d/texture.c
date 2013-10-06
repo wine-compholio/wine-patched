@@ -104,17 +104,25 @@ static void wined3d_texture_unload_gl_texture(struct wined3d_texture *texture)
     resource_unload(&texture->resource);
 }
 
+void wined3d_texture_cleanup_cs(struct wined3d_texture *texture)
+{
+    wined3d_texture_unload_gl_texture(texture);
+    HeapFree(GetProcessHeap(), 0, texture);
+}
+
 static void wined3d_texture_cleanup(struct wined3d_texture *texture)
 {
     UINT sub_count = texture->level_count * texture->layer_count;
     UINT i;
+    struct wined3d_device *device = texture->resource.device;
 
     TRACE("texture %p.\n", texture);
 
+    /* Because sub_resource_cleanup interferes with GL resources */
     if (wined3d_settings.cs_multithreaded)
     {
         FIXME("Waiting for cs.\n");
-        texture->resource.device->cs->ops->finish(texture->resource.device->cs);
+        device->cs->ops->finish(device->cs);
     }
 
     for (i = 0; i < sub_count; ++i)
@@ -125,10 +133,8 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
             texture->texture_ops->texture_sub_resource_cleanup(sub_resource);
     }
 
-    wined3d_texture_unload_gl_texture(texture);
     resource_cleanup(&texture->resource);
-    if (wined3d_settings.cs_multithreaded)
-        texture->resource.device->cs->ops->finish(texture->resource.device->cs);
+    wined3d_cs_emit_texture_cleanup(device->cs, texture);
 }
 
 void wined3d_texture_set_swapchain(struct wined3d_texture *texture, struct wined3d_swapchain *swapchain)
@@ -414,9 +420,10 @@ ULONG CDECL wined3d_texture_decref(struct wined3d_texture *texture)
 
     if (!refcount)
     {
+        void *parent = texture->resource.parent;
+        const struct wined3d_parent_ops *parent_ops = texture->resource.parent_ops;
         wined3d_texture_cleanup(texture);
-        texture->resource.parent_ops->wined3d_object_destroyed(texture->resource.parent);
-        HeapFree(GetProcessHeap(), 0, texture);
+        parent_ops->wined3d_object_destroyed(parent);
     }
 
     return refcount;
@@ -1025,6 +1032,7 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
     if (WINED3DFMT_UNKNOWN >= desc->format)
     {
         WARN("(%p) : Texture cannot be created with a format of WINED3DFMT_UNKNOWN.\n", texture);
+        HeapFree(GetProcessHeap(), 0, texture);
         return WINED3DERR_INVALIDCALL;
     }
 
@@ -1055,6 +1063,7 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
                 else
                 {
                     WARN("Attempted to create a mipmapped/cube NPOT texture without unconditional NPOT support.\n");
+                    HeapFree(GetProcessHeap(), 0, texture);
                     return WINED3DERR_INVALIDCALL;
                 }
             }
@@ -1067,12 +1076,14 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
         if (!gl_info->supported[SGIS_GENERATE_MIPMAP])
         {
             WARN("No mipmap generation support, returning WINED3DERR_INVALIDCALL.\n");
+            HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
 
         if (level_count != 1)
         {
             WARN("WINED3DUSAGE_AUTOGENMIPMAP is set, and level count != 1, returning WINED3DERR_INVALIDCALL.\n");
+            HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
     }
@@ -1081,6 +1092,7 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
             flags, device, parent, parent_ops, &texture2d_resource_ops)))
     {
         WARN("Failed to initialize texture, returning %#x.\n", hr);
+        HeapFree(GetProcessHeap(), 0, texture);
         return hr;
     }
 
@@ -1284,12 +1296,14 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
     if (WINED3DFMT_UNKNOWN >= desc->format)
     {
         WARN("(%p) : Texture cannot be created with a format of WINED3DFMT_UNKNOWN.\n", texture);
+        HeapFree(GetProcessHeap(), 0, texture);
         return WINED3DERR_INVALIDCALL;
     }
 
     if (!gl_info->supported[EXT_TEXTURE3D])
     {
         WARN("(%p) : Texture cannot be created - no volume texture support.\n", texture);
+        HeapFree(GetProcessHeap(), 0, texture);
         return WINED3DERR_INVALIDCALL;
     }
 
@@ -1299,12 +1313,14 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
         if (!gl_info->supported[SGIS_GENERATE_MIPMAP])
         {
             WARN("No mipmap generation support, returning D3DERR_INVALIDCALL.\n");
+            HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
 
         if (levels != 1)
         {
             WARN("WINED3DUSAGE_AUTOGENMIPMAP is set, and level count != 1, returning D3DERR_INVALIDCALL.\n");
+            HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
     }
@@ -1332,6 +1348,7 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
             {
                 WARN("Attempted to create a NPOT volume texture (%u, %u, %u) without GL support.\n",
                         desc->width, desc->height, desc->depth);
+                HeapFree(GetProcessHeap(), 0, texture);
                 return WINED3DERR_INVALIDCALL;
             }
         }
@@ -1341,6 +1358,7 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
             0, device, parent, parent_ops, &texture3d_resource_ops)))
     {
         WARN("Failed to initialize texture, returning %#x.\n", hr);
+        HeapFree(GetProcessHeap(), 0, texture);
         return hr;
     }
 
@@ -1601,7 +1619,6 @@ HRESULT CDECL wined3d_texture_create(struct wined3d_device *device, const struct
     if (FAILED(hr))
     {
         WARN("Failed to initialize texture, returning %#x.\n", hr);
-        HeapFree(GetProcessHeap(), 0, object);
         return hr;
     }
 
