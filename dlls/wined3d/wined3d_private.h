@@ -3092,6 +3092,8 @@ void wined3d_cs_emit_get_dc(struct wined3d_cs *cs, struct wined3d_texture *textu
 void wined3d_cs_emit_release_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,
         unsigned int sub_resource_idx) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_create_dummy_textures(struct wined3d_cs *cs) DECLSPEC_HIDDEN;
+HRESULT wined3d_cs_emit_create_swapchain_context(struct wined3d_cs *cs,
+        struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
 
 /* Direct3D terminology with little modifications. We do not have an issued state
  * because only the driver knows about it, but we have a created state because d3d
@@ -3272,6 +3274,8 @@ struct wined3d_swapchain
 
 void wined3d_swapchain_activate(struct wined3d_swapchain *swapchain, BOOL activate) DECLSPEC_HIDDEN;
 struct wined3d_context *swapchain_get_context(struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
+HRESULT swapchain_create_context_cs(struct wined3d_device *device,
+        struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
 void swapchain_destroy_contexts(struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
 HDC swapchain_get_backup_dc(struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
 void swapchain_update_draw_bindings(struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
