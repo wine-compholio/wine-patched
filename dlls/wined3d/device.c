@@ -608,7 +608,7 @@ out:
 }
 
 /* Context activation is done by the caller. */
-static void create_dummy_textures(struct wined3d_device *device, struct wined3d_context *context)
+void device_create_dummy_textures(struct wined3d_device *device, struct wined3d_context *context)
 {
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     unsigned int i, j, count;
@@ -854,7 +854,6 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
 {
     static const struct wined3d_color black = {0.0f, 0.0f, 0.0f, 0.0f};
     struct wined3d_swapchain *swapchain = NULL;
-    struct wined3d_context *context;
     DWORD clear_flags = 0;
     HRESULT hr;
 
@@ -905,9 +904,7 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
     device->swapchains[0] = swapchain;
     device_init_swapchain_state(device, swapchain);
 
-    context = context_acquire(device, NULL);
-
-    create_dummy_textures(device, context);
+    wined3d_cs_emit_create_dummy_textures(device->cs);
 
     device->contexts[0]->last_was_rhw = 0;
 
@@ -919,7 +916,7 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
 
         case ORM_BACKBUFFER:
         {
-            if (context_get_current()->aux_buffers > 0)
+            if (device->contexts[0]->aux_buffers > 0)
             {
                 TRACE("Using auxiliary buffer for offscreen rendering\n");
                 device->offscreenBuffer = GL_AUX0;
@@ -934,8 +931,6 @@ HRESULT CDECL wined3d_device_init_3d(struct wined3d_device *device,
     device->contexts[0]->offscreenBuffer = device->offscreenBuffer;
 
     TRACE("All defaults now set up, leaving 3D init.\n");
-
-    context_release(context);
 
     /* Clear the screen */
     if (swapchain->back_buffers && swapchain->back_buffers[0])
@@ -4236,7 +4231,7 @@ static HRESULT create_primary_opengl_context(struct wined3d_device *device, stru
 
     swapchain->context[0] = context;
     swapchain->num_contexts = 1;
-    create_dummy_textures(device, context);
+    device_create_dummy_textures(device, context);
     context_release(context);
 
     return WINED3D_OK;
