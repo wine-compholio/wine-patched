@@ -1717,7 +1717,7 @@ void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int
         return NULL;
     }
 
-    if (!(flags & (WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY)))
+    if (!(flags & WINED3D_MAP_READONLY))
         sub_resource->unmap_dirtify = TRUE;
 
     wined3d_texture_get_memory(texture, sub_resource_idx, &bo_data, texture->resource.map_binding, TRUE);
