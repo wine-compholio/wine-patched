@@ -997,8 +997,6 @@ err_out:
 HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
 {
     struct wined3d_resource *resource, *cursor;
-    const struct wined3d_gl_info *gl_info;
-    struct wined3d_context *context;
     struct wined3d_surface *surface;
     UINT i;
 
@@ -1009,12 +1007,6 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
 
     if (wined3d_settings.cs_multithreaded)
         device->cs->ops->finish(device->cs);
-
-    /* I don't think that the interface guarantees that the device is destroyed from the same thread
-     * it was created. Thus make sure a context is active for the glDelete* calls
-     */
-    context = context_acquire(device, NULL);
-    gl_info = context->gl_info;
 
     if (device->logo_texture)
         wined3d_texture_decref(device->logo_texture);
@@ -1045,30 +1037,14 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
         TRACE("Unloading resource %p.\n", resource);
         wined3d_cs_emit_evict_resource(device->cs, resource);
     }
-    if (wined3d_settings.cs_multithreaded)
-        device->cs->ops->finish(device->cs);
 
-    /* Destroy the depth blt resources, they will be invalid after the reset. Also free shader
-     * private data, it might contain opengl pointers
-     */
-    if (device->depth_blt_texture)
-    {
-        gl_info->gl_ops.gl.p_glDeleteTextures(1, &device->depth_blt_texture);
-        device->depth_blt_texture = 0;
-    }
-
-    /* Destroy the shader backend. Note that this has to happen after all shaders are destroyed. */
-    device->blitter->free_private(device);
-    device->shader_backend->shader_free_private(device);
-    destroy_dummy_textures(device, gl_info);
+    wined3d_cs_emit_delete_opengl_contexts(device->cs, device->swapchains[0]);
 
     if (device->back_buffer_view)
     {
         wined3d_rendertarget_view_decref(device->back_buffer_view);
         device->back_buffer_view = NULL;
     }
-
-    context_release(context);
 
     for (i = 0; i < device->swapchain_count; ++i)
     {
@@ -4175,6 +4151,7 @@ void device_delete_opengl_contexts_cs(struct wined3d_device *device, struct wine
 
     HeapFree(GetProcessHeap(), 0, swapchain->context);
     swapchain->context = NULL;
+    swapchain->num_contexts = 0;
 }
 
 static void delete_opengl_contexts(struct wined3d_device *device, struct wined3d_swapchain *swapchain)
