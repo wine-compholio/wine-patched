@@ -2252,6 +2252,8 @@ static UINT wined3d_cs_exec_texture_preload(struct wined3d_cs *cs, const void *d
     wined3d_texture_load(texture, context, texture->flags & WINED3D_TEXTURE_IS_SRGB);
     context_release(context);
 
+    wined3d_resource_dec_fence(&texture->resource);
+
     return sizeof(*op);
 }
 
@@ -2262,6 +2264,8 @@ void wined3d_cs_emit_texture_preload(struct wined3d_cs *cs, struct wined3d_textu
     op = cs->ops->require_space(cs, sizeof(*op));
     op->opcode = WINED3D_CS_OP_TEXTURE_PRELOAD;
     op->texture = texture;
+
+    wined3d_resource_inc_fence(&texture->resource);
 
     cs->ops->submit(cs, sizeof(*op));
 }
@@ -2384,6 +2388,8 @@ static UINT wined3d_cs_exec_buffer_preload(struct wined3d_cs *cs, const void *da
     buffer_internal_preload(op->buffer, context, NULL);
     context_release(context);
 
+    wined3d_resource_dec_fence(&op->buffer->resource);
+
     return sizeof(*op);
 }
 
@@ -2394,6 +2400,8 @@ void wined3d_cs_emit_buffer_preload(struct wined3d_cs *cs, struct wined3d_buffer
     op = cs->ops->require_space(cs, sizeof(*op));
     op->opcode = WINED3D_CS_OP_BUFFER_PRELOAD;
     op->buffer = buffer;
+
+    wined3d_resource_inc_fence(&buffer->resource);
 
     cs->ops->submit(cs, sizeof(*op));
 }
