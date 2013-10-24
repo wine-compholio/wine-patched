@@ -2583,6 +2583,8 @@ struct wined3d_cs_list
 };
 
 #define WINED3D_CS_QUEUE_SIZE 0x100000
+#define WINED3D_CS_SPIN_COUNT 10000000
+
 struct wined3d_cs_queue
 {
     LONG head, tail;
@@ -2612,6 +2614,9 @@ struct wined3d_cs
 
     LONG pending_presents;
     struct list query_poll_list;
+
+    HANDLE event;
+    BOOL waiting_for_event;
 };
 
 struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device) DECLSPEC_HIDDEN;
