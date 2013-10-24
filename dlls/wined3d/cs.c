@@ -539,6 +539,9 @@ static void wined3d_cs_mt_submit(struct wined3d_cs *cs, size_t size)
     /* There is only one thread writing to queue.head, InterlockedExchange
      * is used for the memory barrier. */
     InterlockedExchange(&cs->queue.head, new_val);
+
+    if (InterlockedCompareExchange(&cs->waiting_for_event, FALSE, TRUE))
+        SetEvent(cs->event);
 }
 
 static void wined3d_cs_mt_submit_prio(struct wined3d_cs *cs, size_t size)
@@ -547,6 +550,9 @@ static void wined3d_cs_mt_submit_prio(struct wined3d_cs *cs, size_t size)
     /* There is only one thread writing to queue.head, InterlockedExchange
      * is used for the memory barrier. */
     InterlockedExchange(&cs->prio_queue.head, new_val);
+
+    if (InterlockedCompareExchange(&cs->waiting_for_event, FALSE, TRUE))
+        SetEvent(cs->event);
 }
 
 static UINT wined3d_cs_exec_nop(struct wined3d_cs *cs, const void *data)
@@ -2826,6 +2832,34 @@ static inline void poll_queries(struct wined3d_cs *cs)
     }
 }
 
+static inline BOOL queue_is_empty(const struct wined3d_cs_queue *queue)
+{
+    return *((volatile LONG *)&queue->head) == queue->tail;
+}
+
+static void wined3d_cs_wait_event(struct wined3d_cs *cs)
+{
+    InterlockedExchange(&cs->waiting_for_event, TRUE);
+
+    /* The main thread might enqueue a finish command and block on it
+     * after the worker thread decided to enter wined3d_cs_wait_event
+     * and before waiting_for_event was set to TRUE. Check again if
+     * the queues are empty */
+    if (!queue_is_empty(&cs->prio_queue) || !queue_is_empty(&cs->queue))
+    {
+        /* The main thread might have signalled the event, or be in the process
+         * of doing so. Wait for the event to reset it. ResetEvent is not good
+         * because the main thread might be beween the waiting_for_event reset
+         * and SignalEvent call. */
+        if (!InterlockedCompareExchange(&cs->waiting_for_event, FALSE, FALSE))
+            WaitForSingleObject(cs->event, INFINITE);
+    }
+    else
+    {
+        WaitForSingleObject(cs->event, INFINITE);
+    }
+}
+
 static DWORD WINAPI wined3d_cs_run(void *thread_param)
 {
     struct wined3d_cs *cs = thread_param;
@@ -2833,6 +2867,7 @@ static DWORD WINAPI wined3d_cs_run(void *thread_param)
     LONG tail;
     char poll = 0;
     struct wined3d_cs_queue *queue;
+    unsigned int spin_count = 0;
 
     TRACE("Started.\n");
 
@@ -2848,20 +2883,26 @@ static DWORD WINAPI wined3d_cs_run(void *thread_param)
         else
             poll++;
 
-        if (*((volatile LONG *)&cs->prio_queue.head) != cs->prio_queue.tail)
+        if (!queue_is_empty(&cs->prio_queue))
         {
             queue = &cs->prio_queue;
         }
-        else if (*((volatile LONG *)&cs->queue.head) != cs->queue.tail)
+        else if (!queue_is_empty(&cs->queue))
         {
             queue = &cs->queue;
-            if (*((volatile LONG *)&cs->prio_queue.head) != cs->prio_queue.tail)
+            if (!queue_is_empty(&cs->prio_queue))
                 queue = &cs->prio_queue;
         }
         else
         {
+            spin_count++;
+            if (spin_count >= WINED3D_CS_SPIN_COUNT && list_empty(&cs->query_poll_list))
+                wined3d_cs_wait_event(cs);
+
             continue;
         }
+
+        spin_count = 0;
 
         tail = queue->tail;
         opcode = *(const enum wined3d_cs_op *)&queue->data[tail];
@@ -2904,6 +2945,8 @@ struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device)
     {
         cs->ops = &wined3d_cs_mt_ops;
 
+        cs->event = CreateEventW(NULL, FALSE, FALSE, NULL);
+
         if (!(cs->thread = CreateThread(NULL, 0, wined3d_cs_run, cs, 0, NULL)))
         {
             ERR("Failed to create wined3d command stream thread.\n");
@@ -2934,6 +2977,8 @@ void wined3d_cs_destroy(struct wined3d_cs *cs)
         CloseHandle(cs->thread);
         if (ret != WAIT_OBJECT_0)
             ERR("Wait failed (%#x).\n", ret);
+        if (!CloseHandle(cs->event))
+            ERR("Closing event failed.\n");
     }
 
     HeapFree(GetProcessHeap(), 0, cs);
