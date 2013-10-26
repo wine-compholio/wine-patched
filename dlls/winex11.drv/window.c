@@ -2270,7 +2270,7 @@ void CDECL X11DRV_WindowPosChanged( HWND hwnd, HWND insert_after, UINT swp_flags
 
     sync_client_position( data, &old_client_rect, &old_whole_rect );
 
-    if (!data->whole_window)
+    if (data->embedded || !data->whole_window)
     {
         release_win_data( data );
         sync_gl_drawable( hwnd, visible_rect, rectClient );
