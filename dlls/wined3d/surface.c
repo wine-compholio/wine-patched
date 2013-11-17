@@ -4151,7 +4151,7 @@ static void surface_load_renderbuffer(struct wined3d_surface *surface, struct wi
 }
 
 /* Context activation is done by the caller. Context may be NULL in ddraw-only mode. */
-HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_context *context, DWORD location)
+void surface_load_location(struct wined3d_surface *surface, struct wined3d_context *context, DWORD location)
 {
     HRESULT hr;
 
@@ -4163,26 +4163,26 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
                 && surface->locations & (WINED3D_LOCATION_DRAWABLE | WINED3D_LOCATION_DISCARDED))
         {
             surface_load_ds_location(surface, context, location);
-            return WINED3D_OK;
+            return;
         }
         else if (location & surface->locations
                 && surface->container->resource.draw_binding != WINED3D_LOCATION_DRAWABLE)
         {
             /* Already up to date, nothing to do. */
-            return WINED3D_OK;
+            return;
         }
         else
         {
             FIXME("Unimplemented copy from %s to %s for depth/stencil buffers.\n",
                     wined3d_debug_location(surface->locations), wined3d_debug_location(location));
-            return WINED3DERR_INVALIDCALL;
+            return;
         }
     }
 
     if (surface->locations & location)
     {
         TRACE("Location already up to date.\n");
-        return WINED3D_OK;
+        return;
     }
 
     if (WARN_ON(d3d_surface))
@@ -4196,7 +4196,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
     if (!surface->locations)
     {
         ERR("Surface %p does not have any up to date location.\n", surface);
-        return WINED3DERR_INVALIDCALL;
+        return;
     }
 
     switch (location)
@@ -4210,7 +4210,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
 
         case WINED3D_LOCATION_DRAWABLE:
             if (FAILED(hr = surface_load_drawable(surface, context)))
-                return hr;
+                return;
             break;
 
         case WINED3D_LOCATION_RB_RESOLVED:
@@ -4222,7 +4222,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
         case WINED3D_LOCATION_TEXTURE_SRGB:
             if (FAILED(hr = surface_load_texture(surface, context,
                     location == WINED3D_LOCATION_TEXTURE_SRGB)))
-                return hr;
+                return;
             break;
 
         default:
@@ -4235,7 +4235,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
     if (location != WINED3D_LOCATION_SYSMEM && (surface->locations & WINED3D_LOCATION_SYSMEM))
         surface_evict_sysmem(surface);
 
-    return WINED3D_OK;
+    return;
 }
 
 static HRESULT ffp_blit_alloc(struct wined3d_device *device) { return WINED3D_OK; }
