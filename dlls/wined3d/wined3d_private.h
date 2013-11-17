@@ -2248,6 +2248,7 @@ struct wined3d_resource_ops
     HRESULT (*resource_sub_resource_map)(struct wined3d_resource *resource, unsigned int sub_resource_idx,
             struct wined3d_map_desc *map_desc, const struct wined3d_box *box, DWORD flags);
     HRESULT (*resource_sub_resource_unmap)(struct wined3d_resource *resource, unsigned int sub_resource_idx);
+    void (*resource_location_invalidated)(struct wined3d_resource *resource, DWORD location);
 };
 
 struct wined3d_resource

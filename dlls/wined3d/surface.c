@@ -1222,6 +1222,11 @@ static HRESULT surface_resource_sub_resource_unmap(struct wined3d_resource *reso
     return WINED3DERR_INVALIDCALL;
 }
 
+static void wined3d_surface_location_invalidated(struct wined3d_resource *resource, DWORD location)
+{
+    ERR("Not yet implemented.\n");
+}
+
 static const struct wined3d_resource_ops surface_resource_ops =
 {
     surface_resource_incref,
@@ -1229,6 +1234,7 @@ static const struct wined3d_resource_ops surface_resource_ops =
     surface_unload,
     surface_resource_sub_resource_map,
     surface_resource_sub_resource_unmap,
+    wined3d_surface_location_invalidated,
 };
 
 static const struct wined3d_surface_ops surface_ops =
