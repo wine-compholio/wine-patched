@@ -1161,6 +1161,11 @@ static HRESULT buffer_resource_sub_resource_unmap(struct wined3d_resource *resou
     return WINED3D_OK;
 }
 
+static void wined3d_buffer_location_invalidated(struct wined3d_resource *resource, DWORD location)
+{
+    ERR("Not yet implemented.\n");
+}
+
 static const struct wined3d_resource_ops buffer_resource_ops =
 {
     buffer_resource_incref,
@@ -1168,6 +1173,7 @@ static const struct wined3d_resource_ops buffer_resource_ops =
     buffer_unload,
     buffer_resource_sub_resource_map,
     buffer_resource_sub_resource_unmap,
+    wined3d_buffer_location_invalidated,
 };
 
 static HRESULT buffer_init(struct wined3d_buffer *buffer, struct wined3d_device *device,
