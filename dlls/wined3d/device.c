@@ -324,7 +324,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
         if (rt && rt->resource.format->id != WINED3DFMT_NULL)
         {
             if (flags & WINED3DCLEAR_TARGET && !is_full_clear(target, draw_rect, clear_rect))
-                surface_load_location(rt, context, rt->container->resource.draw_binding);
+                wined3d_resource_load_location(&rt->resource, context, rt->container->resource.draw_binding);
             else
                 wined3d_surface_prepare(rt, context, rt->container->resource.draw_binding);
         }
@@ -4151,7 +4151,7 @@ void CDECL wined3d_device_update_sub_resource(struct wined3d_device *device, str
             && src_rect.bottom == sub_resource->height)
         wined3d_texture_prepare_texture(texture, context, FALSE);
     else
-        surface_load_location(surface, context, WINED3D_LOCATION_TEXTURE_RGB);
+        wined3d_resource_load_location(&surface->resource, context, WINED3D_LOCATION_TEXTURE_RGB);
     wined3d_texture_bind_and_dirtify(texture, context, FALSE);
 
     wined3d_surface_upload_data(surface, gl_info, resource->format,

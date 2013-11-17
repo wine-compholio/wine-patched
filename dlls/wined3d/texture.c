@@ -774,7 +774,7 @@ static void texture2d_sub_resource_add_dirty_region(struct wined3d_resource *sub
 
     surface_prepare_map_memory(surface);
     context = context_acquire(surface->resource.device, NULL);
-    surface_load_location(surface, context, surface->resource.map_binding);
+    wined3d_resource_load_location(&surface->resource, context, surface->resource.map_binding);
     context_release(context);
     wined3d_resource_invalidate_location(&surface->resource, ~surface->resource.map_binding);
 }
@@ -1475,7 +1475,7 @@ HRESULT CDECL wined3d_texture_get_dc(struct wined3d_texture *texture, unsigned i
             surface->resource.map_binding = WINED3D_LOCATION_DIB;
     }
 
-    surface_load_location(surface, context, WINED3D_LOCATION_DIB);
+    wined3d_resource_load_location(&surface->resource, context, WINED3D_LOCATION_DIB);
     wined3d_resource_invalidate_location(&surface->resource, ~WINED3D_LOCATION_DIB);
 
     if (context)
@@ -1538,7 +1538,7 @@ HRESULT CDECL wined3d_texture_release_dc(struct wined3d_texture *texture, unsign
         if (device->d3d_initialized)
             context = context_acquire(device, NULL);
 
-        surface_load_location(surface, context, surface->resource.map_binding);
+        wined3d_resource_load_location(&surface->resource, context, surface->resource.map_binding);
         wined3d_resource_invalidate_location(&surface->resource, WINED3D_LOCATION_DIB);
         if (context)
             context_release(context);
