@@ -730,9 +730,14 @@ static void surface_unmap(struct wined3d_surface *surface)
 
     if (surface->container->swapchain && surface->container->swapchain->front_buffer == surface->container)
     {
-        context = context_acquire(device, surface);
+        struct wined3d_device *device = surface->resource.device;
+        struct wined3d_context *context = NULL;
+
+        if (device->d3d_initialized)
+            context = context_acquire(device, surface);
         surface_load_location(surface, context, surface->container->resource.draw_binding);
-        context_release(context);
+        if (context)
+            context_release(context);
     }
     else if (surface->container->resource.format_flags & (WINED3DFMT_FLAG_DEPTH | WINED3DFMT_FLAG_STENCIL))
         FIXME("Depth / stencil buffer locking is not implemented.\n");
