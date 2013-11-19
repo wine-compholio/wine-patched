@@ -32,12 +32,16 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
+#include <limits.h>
 #include <unistd.h>
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
 #ifdef HAVE_POLL_H
 #include <poll.h>
+#endif
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
 #endif
 
 #include "ntstatus.h"
@@ -237,7 +241,7 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
     access = generic_file_map_access( access );
 
     /* FIXME: should set error to STATUS_OBJECT_NAME_COLLISION if file existed before */
-    fd = open_fd( root, name, flags | O_NONBLOCK | O_LARGEFILE, &mode, access, sharing, options );
+    fd = open_fd( root, name, flags | O_NONBLOCK | O_LARGEFILE, &mode, access, sharing, options, sd );
     if (!fd) goto done;
 
     if (S_ISDIR(mode))
@@ -424,9 +428,169 @@ struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID 
     return sd;
 }
 
+struct security_descriptor *get_file_acls( int fd, const SID *user, const SID *group )
+{
+#ifdef HAVE_ATTR_XATTR_H
+    int ace_count = 0, dacl_size = sizeof(ACL), i, n;
+    char buffer[XATTR_SIZE_MAX], *p = buffer, *pn;
+    struct security_descriptor *sd;
+    ACE_HEADER *current_ace;
+    ACCESS_ALLOWED_ACE *aaa;
+    ACCESS_DENIED_ACE *ada;
+    int type, flags, mask;
+    ACL *dacl;
+    char *ptr;
+
+    n = fgetxattr( fd, "user.wine.acl", buffer, sizeof(buffer) );
+    if (n == -1) return NULL;
+    buffer[n] = 0;
+
+    do
+    {
+        int sub_authority_count = 0;
+
+        pn = strchr(p, ';');
+        if (pn) pn++;
+        sscanf(p, "%x", &type);
+        do
+        {
+            p = strchr(p, '-');
+            if (p) p++;
+            sub_authority_count++;
+        }
+        while(p && (!pn || p < pn));
+        sub_authority_count -= 3; /* Revision and IdentifierAuthority don't count */
+
+        switch (type)
+        {
+            case ACCESS_DENIED_ACE_TYPE:
+                dacl_size += FIELD_OFFSET(ACCESS_DENIED_ACE, SidStart) +
+                             FIELD_OFFSET(SID, SubAuthority[sub_authority_count]);
+                break;
+            case ACCESS_ALLOWED_ACE_TYPE:
+                dacl_size += FIELD_OFFSET(ACCESS_ALLOWED_ACE, SidStart) +
+                             FIELD_OFFSET(SID, SubAuthority[sub_authority_count]);
+                break;
+            default:
+                continue;
+        }
+        ace_count++;
+        p = pn;
+    }
+    while(p);
+
+    sd = mem_alloc( sizeof(struct security_descriptor) +
+                    FIELD_OFFSET(SID, SubAuthority[user->SubAuthorityCount]) +
+                    FIELD_OFFSET(SID, SubAuthority[group->SubAuthorityCount]) +
+                    dacl_size );
+
+    sd->control = SE_DACL_PRESENT;
+    sd->owner_len = FIELD_OFFSET(SID, SubAuthority[user->SubAuthorityCount]);
+    sd->group_len = FIELD_OFFSET(SID, SubAuthority[group->SubAuthorityCount]);
+    sd->sacl_len = 0;
+    sd->dacl_len = dacl_size;
+
+    ptr = (char *)(sd + 1);
+    memcpy( ptr, user, sd->owner_len );
+    ptr += sd->owner_len;
+    memcpy( ptr, group, sd->group_len );
+    ptr += sd->group_len;
+
+    dacl = (ACL *)ptr;
+    dacl->AclRevision = ACL_REVISION;
+    dacl->Sbz1 = 0;
+    dacl->AclSize = dacl_size;
+    dacl->AceCount = ace_count;
+    dacl->Sbz2 = 0;
+    aaa = (ACCESS_ALLOWED_ACE *)(dacl + 1);
+    current_ace = &aaa->Header;
+
+    p = buffer;
+    for(i=0; i<ace_count; i++)
+    {
+        char b[sizeof(SID) + sizeof(ULONG) * SID_MAX_SUB_AUTHORITIES];
+        int sub_authority_count = 0;
+        SID *sid = (SID *)&b[0];
+        char sidtxt[100];
+        int rev, ia, sa;
+
+        if (i != 0)
+        {
+            aaa = (ACCESS_ALLOWED_ACE *)ace_next( current_ace );
+            current_ace = &aaa->Header;
+        }
+        pn = strchr(p, ';');
+        if (pn) pn++;
+        sscanf(p, "%x,%x,%x,%[^;]", &type, &flags, &mask, sidtxt);
+        sscanf(sidtxt, "S-%u-%d", &rev, &ia);
+        sid->Revision = rev;
+        sid->IdentifierAuthority.Value[0] = 0;
+        sid->IdentifierAuthority.Value[1] = 0;
+        sid->IdentifierAuthority.Value[2] = HIBYTE(HIWORD(ia));
+        sid->IdentifierAuthority.Value[3] = LOBYTE(HIWORD(ia));
+        sid->IdentifierAuthority.Value[4] = HIBYTE(LOWORD(ia));
+        sid->IdentifierAuthority.Value[5] = LOBYTE(LOWORD(ia));
+        p = strchr(sidtxt, '-')+1; 
+        p = strchr(p, '-')+1; /* Revision doesn't count */
+        p = strchr(p, '-')+1; /* IdentifierAuthority doesn't count */
+        do
+        {
+            sscanf(p, "%u", &sa);
+            sid->SubAuthority[sub_authority_count] = sa;
+            p = strchr(p, '-');
+            if (p) p++;
+            sub_authority_count++;
+        }
+        while(p);
+        sid->SubAuthorityCount = sub_authority_count;
+
+        /* Convert generic rights into standard access rights */
+        if (mask & GENERIC_ALL)
+            mask |= WRITE_DAC | WRITE_OWNER | DELETE | FILE_DELETE_CHILD;
+        if (mask & (GENERIC_ALL|GENERIC_READ))
+            mask |= FILE_GENERIC_READ;
+        if (mask & (GENERIC_ALL|GENERIC_WRITE))
+            mask |= FILE_GENERIC_WRITE;
+        if (mask & (GENERIC_ALL|GENERIC_EXECUTE))
+            mask |= FILE_GENERIC_EXECUTE;
+        mask &= 0x0FFFFFFF;
+
+        /* Handle the specific ACE */
+        switch (type)
+        {
+            case ACCESS_DENIED_ACE_TYPE:
+                ada = (ACCESS_DENIED_ACE *)aaa;
+                ada->Header.AceType  = type;
+                ada->Header.AceFlags = flags;
+                ada->Header.AceSize  = FIELD_OFFSET(ACCESS_DENIED_ACE, SidStart) +
+                                       FIELD_OFFSET(SID, SubAuthority[sid->SubAuthorityCount]);
+                ada->Mask            = mask;
+                memcpy( &ada->SidStart, sid, FIELD_OFFSET(SID, SubAuthority[sid->SubAuthorityCount]) );
+                break;
+            case ACCESS_ALLOWED_ACE_TYPE:
+                aaa->Header.AceType  = type;
+                aaa->Header.AceFlags = flags;
+                aaa->Header.AceSize  = FIELD_OFFSET(ACCESS_ALLOWED_ACE, SidStart) +
+                                       FIELD_OFFSET(SID, SubAuthority[sid->SubAuthorityCount]);
+                aaa->Mask            = mask;
+                memcpy( &aaa->SidStart, sid, FIELD_OFFSET(SID, SubAuthority[sid->SubAuthorityCount]) );
+                break;
+            default:
+                continue;
+        }
+        p = pn;
+    }
+
+    return sd;
+#else
+    return NULL;
+#endif
+}
+
 static struct security_descriptor *file_get_sd( struct object *obj )
 {
     struct file *file = (struct file *)obj;
+    const SID *user, *group;
     struct stat st;
     int unix_fd;
     struct security_descriptor *sd;
@@ -443,9 +607,11 @@ static struct security_descriptor *file_get_sd( struct object *obj )
         (st.st_uid == file->uid))
         return obj->sd;
 
-    sd = mode_to_sd( st.st_mode,
-                     security_unix_uid_to_sid( st.st_uid ),
-                     token_get_primary_group( current->process->token ));
+    user = security_unix_uid_to_sid( st.st_uid );
+    group = token_get_primary_group( current->process->token );
+    sd = get_file_acls( unix_fd, user, group );
+    if (!sd)
+        sd = mode_to_sd( st.st_mode, user, group);
     if (!sd) return obj->sd;
 
     file->mode = st.st_mode;
@@ -574,6 +740,8 @@ static int file_set_sd( struct object *obj, const struct security_descriptor *sd
         /* keep the bits that we don't map to access rights in the ACL */
         mode = st.st_mode & (S_ISUID|S_ISGID|S_ISVTX);
         mode |= sd_to_mode( sd, owner );
+
+        set_file_acls( unix_fd, sd );
 
         if (((st.st_mode ^ mode) & (S_IRWXU|S_IRWXG|S_IRWXO)) && fchmod( unix_fd, mode ) == -1)
         {
