@@ -103,6 +103,81 @@ mode_t FILE_umask = 0;
 
 static const WCHAR ntfsW[] = {'N','T','F','S'};
 
+static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATTRIBUTES attr,
+                                 PIO_STATUS_BLOCK io, PLARGE_INTEGER alloc_size,
+                                 ULONG attributes, ULONG sharing, ULONG disposition,
+                                 ULONG options, PVOID ea_buffer, ULONG ea_length );
+
+struct security_descriptor *FILE_get_parent_sd(UNICODE_STRING *filenameW)
+{
+    SECURITY_INFORMATION info = OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION
+                                |DACL_SECURITY_INFORMATION|SACL_SECURITY_INFORMATION;
+    PSECURITY_DESCRIPTOR parentsd = NULL;
+    ACL_SIZE_INFORMATION acl_size;
+    BOOLEAN present, defaulted;
+    WCHAR *p, parent[MAX_PATH];
+    OBJECT_ATTRIBUTES pattr;
+    UNICODE_STRING parentW;
+    IO_STATUS_BLOCK io;
+    NTSTATUS status;
+    HANDLE hparent;
+    ULONG n1, n2;
+    PACL pDacl;
+    int i;
+
+    parentW.Buffer = parent;
+    parentW.Length = filenameW->Length;
+    memcpy(parentW.Buffer, filenameW->Buffer, filenameW->Length);
+    if ((p = strrchrW(parent, '\\')) != NULL)
+    {
+        p[0] = 0;
+        parentW.Length = (p-parent)*sizeof(WCHAR);
+    }
+    memset(&pattr, 0x0, sizeof(pattr));
+    pattr.Length = sizeof(pattr);
+    pattr.Attributes = OBJ_CASE_INSENSITIVE;
+    pattr.ObjectName = &parentW;
+    status = FILE_CreateFile( &hparent, READ_CONTROL|ACCESS_SYSTEM_SECURITY, &pattr, &io, NULL,
+                              FILE_FLAG_BACKUP_SEMANTICS,
+                              FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, FILE_OPEN,
+                              FILE_OPEN_FOR_BACKUP_INTENT, NULL, 0 );
+    if (status == STATUS_SUCCESS)
+        status = NtQuerySecurityObject( hparent, info, NULL, 0, &n1 );
+    if (status == STATUS_BUFFER_TOO_SMALL && (parentsd = RtlAllocateHeap( GetProcessHeap(), 0, n1 )) != NULL)
+        status = NtQuerySecurityObject( hparent, info, parentsd, n1, &n2 );
+    if (status == STATUS_SUCCESS)
+        status = NtQuerySecurityObject( hparent, info, parentsd, n1, &n2 );
+    if (hparent != INVALID_HANDLE_VALUE)
+        NtClose( hparent );
+    if (status != STATUS_SUCCESS) return NULL;
+    status = RtlGetDaclSecurityDescriptor(parentsd, &present, &pDacl, &defaulted);
+    if (status != STATUS_SUCCESS || !present) return NULL;
+    status = RtlQueryInformationAcl(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+    if (status != STATUS_SUCCESS) return NULL;
+
+    for (i=acl_size.AceCount-1; i>=0; i--)
+    {
+        DWORD inheritance_mask = INHERIT_ONLY_ACE|OBJECT_INHERIT_ACE|CONTAINER_INHERIT_ACE;
+        ACE_HEADER *ace;
+
+        status = RtlGetAce(pDacl, i, (VOID **)&ace);
+        if (status != STATUS_SUCCESS || !(ace->AceFlags & inheritance_mask))
+        {
+            RtlDeleteAce(pDacl, i);
+            acl_size.AceCount--;
+        }
+        else
+            ace->AceFlags = (ace->AceFlags & ~inheritance_mask) | INHERITED_ACE;
+    }
+
+    if (!acl_size.AceCount)
+    {
+        return NULL;
+    }
+    return parentsd;
+}
+
+
 /**************************************************************************
  *                 FILE_CreateFile                    (internal)
  * Open a file.
@@ -161,10 +236,18 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
     {
         struct security_descriptor *sd;
         struct object_attributes objattr;
+        PSECURITY_DESCRIPTOR parentsd = NULL, psd;
 
         objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
         objattr.name_len = 0;
-        io->u.Status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
+        psd = attr->SecurityDescriptor;
+        if (!psd && (disposition == FILE_CREATE||disposition == FILE_OVERWRITE_IF))
+            parentsd = FILE_get_parent_sd( attr->ObjectName );
+        if (parentsd)
+            psd = parentsd;
+        io->u.Status = NTDLL_create_struct_sd( psd, &sd, &objattr.sd_len );
+        if (parentsd)
+            RtlFreeHeap( GetProcessHeap(), 0, parentsd );
         if (io->u.Status != STATUS_SUCCESS)
         {
             RtlFreeAnsiString( &unix_name );
