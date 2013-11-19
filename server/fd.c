@@ -91,6 +91,9 @@
 #ifdef HAVE_SYS_SYSCALL_H
 #include <sys/syscall.h>
 #endif
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
@@ -99,6 +102,7 @@
 #include "handle.h"
 #include "process.h"
 #include "request.h"
+#include "security.h"
 
 #include "winternl.h"
 #include "winioctl.h"
@@ -1726,9 +1730,69 @@ static char *dup_fd_name( struct fd *root, const char *name )
     return ret;
 }
 
+void set_file_acls( int fd, const struct security_descriptor *sd )
+{
+#ifdef HAVE_ATTR_XATTR_H
+    char buffer[XATTR_SIZE_MAX], *p = buffer;
+    const ACE_HEADER *ace;
+    int present, i, j, n;
+    const ACL *dacl;
+
+    if (!sd) return;
+    dacl = sd_get_dacl( sd, &present );
+    if (!present || !dacl) return;
+    ace = (const ACE_HEADER *)(dacl + 1);
+
+    for (i = 0; i < dacl->AceCount; i++, ace = ace_next( ace ))
+    {
+        BYTE type = ace->AceType, flags;
+        const ACCESS_ALLOWED_ACE *aaa;
+        const ACCESS_DENIED_ACE *ada;
+        char sidtxt[100], *s;
+        const SID *sid;
+        DWORD mask;
+
+        if (type & INHERIT_ONLY_ACE) continue;
+
+        switch (type)
+        {
+            case ACCESS_DENIED_ACE_TYPE:
+                ada   = (const ACCESS_DENIED_ACE *)ace;
+                flags = ada->Header.AceFlags;
+                mask  = ada->Mask;
+                sid   = (const SID *)&ada->SidStart;
+                break;
+            case ACCESS_ALLOWED_ACE_TYPE:
+                aaa   = (const ACCESS_ALLOWED_ACE *)ace;
+                flags = aaa->Header.AceFlags;
+                mask  = aaa->Mask;
+                sid   = (const SID *)&aaa->SidStart;
+                break;
+            default:
+                continue;
+        }
+        n = sprintf( sidtxt,  "S-%u-%d", sid->Revision,
+            MAKELONG(
+                MAKEWORD( sid->IdentifierAuthority.Value[5],
+                          sid->IdentifierAuthority.Value[4] ),
+                MAKEWORD( sid->IdentifierAuthority.Value[3],
+                          sid->IdentifierAuthority.Value[2] )
+            ) );
+        s = sidtxt + n;
+        for( j=0; j<sid->SubAuthorityCount; j++ )
+            s += sprintf( s, "-%u", sid->SubAuthority[j] );
+
+        p += snprintf( p, XATTR_SIZE_MAX-(p-buffer), "%s%x,%x,%x,%s",
+                      (p != buffer ? ";" : ""), type, flags, mask, sidtxt );
+    }
+
+    fsetxattr( fd, "user.wine.acl", buffer, p-buffer, 0 );
+#endif
+}
+
 /* open() wrapper that returns a struct fd with no fd user set */
 struct fd *open_fd( struct fd *root, const char *name, int flags, mode_t *mode, unsigned int access,
-                    unsigned int sharing, unsigned int options )
+                    unsigned int sharing, unsigned int options, const struct security_descriptor *sd )
 {
     struct stat st;
     struct closed_fd *closed_fd;
@@ -1803,6 +1867,8 @@ struct fd *open_fd( struct fd *root, const char *name, int flags, mode_t *mode, 
             goto error;
         }
     }
+
+    set_file_acls( fd->unix_fd, sd );
 
     closed_fd->unix_fd = fd->unix_fd;
     closed_fd->unlink[0] = 0;
