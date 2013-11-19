@@ -56,7 +56,8 @@ extern struct fd *alloc_pseudo_fd( const struct fd_ops *fd_user_ops, struct obje
                                    unsigned int options );
 extern void set_no_fd_status( struct fd *fd, unsigned int status );
 extern struct fd *open_fd( struct fd *root, const char *name, int flags, mode_t *mode,
-                           unsigned int access, unsigned int sharing, unsigned int options );
+                           unsigned int access, unsigned int sharing, unsigned int options,
+                           const struct security_descriptor *sd );
 extern struct fd *create_anonymous_fd( const struct fd_ops *fd_user_ops,
                                        int unix_fd, struct object *user, unsigned int options );
 extern struct fd *dup_fd_object( struct fd *orig, unsigned int access, unsigned int sharing,
@@ -122,6 +123,8 @@ extern struct file *create_file_for_fd_obj( struct fd *fd, unsigned int access, 
 extern void file_set_error(void);
 extern struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID *group );
 extern mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner );
+extern void set_file_acls( int fd, const struct security_descriptor *sd );
+extern struct security_descriptor *get_file_acls( int fd, const SID *user, const SID *group );
 
 /* file mapping functions */
 
