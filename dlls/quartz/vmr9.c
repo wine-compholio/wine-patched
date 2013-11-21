@@ -1440,7 +1440,7 @@ static HRESULT WINAPI VMR7MonitorConfig_GetAvailableMonitors(IVMRMonitorConfig *
 
     args.info7      = info;
     args.info9      = NULL;
-    args.arraysize  = arraysize;
+    args.arraysize  = 1; /* only return first entry */
     args.numdev     = 0;
     EnumDisplayMonitors(NULL, NULL, get_available_monitors_proc, (LPARAM)&args);
 
@@ -1540,7 +1540,7 @@ static HRESULT WINAPI VMR9MonitorConfig_GetAvailableMonitors(IVMRMonitorConfig9 
 
     args.info7      = NULL;
     args.info9      = info;
-    args.arraysize  = arraysize;
+    args.arraysize  = 1; /* only return first entry */
     args.numdev     = 0;
     EnumDisplayMonitors(NULL, NULL, get_available_monitors_proc, (LPARAM)&args);
 
