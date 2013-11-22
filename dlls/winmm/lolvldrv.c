@@ -544,7 +544,10 @@ static void MMDRV_Init(void)
     drvA = HeapAlloc(GetProcessHeap(), 0, size);
     WideCharToMultiByte(CP_ACP, 0, pv.u.pwszVal, -1, drvA, size, NULL, NULL);
 
-    MMDRV_Install(drvA, drvA, FALSE);
+    if (!strcasecmp(drvA, "winepulse.drv"))
+        MMDRV_Install("winealsa.drv", "winealsa.drv", 0);
+    else
+        MMDRV_Install(drvA, drvA, FALSE);
 
     HeapFree(GetProcessHeap(), 0, drvA);
     PropVariantClear(&pv);
