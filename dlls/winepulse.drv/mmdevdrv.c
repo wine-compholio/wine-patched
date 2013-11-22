@@ -1886,6 +1886,10 @@ static HRESULT WINAPI AudioRenderClient_GetBuffer(IAudioRenderClient *iface,
     return hr;
 }
 
+static void pulse_free_noop(void *buf)
+{
+}
+
 static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
         IAudioRenderClient *iface, UINT32 written_frames, DWORD flags)
 {
@@ -1921,7 +1925,7 @@ static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
     if (This->locked_ptr)
         pa_stream_write(This->stream, This->locked_ptr, written_bytes, NULL, 0, PA_SEEK_RELATIVE);
     else
-        pa_stream_write(This->stream, This->tmp_buffer, written_bytes, NULL, 0, PA_SEEK_RELATIVE);
+        pa_stream_write(This->stream, This->tmp_buffer, written_bytes, pulse_free_noop, 0, PA_SEEK_RELATIVE);
     This->pad += written_bytes;
     This->locked_ptr = NULL;
     TRACE("Released %u, pad %zu\n", written_frames, This->pad / pa_frame_size(&This->ss));
