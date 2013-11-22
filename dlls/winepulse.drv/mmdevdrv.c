@@ -531,7 +531,10 @@ static void pulse_wr_callback(pa_stream *s, size_t bytes, void *userdata)
     else
         This->pad = 0;
 
-    assert(oldpad >= This->pad);
+    if (oldpad == This->pad)
+        return;
+
+    assert(oldpad > This->pad);
 
     This->clock_written += oldpad - This->pad;
     TRACE("New pad: %zu (-%zu)\n", This->pad / pa_frame_size(&This->ss), (oldpad - This->pad) / pa_frame_size(&This->ss));
