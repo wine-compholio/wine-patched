@@ -457,7 +457,7 @@ static void wined3d_swapchain_rotate(struct wined3d_swapchain *swapchain, struct
         swapchain->back_buffers[i - 1]->texture_rgb = swapchain->back_buffers[i]->texture_rgb;
         surface_prev->rb_multisample = surface->rb_multisample;
 
-        surface_validate_location(surface_prev, surface->resource.locations & supported_locations);
+        wined3d_resource_validate_location(&surface_prev->resource, surface->resource.locations & supported_locations);
         surface_invalidate_location(surface_prev, ~(surface->resource.locations & supported_locations));
 
         surface_prev = surface;
@@ -466,7 +466,7 @@ static void wined3d_swapchain_rotate(struct wined3d_swapchain *swapchain, struct
     swapchain->back_buffers[i - 1]->texture_rgb = tex0;
     surface_prev->rb_multisample = rb0;
 
-    surface_validate_location(surface_prev, locations0 & supported_locations);
+    wined3d_resource_validate_location(&surface_prev->resource, locations0 & supported_locations);
     surface_invalidate_location(surface_prev, ~(locations0 & supported_locations));
 
     device_invalidate_state(swapchain->device, STATE_FRAMEBUFFER);
@@ -622,7 +622,7 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
 
     front = surface_from_resource(wined3d_texture_get_sub_resource(swapchain->front_buffer, 0));
 
-    surface_validate_location(front, WINED3D_LOCATION_DRAWABLE);
+    wined3d_resource_validate_location(&front->resource, WINED3D_LOCATION_DRAWABLE);
     surface_invalidate_location(front, ~WINED3D_LOCATION_DRAWABLE);
     /* If the swapeffect is DISCARD, the back buffer is undefined. That means the SYSMEM
      * and INTEXTURE copies can keep their old content if they have any defined content.
@@ -895,7 +895,7 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, struct wined3
     front_buffer = surface_from_resource(wined3d_texture_get_sub_resource(swapchain->front_buffer, 0));
     if (!(device->wined3d->flags & WINED3D_NO3D))
     {
-        surface_validate_location(front_buffer, WINED3D_LOCATION_DRAWABLE);
+        wined3d_resource_validate_location(&front_buffer->resource, WINED3D_LOCATION_DRAWABLE);
         surface_invalidate_location(front_buffer, ~WINED3D_LOCATION_DRAWABLE);
     }
 
