@@ -574,19 +574,19 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
             /* Tell the front buffer surface that is has been modified. However,
              * the other locations were preserved during that, so keep the flags.
              * This serves to update the emulated overlay, if any. */
-            surface_validate_location(front, WINED3D_LOCATION_DRAWABLE);
+            wined3d_resource_validate_location(&front->resource, WINED3D_LOCATION_DRAWABLE);
         }
         else
         {
-            surface_validate_location(front, WINED3D_LOCATION_DRAWABLE);
+            wined3d_resource_validate_location(&front->resource, WINED3D_LOCATION_DRAWABLE);
             surface_invalidate_location(front, ~WINED3D_LOCATION_DRAWABLE);
-            surface_validate_location(back_buffer, WINED3D_LOCATION_DRAWABLE);
+            wined3d_resource_validate_location(&back_buffer->resource, WINED3D_LOCATION_DRAWABLE);
             surface_invalidate_location(back_buffer, ~WINED3D_LOCATION_DRAWABLE);
         }
     }
     else
     {
-        surface_validate_location(front, WINED3D_LOCATION_DRAWABLE);
+        wined3d_resource_validate_location(&front->resource, WINED3D_LOCATION_DRAWABLE);
         surface_invalidate_location(front, ~WINED3D_LOCATION_DRAWABLE);
         /* If the swapeffect is DISCARD, the back buffer is undefined. That means the SYSMEM
          * and INTEXTURE copies can keep their old content if they have any defined content.
@@ -595,7 +595,7 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
          */
         if (swapchain->desc.swap_effect == WINED3D_SWAP_EFFECT_FLIP)
         {
-            surface_validate_location(back_buffer, back_buffer->container->resource.draw_binding);
+            wined3d_resource_validate_location(&back_buffer->resource, back_buffer->container->resource.draw_binding);
             surface_invalidate_location(back_buffer, ~back_buffer->container->resource.draw_binding);
         }
     }
@@ -870,7 +870,7 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, struct wined3
     wined3d_texture_set_swapchain(swapchain->front_buffer, swapchain);
     if (!(device->wined3d->flags & WINED3D_NO3D))
     {
-        surface_validate_location(front_buffer, WINED3D_LOCATION_DRAWABLE);
+        wined3d_resource_validate_location(&front_buffer->resource, WINED3D_LOCATION_DRAWABLE);
         surface_invalidate_location(front_buffer, ~WINED3D_LOCATION_DRAWABLE);
     }
 
