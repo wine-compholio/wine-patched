@@ -7918,7 +7918,7 @@ static void arbfp_blit_surface(struct wined3d_device *device, enum wined3d_blit_
 
     context_release(context);
 
-    surface_validate_location(dst_surface, dst_surface->container->resource.draw_binding);
+    wined3d_resource_validate_location(&dst_surface->resource, dst_surface->container->resource.draw_binding);
     surface_invalidate_location(dst_surface, ~dst_surface->container->resource.draw_binding);
 }
 
