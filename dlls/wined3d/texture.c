@@ -876,7 +876,7 @@ static void texture2d_sub_resource_validate_location(struct wined3d_resource *su
 {
     struct wined3d_surface *surface = surface_from_resource(sub_resource);
 
-    surface_validate_location(surface, location);
+    wined3d_resource_validate_location(&surface->resource, location);
 }
 
 static void texture2d_sub_resource_upload_data(struct wined3d_resource *sub_resource,
