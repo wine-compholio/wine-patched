@@ -1443,6 +1443,10 @@ static HRESULT WINAPI AudioClient_IsFormatSupported(IAudioClient *iface,
         }
     }
 
+    if (fmt->nBlockAlign != fmt->nChannels * fmt->wBitsPerSample / 8 ||
+        fmt->nAvgBytesPerSec != fmt->nBlockAlign * fmt->nSamplesPerSec)
+        hr = S_FALSE;
+
     if (hr == S_OK || !out) {
         CoTaskMemFree(closest);
         if (out)
