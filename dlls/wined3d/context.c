@@ -3085,7 +3085,7 @@ static void context_setup_target(struct wined3d_context *context, struct wined3d
             if (texture->texture_srgb.name)
                 wined3d_texture_load(texture, context, TRUE);
             wined3d_texture_load(texture, context, FALSE);
-            surface_invalidate_location(context->current_rt, WINED3D_LOCATION_DRAWABLE);
+            wined3d_resource_invalidate_location(&context->current_rt->resource, WINED3D_LOCATION_DRAWABLE);
         }
     }
 
