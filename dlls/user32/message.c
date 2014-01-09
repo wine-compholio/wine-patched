@@ -4441,7 +4441,7 @@ UINT_PTR WINAPI SetTimer( HWND hwnd, UINT_PTR id, UINT timeout, TIMERPROC proc )
 
     /* MSDN states that the minimum timeout should be USER_TIMER_MINIMUM (10.0 ms), but testing
      * indicates that the true minimum is closer to 15.6 ms. */
-    timeout = min( max( 15, timeout ), USER_TIMER_MAXIMUM );
+    timeout = min( max( 5, timeout ), USER_TIMER_MAXIMUM );
 
     SERVER_START_REQ( set_win_timer )
     {
