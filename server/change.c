@@ -286,6 +286,7 @@ static int get_dir_unix_fd( struct dir *dir )
 static struct security_descriptor *dir_get_sd( struct object *obj )
 {
     struct dir *dir = (struct dir *)obj;
+    const SID *user, *group;
     int unix_fd;
     struct stat st;
     struct security_descriptor *sd;
@@ -302,9 +303,11 @@ static struct security_descriptor *dir_get_sd( struct object *obj )
         (st.st_uid == dir->uid))
         return obj->sd;
 
-    sd = mode_to_sd( st.st_mode,
-                     security_unix_uid_to_sid( st.st_uid ),
-                     token_get_primary_group( current->process->token ));
+    user = security_unix_uid_to_sid( st.st_uid );
+    group = token_get_primary_group( current->process->token );
+    sd = get_file_acls( unix_fd, user, group );
+    if (!sd)
+        sd = mode_to_sd( st.st_mode, user, group );
     if (!sd) return obj->sd;
 
     dir->mode = st.st_mode;
@@ -352,6 +355,8 @@ static int dir_set_sd( struct object *obj, const struct security_descriptor *sd,
         /* keep the bits that we don't map to access rights in the ACL */
         mode = st.st_mode & (S_ISUID|S_ISGID|S_ISVTX);
         mode |= sd_to_mode( sd, owner );
+
+        set_file_acls( unix_fd, sd );
 
         if (((st.st_mode ^ mode) & (S_IRWXU|S_IRWXG|S_IRWXO)) && fchmod( unix_fd, mode ) == -1)
         {
