@@ -140,6 +140,7 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
     HKEY appkey = 0;
     DWORD len, tmpvalue;
     WNDCLASSA wc;
+    const char *env;
 
     wined3d_context_tls_idx = TlsAlloc();
     if (wined3d_context_tls_idx == TLS_OUT_OF_INDEXES)
@@ -308,6 +309,9 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
 
     if (appkey) RegCloseKey( appkey );
     if (hkey) RegCloseKey( hkey );
+
+    if ((env = getenv("WINE_STRICT_DRAW_ORDERING")))
+        wined3d_settings.strict_draw_ordering = atoi(env);
 
     return TRUE;
 }
