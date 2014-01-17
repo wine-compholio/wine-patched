@@ -1988,10 +1988,11 @@ NTSTATUS fill_stat_info( const struct stat *st, void *ptr, FILE_INFORMATION_CLAS
 
             get_file_times( st, &info->LastWriteTime, &info->ChangeTime,
                             &info->LastAccessTime, &info->CreationTime );
-            if (S_ISDIR(st->st_mode)) info->FileAttributes = FILE_ATTRIBUTE_DIRECTORY;
+            if (st->st_mode & S_IFDIR) info->FileAttributes = FILE_ATTRIBUTE_DIRECTORY;
             else info->FileAttributes = FILE_ATTRIBUTE_ARCHIVE;
             if (!(st->st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)))
                 info->FileAttributes |= FILE_ATTRIBUTE_READONLY;
+            if ((st->st_mode & S_IFLNK) == S_IFLNK) info->FileAttributes |= FILE_ATTRIBUTE_REPARSE_POINT;
         }
         break;
     case FileStandardInformation:
@@ -2714,6 +2715,10 @@ NTSTATUS WINAPI NtQueryAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_BASIC
             status = STATUS_INVALID_INFO_CLASS;
         else
         {
+            struct stat lst;
+
+            if (lstat( unix_name.Buffer, &lst ) != -1)
+                st.st_mode |= (lst.st_mode & S_IFLNK);
             status = fill_stat_info( &st, info, FileBasicInformation );
             if (DIR_is_hidden_file( attr->ObjectName ))
                 info->FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
