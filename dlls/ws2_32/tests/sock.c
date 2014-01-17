@@ -6924,15 +6924,15 @@ end:
         closesocket(connector2);
 }
 
-#define compare_file(h,s) compare_file2(h,s,__FILE__,__LINE__)
+#define compare_file(h,s,o) compare_file2(h,s,o,__FILE__,__LINE__)
 
-static void compare_file2(HANDLE handle, SOCKET sock, const char *file, int line)
+static void compare_file2(HANDLE handle, SOCKET sock, int offset, const char *file, int line)
 {
     char buf1[256], buf2[256];
     BOOL success;
     int i = 0;
 
-    SetFilePointer(handle, 0, NULL, FILE_BEGIN);
+    SetFilePointer(handle, offset, NULL, FILE_BEGIN);
     while (1)
     {
         DWORD n1 = 0, n2 = 0;
@@ -6962,9 +6962,12 @@ static void test_TransmitFile(void)
     TRANSMIT_FILE_BUFFERS buffers;
     SOCKET client, server, dest;
     DWORD num_bytes, err;
+    WSAOVERLAPPED ov;
     char buf[256];
     int iret, len;
     BOOL bret;
+
+    memset( &ov, 0, sizeof(ov) );
 
     /* Setup sockets for testing TransmitFile */
     client = socket(AF_INET, SOCK_STREAM, 0);
@@ -7063,7 +7066,7 @@ static void test_TransmitFile(void)
     /* Test TransmitFile with only file data */
     bret = pTransmitFile(client, file, 0, 0, NULL, NULL, 0);
     ok(bret, "TransmitFile failed unexpectedly.\n");
-    compare_file(file, dest);
+    compare_file(file, dest, 0);
 
     /* Test TransmitFile with both file and buffer data */
     buffers.Head = &header_msg[0];
@@ -7076,10 +7079,43 @@ static void test_TransmitFile(void)
     iret = recv(dest, buf, sizeof(header_msg)+1, 0);
     ok(memcmp(buf, &header_msg[0], sizeof(header_msg)+1) == 0,
        "TransmitFile header buffer did not match!\n");
-    compare_file(file, dest);
+    compare_file(file, dest, 0);
     iret = recv(dest, buf, sizeof(footer_msg)+1, 0);
     ok(memcmp(buf, &footer_msg[0], sizeof(footer_msg)+1) == 0,
        "TransmitFile footer buffer did not match!\n");
+
+    /* Test overlapped TransmitFile */
+    ov.hEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
+    if (ov.hEvent == INVALID_HANDLE_VALUE)
+    {
+        skip("Could not create event object, some tests will be skipped. errno = %d\n", GetLastError());
+        goto cleanup;
+    }
+    SetFilePointer(file, 0, NULL, FILE_BEGIN);
+    bret = pTransmitFile(client, file, 0, 0, &ov, NULL, 0);
+    err = WSAGetLastError();
+    ok(!bret, "TransmitFile succeeded unexpectedly.\n");
+    ok(err == ERROR_IO_PENDING, "TransmitFile triggered unexpected errno (%d != %d)\n", err, ERROR_IO_PENDING);
+    iret = WaitForSingleObject(ov.hEvent, 100);
+    ok(iret == WAIT_OBJECT_0, "Overlapped TransmitFile failed.\n");
+    compare_file(file, dest, 0);
+
+    /* Test overlapped TransmitFile w/ start offset */
+    ov.hEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
+    if (ov.hEvent == INVALID_HANDLE_VALUE)
+    {
+        skip("Could not create event object, some tests will be skipped. errno = %d\n", GetLastError());
+        goto cleanup;
+    }
+    SetFilePointer(file, 0, NULL, FILE_BEGIN);
+    ov.Offset = 10;
+    bret = pTransmitFile(client, file, 0, 0, &ov, NULL, 0);
+    err = WSAGetLastError();
+    ok(!bret, "TransmitFile succeeded unexpectedly.\n");
+    ok(err == ERROR_IO_PENDING, "TransmitFile triggered unexpected errno (%d != %d)\n", err, ERROR_IO_PENDING);
+    iret = WaitForSingleObject(ov.hEvent, 100);
+    ok(iret == WAIT_OBJECT_0, "Overlapped TransmitFile failed.\n");
+    compare_file(file, dest, 10);
 
     /* Test TransmitFile with a UDP datagram socket */
     closesocket(client);
@@ -7091,6 +7127,7 @@ static void test_TransmitFile(void)
 
 cleanup:
     CloseHandle(file);
+    CloseHandle(ov.hEvent);
     closesocket(client);
     closesocket(server);
 }
