@@ -4496,10 +4496,9 @@ static void test_junction_points(void)
     memset(&new_attrib, 0x00, sizeof(new_attrib));
     dwret = NtQueryInformationFile(hJunction, &iosb, &new_attrib, sizeof(new_attrib), FileBasicInformation);
     ok(dwret == STATUS_SUCCESS, "Failed to get junction point folder's attributes (0x%x).\n", dwret);
-    /* conversion bug: we see 0x1c9c380deadbee6 on Wine */
-    todo_wine ok(old_attrib.LastAccessTime.QuadPart == new_attrib.LastAccessTime.QuadPart,
-                 "Junction point folder's access time does not match (0x%llx != 0x%llx).\n",
-                 new_attrib.LastAccessTime.QuadPart, old_attrib.LastAccessTime.QuadPart);
+    ok(old_attrib.LastAccessTime.QuadPart == new_attrib.LastAccessTime.QuadPart,
+       "Junction point folder's access time does not match (0x%llx != 0x%llx).\n",
+       new_attrib.LastAccessTime.QuadPart, old_attrib.LastAccessTime.QuadPart);
     CloseHandle(hJunction);
 
     /* Check deleting a junction point as if it were a directory */
