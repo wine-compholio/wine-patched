@@ -2477,8 +2477,28 @@ static BOOL WINAPI WS2_AcceptEx(SOCKET listener, SOCKET acceptor, PVOID dest, DW
 static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWORD bytes_per_send,
                                      LPOVERLAPPED overlapped, LPTRANSMIT_FILE_BUFFERS buffers, DWORD flags )
 {
+    union generic_unix_sockaddr uaddr;
+    unsigned int uaddrlen = sizeof(uaddr);
+    int fd;
+
     FIXME("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, total_bytes, bytes_per_send, overlapped, buffers,
                                                      flags );
+    if (s == INVALID_SOCKET)
+    {
+        WSASetLastError( WSAENOTSOCK );
+        return FALSE;
+    }
+    fd = get_sock_fd( s, 0, NULL );
+    if (getpeername( fd, &uaddr.addr, &uaddrlen ) != 0)
+    {
+        release_sock_fd( s, fd );
+        WSASetLastError( WSAENOTCONN );
+        return FALSE;
+    }
+    release_sock_fd( s, fd );
+    if (flags)
+        FIXME("Flags are not currently supported (0x%x).\n", flags);
+
     WSASetLastError( WSAEOPNOTSUPP );
     return FALSE;
 }
