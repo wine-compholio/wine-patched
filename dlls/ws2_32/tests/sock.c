@@ -7117,8 +7117,17 @@ static void test_TransmitFile(void)
     ok(iret == WAIT_OBJECT_0, "Overlapped TransmitFile failed.\n");
     compare_file(file, dest, 10);
 
-    /* Test TransmitFile with a UDP datagram socket */
+    /* Test TransmitFile w/ TF_DISCONNECT */
+    SetFilePointer(file, 0, NULL, FILE_BEGIN);
+    bret = pTransmitFile(client, file, 0, 0, NULL, NULL, TF_DISCONNECT);
+    ok(bret, "TransmitFile failed unexpectedly.\n");
+    compare_file(file, dest, 0);
     closesocket(client);
+    err = WSAGetLastError();
+    ok(err == ERROR_INVALID_HANDLE, "TransmitFile triggered unexpected errno (%d != %d)\n", err,
+                                    ERROR_INVALID_HANDLE);
+
+    /* Test TransmitFile with a UDP datagram socket */
     client = socket(AF_INET, SOCK_DGRAM, 0);
     bret = pTransmitFile(client, NULL, 0, 0, NULL, NULL, 0);
     err = WSAGetLastError();

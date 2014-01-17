@@ -2598,6 +2598,18 @@ static BOOL WS2_transmitfile_base( SOCKET s, HANDLE h, DWORD total_bytes, DWORD 
     if (buffers && WS_send( s, buffers->Tail, buffers->TailLength, 0 ) == SOCKET_ERROR)
         goto cleanup;
 
+    if (flags & TF_REUSE_SOCKET)
+    {
+        SERVER_START_REQ( reuse_socket )
+        {
+            req->handle = wine_server_obj_handle( SOCKET2HANDLE(s) );
+            wine_server_call( req );
+        }
+        SERVER_END_REQ;
+    }
+    if (flags & TF_DISCONNECT)
+        WS_closesocket( s );
+
     ret = TRUE;
 
 cleanup:
@@ -2639,6 +2651,7 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWOR
 {
     union generic_unix_sockaddr uaddr;
     unsigned int uaddrlen = sizeof(uaddr);
+    DWORD unsupported_flags = flags & ~(TF_DISCONNECT|TF_REUSE_SOCKET);
     IO_STATUS_BLOCK *iosb = (IO_STATUS_BLOCK *)overlapped;
     struct ws2_transmitfile_async *wsa;
     int status, fd;
@@ -2659,8 +2672,8 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWOR
         return FALSE;
     }
     release_sock_fd( s, fd );
-    if (flags)
-        FIXME("Flags are not currently supported (0x%x).\n", flags);
+    if (unsupported_flags)
+        FIXME("Flags are not currently supported (0x%x).\n", unsupported_flags);
 
     if (!overlapped)
         return WS2_transmitfile_base( s, h, total_bytes, bytes_per_send, overlapped, buffers, flags );
