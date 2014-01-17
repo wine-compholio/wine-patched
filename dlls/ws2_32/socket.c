@@ -365,6 +365,18 @@ typedef struct ws2_accept_async
     char                name_buf[1];
 } ws2_accept_async;
 
+typedef struct ws2_transmitfile_async
+{
+    HANDLE                  socket;
+    HANDLE                  file;
+    DWORD                   total_bytes;
+    DWORD                   bytes_per_send;
+    LPOVERLAPPED            user_overlapped;
+    LPTRANSMIT_FILE_BUFFERS buffers;
+    DWORD                   flags;
+    ULONG_PTR               cvalue;
+} ws2_transmitfile_async;
+
 /****************************************************************/
 
 /* ----------------------------------- internal data */
@@ -2551,6 +2563,16 @@ static BOOL WS2_transmitfile_base( SOCKET s, HANDLE h, DWORD total_bytes, DWORD 
         buffer = HeapAlloc( GetProcessHeap(), 0, bytes_per_send );
         if (!buffer) goto cleanup;
 
+        /* handle the overlapped offset */
+        if (overlapped)
+        {
+            LARGE_INTEGER offset;
+
+            offset.u.LowPart = overlapped->u.s.Offset;
+            offset.u.HighPart = overlapped->u.s.OffsetHigh;
+            SetFilePointerEx( h, offset, NULL, FILE_BEGIN );
+        }
+
         /* read and send the data from the file */
         do
         {
@@ -2584,6 +2606,32 @@ cleanup:
 }
 
 /***********************************************************************
+ *     WS2_async_transmitfile           (INTERNAL)
+ *
+ * Asynchronous callback for overlapped TransmitFile operations.
+ */
+static NTSTATUS WS2_async_transmitfile( void *arg, IO_STATUS_BLOCK *iosb, ULONG reserved, void **apc)
+{
+    struct ws2_transmitfile_async *wsa = arg;
+    BOOL ret;
+
+    ret = WS2_transmitfile_base( HANDLE2SOCKET(wsa->socket), wsa->file, wsa->total_bytes, wsa->bytes_per_send,
+                                 wsa->user_overlapped, wsa->buffers, wsa->flags );
+    if (!ret)
+        iosb->u.Status = wsaErrStatus();
+    else
+        iosb->u.Status = STATUS_SUCCESS;
+    iosb->Information = 0;
+
+    if (wsa->user_overlapped->hEvent)
+        SetEvent(wsa->user_overlapped->hEvent);
+    if (wsa->cvalue)
+        WS_AddCompletion( HANDLE2SOCKET(wsa->socket), wsa->cvalue, iosb->u.Status, iosb->Information );
+
+    return iosb->u.Status;
+}
+
+/***********************************************************************
  *     TransmitFile
  */
 static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWORD bytes_per_send,
@@ -2591,7 +2639,9 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWOR
 {
     union generic_unix_sockaddr uaddr;
     unsigned int uaddrlen = sizeof(uaddr);
-    int fd;
+    IO_STATUS_BLOCK *iosb = (IO_STATUS_BLOCK *)overlapped;
+    struct ws2_transmitfile_async *wsa;
+    int status, fd;
 
     TRACE("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, total_bytes, bytes_per_send, overlapped, buffers,
                                                      flags );
@@ -2615,9 +2665,37 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWOR
     if (!overlapped)
         return WS2_transmitfile_base( s, h, total_bytes, bytes_per_send, overlapped, buffers, flags );
 
-    FIXME("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, total_bytes, bytes_per_send, overlapped, buffers,
-                                                     flags );
-    WSASetLastError( WSAEOPNOTSUPP );
+    iosb->u.Status = STATUS_PENDING;
+    iosb->Information = 0;
+    if (!(wsa = HeapAlloc( GetProcessHeap(), 0, sizeof(*wsa) )))
+    {
+        SetLastError( WSAEFAULT );
+        return FALSE;
+    }
+    wsa->socket = SOCKET2HANDLE(s);
+    wsa->file = h;
+    wsa->total_bytes = total_bytes;
+    wsa->bytes_per_send = bytes_per_send;
+    wsa->user_overlapped = overlapped;
+    wsa->buffers = buffers;
+    wsa->flags = flags;
+    wsa->cvalue = (((ULONG_PTR)overlapped->hEvent & 1) == 0) ? (ULONG_PTR)overlapped : 0;
+
+    SERVER_START_REQ( register_async )
+    {
+        req->type           = ASYNC_TYPE_WRITE;
+        req->async.handle   = wine_server_obj_handle( SOCKET2HANDLE(s) );
+        req->async.callback = wine_server_client_ptr( WS2_async_transmitfile );
+        req->async.iosb     = wine_server_client_ptr( iosb );
+        req->async.arg      = wine_server_client_ptr( wsa );
+        status = wine_server_call( req );
+    }
+    SERVER_END_REQ;
+
+    if(status != STATUS_PENDING)
+        HeapFree( GetProcessHeap(), 0, wsa );
+
+    SetLastError( NtStatusToWSAError(status) );
     return FALSE;
 }
 
