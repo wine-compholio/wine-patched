@@ -1487,6 +1487,7 @@ NTSTATUS FILE_CreateSymlink(HANDLE handle, REPARSE_DATA_BUFFER *buffer)
     int dest_fd, needs_close;
     UNICODE_STRING nt_dest;
     NTSTATUS status;
+    char *p;
 
     if ((status = server_get_unix_fd( handle, FILE_SPECIAL_ACCESS, &dest_fd, &needs_close, NULL, NULL )))
         return status;
@@ -1499,6 +1500,44 @@ NTSTATUS FILE_CreateSymlink(HANDLE handle, REPARSE_DATA_BUFFER *buffer)
     if ((status = wine_nt_to_unix_file_name( &nt_dest, &unix_dest, FILE_OPEN, FALSE )))
         goto cleanup;
     dest_allocated = TRUE;
+
+    p = strstr(unix_src.Buffer, "/dosdevices/");
+    if (p)
+    {
+        int count = -1; /* do not count the slash at the end of dosdevices or the last directory */
+
+        p += 11; /* strlen("/dosdevices") */
+        do
+        {
+            p++; /* skip the slash */
+            count++;
+            p = strchr(p, '/');
+        } while(p);
+        FIXME("found %d directories up.\n", count);
+        p = strstr(unix_dest.Buffer, "/dosdevices/");
+        if (p)
+        {
+            ANSI_STRING tmp;
+            int dest_len;
+            char *d;
+
+            p += 12; /* strlen("/dosdevices/") */
+            dest_len = unix_dest.Length - (p-unix_dest.Buffer) + 1;
+            tmp.Length = dest_len + 3*count; /* strlen("../") = 3 */
+            tmp.Buffer = RtlAllocateHeap(GetProcessHeap(), 0, tmp.Length);
+            d = tmp.Buffer;
+            for(; count > 0; count--)
+            {
+                (d++)[0] = '.';
+                (d++)[0] = '.';
+                (d++)[0] = '/';
+            }
+            memcpy(d, p, dest_len);
+            RtlFreeAnsiString( &unix_dest );
+            unix_dest.Length = tmp.Length;
+            unix_dest.Buffer = tmp.Buffer;
+        }
+    }
 
     TRACE("Linking %s to %s\n", unix_src.Buffer, unix_dest.Buffer);
 
