@@ -2525,6 +2525,65 @@ static BOOL WINAPI WS2_AcceptEx(SOCKET listener, SOCKET acceptor, PVOID dest, DW
 }
 
 /***********************************************************************
+ *     WS2_transmitfile_base            (INTERNAL)
+ *
+ * Shared implementation for both synchronous and asynchronous TransmitFile.
+ */
+static BOOL WS2_transmitfile_base( SOCKET s, HANDLE h, DWORD total_bytes, DWORD bytes_per_send,
+                                   LPOVERLAPPED overlapped, LPTRANSMIT_FILE_BUFFERS buffers,
+                                   DWORD flags )
+{
+    DWORD bytes_sent = 0;
+    char *buffer = NULL;
+    BOOL ret = FALSE;
+
+    /* set reasonable defaults when requested */
+    if (!bytes_per_send)
+        bytes_per_send = 1024;
+
+    /* send the header (if applicable) */
+    if (buffers && WS_send( s, buffers->Head, buffers->HeadLength, 0 ) == SOCKET_ERROR)
+        goto cleanup;
+
+    /* process the main file */
+    if (h)
+    {
+        buffer = HeapAlloc( GetProcessHeap(), 0, bytes_per_send );
+        if (!buffer) goto cleanup;
+
+        /* read and send the data from the file */
+        do
+        {
+            DWORD n = 0;
+            BOOL ok;
+
+            /* when the size of the transfer is limited ensure that we don't go past that limit */
+            if (total_bytes != 0)
+                bytes_per_send = min(bytes_per_send, total_bytes - bytes_sent);
+            ok = ReadFile( h, buffer, bytes_per_send, &n, NULL );
+            if (ok && n == 0)
+                break;
+            else if(!ok)
+                goto cleanup;
+            n = WS_send( s, buffer, n, 0 );
+            if (n == SOCKET_ERROR)
+                goto cleanup;
+            bytes_sent += n;
+        } while(total_bytes == 0 || bytes_sent < total_bytes);
+    }
+
+    /* send the footer (if applicable) */
+    if (buffers && WS_send( s, buffers->Tail, buffers->TailLength, 0 ) == SOCKET_ERROR)
+        goto cleanup;
+
+    ret = TRUE;
+
+cleanup:
+    HeapFree( GetProcessHeap(), 0, buffer );
+    return ret;
+}
+
+/***********************************************************************
  *     TransmitFile
  */
 static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWORD bytes_per_send,
@@ -2534,7 +2593,7 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWOR
     unsigned int uaddrlen = sizeof(uaddr);
     int fd;
 
-    FIXME("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, total_bytes, bytes_per_send, overlapped, buffers,
+    TRACE("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, total_bytes, bytes_per_send, overlapped, buffers,
                                                      flags );
 
     fd = get_sock_fd( s, 0, NULL );
@@ -2553,6 +2612,11 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD total_bytes, DWOR
     if (flags)
         FIXME("Flags are not currently supported (0x%x).\n", flags);
 
+    if (!overlapped)
+        return WS2_transmitfile_base( s, h, total_bytes, bytes_per_send, overlapped, buffers, flags );
+
+    FIXME("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, total_bytes, bytes_per_send, overlapped, buffers,
+                                                     flags );
     WSASetLastError( WSAEOPNOTSUPP );
     return FALSE;
 }

@@ -6924,15 +6924,45 @@ end:
         closesocket(connector2);
 }
 
+#define compare_file(h,s) compare_file2(h,s,__FILE__,__LINE__)
+
+static void compare_file2(HANDLE handle, SOCKET sock, const char *file, int line)
+{
+    char buf1[256], buf2[256];
+    BOOL success;
+    int i = 0;
+
+    SetFilePointer(handle, 0, NULL, FILE_BEGIN);
+    while (1)
+    {
+        DWORD n1 = 0, n2 = 0;
+
+        success = ReadFile(handle, buf1, sizeof(buf1), &n1, NULL);
+        ok_(file,line)(success, "Failed to read from file.\n");
+        if (success && n1 == 0)
+            break;
+        else if(!success)
+            return;
+        n2 = recv(sock, buf2, n1, 0);
+        ok_(file,line)(n1 == n2, "Block %d size mismatch (%d != %d)\n", i, n1, n2);
+        ok_(file,line)(memcmp(buf1, buf2, n2) == 0, "Block %d failed\n", i);
+        i++;
+    }
+}
+
 static void test_TransmitFile(void)
 {
     GUID transmitFileGuid = WSAID_TRANSMITFILE;
     LPFN_TRANSMITFILE pTransmitFile = NULL;
     HANDLE file = INVALID_HANDLE_VALUE;
+    char header_msg[] = "hello world";
+    char footer_msg[] = "goodbye!!!";
     char system_ini_path[MAX_PATH];
     struct sockaddr_in bindAddress;
+    TRANSMIT_FILE_BUFFERS buffers;
     SOCKET client, server, dest;
     DWORD num_bytes, err;
+    char buf[256];
     int iret, len;
     BOOL bret;
 
@@ -7010,7 +7040,46 @@ static void test_TransmitFile(void)
 
     /* Test TransmitFile with no possible buffer */
     bret = pTransmitFile(client, NULL, 0, 0, NULL, NULL, 0);
-    todo_wine ok(bret, "TransmitFile failed unexpectedly.\n");
+    ok(bret, "TransmitFile failed unexpectedly.\n");
+    iret = recv(dest, buf, sizeof(buf), 0);
+    ok(iret == -1, "Returned an unexpected buffer from TransmitFile (%d != -1).\n", iret);
+
+    /* Test TransmitFile with only buffer data */
+    buffers.Head = &header_msg[0];
+    buffers.HeadLength = sizeof(header_msg)+1;
+    buffers.Tail = &footer_msg[0];
+    buffers.TailLength = sizeof(footer_msg)+1;
+    bret = pTransmitFile(client, NULL, 0, 0, NULL, &buffers, 0);
+    ok(bret, "TransmitFile failed unexpectedly.\n");
+    iret = recv(dest, buf, sizeof(buf), 0);
+    ok(iret == sizeof(header_msg)+sizeof(footer_msg)+2,
+       "Returned an unexpected buffer from TransmitFile (%d != %d).\n", iret,
+       (int)(sizeof(header_msg)+sizeof(footer_msg)+2));
+    ok(memcmp(&buf[0], &header_msg[0], sizeof(header_msg)+1) == 0,
+       "TransmitFile header buffer did not match!\n");
+    ok(memcmp(&buf[sizeof(header_msg)+1], &footer_msg[0], sizeof(footer_msg)+1) == 0,
+       "TransmitFile footer buffer did not match!\n");
+
+    /* Test TransmitFile with only file data */
+    bret = pTransmitFile(client, file, 0, 0, NULL, NULL, 0);
+    ok(bret, "TransmitFile failed unexpectedly.\n");
+    compare_file(file, dest);
+
+    /* Test TransmitFile with both file and buffer data */
+    buffers.Head = &header_msg[0];
+    buffers.HeadLength = sizeof(header_msg)+1;
+    buffers.Tail = &footer_msg[0];
+    buffers.TailLength = sizeof(footer_msg)+1;
+    SetFilePointer(file, 0, NULL, FILE_BEGIN);
+    bret = pTransmitFile(client, file, 0, 0, NULL, &buffers, 0);
+    ok(bret, "TransmitFile failed unexpectedly.\n");
+    iret = recv(dest, buf, sizeof(header_msg)+1, 0);
+    ok(memcmp(buf, &header_msg[0], sizeof(header_msg)+1) == 0,
+       "TransmitFile header buffer did not match!\n");
+    compare_file(file, dest);
+    iret = recv(dest, buf, sizeof(footer_msg)+1, 0);
+    ok(memcmp(buf, &footer_msg[0], sizeof(footer_msg)+1) == 0,
+       "TransmitFile footer buffer did not match!\n");
 
     /* Test TransmitFile with a UDP datagram socket */
     closesocket(client);
