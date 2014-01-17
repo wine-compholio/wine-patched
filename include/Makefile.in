@@ -472,6 +472,7 @@ SRCDIR_INCLUDES = \
 	ntddscsi.h \
 	ntddstor.h \
 	ntdsapi.h \
+	ntifs.h \
 	ntquery.h \
 	ntsecapi.h \
 	ntsecpkg.h \
