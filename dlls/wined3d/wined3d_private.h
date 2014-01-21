@@ -2380,7 +2380,6 @@ HRESULT wined3d_surface_create(struct wined3d_texture *container, const struct w
         GLenum target, unsigned int level, unsigned int layer, DWORD flags,
         struct wined3d_surface **surface) DECLSPEC_HIDDEN;
 void wined3d_surface_destroy(struct wined3d_surface *surface) DECLSPEC_HIDDEN;
-void surface_prepare_map_memory(struct wined3d_surface *surface) DECLSPEC_HIDDEN;
 
 void draw_textured_quad(const struct wined3d_surface *src_surface, struct wined3d_context *context,
         const RECT *src_rect, const RECT *dst_rect, enum wined3d_texture_filter_type filter) DECLSPEC_HIDDEN;
