@@ -2310,8 +2310,6 @@ struct wined3d_surface
     UINT pow2Width;
     UINT pow2Height;
 
-    /* PBO */
-    GLuint                    pbo;
     GLuint rb_multisample;
     GLuint rb_resolved;
     GLenum texture_target;
