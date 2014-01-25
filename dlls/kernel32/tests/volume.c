@@ -635,6 +635,34 @@ static void test_GetVolumePathNameA(void)
             "\\\\$$$", "C:\\", 1,
             ERROR_INVALID_NAME, ERROR_FILENAME_EXCED_RANGE
         },
+        { /* test 9: a reasonable DOS path that is guaranteed to exist */
+            "C:\\windows\\system32", "C:\\", sizeof(volume_path),
+            NO_ERROR, NO_ERROR
+        },
+        { /* test 10: a reasonable DOS path that shouldn't exist */
+            "C:\\windows\\system32\\AnInvalidFolder", "C:\\", sizeof(volume_path),
+            NO_ERROR, NO_ERROR
+        },
+        { /* test 11: an unreasonable DOS path */
+            "InvalidDrive:\\AnInvalidFolder", "C:\\", sizeof(volume_path),
+            NO_ERROR, NO_ERROR
+        },
+        { /* test 12: a reasonable NT-converted DOS path that shouldn't exist */
+            "\\\\?\\C:\\AnInvalidFolder", "\\\\?\\C:\\", sizeof(volume_path),
+            NO_ERROR, NO_ERROR
+        },
+        { /* test 13: an unreasonable NT-converted DOS path */
+            "\\\\?\\InvalidDrive:\\AnInvalidFolder", "", sizeof(volume_path),
+            ERROR_INVALID_NAME, NO_ERROR
+        },
+        { /* test 14: an unreasonable NT volume path */
+            "\\\\?\\Volume{00000000-00-0000-0000-000000000000}\\AnInvalidFolder", "", sizeof(volume_path),
+            ERROR_INVALID_NAME, NO_ERROR
+        },
+        { /* test 15: an unreasonable NT-ish path */
+            "\\\\ReallyBogus\\InvalidDrive:\\AnInvalidFolder", "", sizeof(volume_path),
+            ERROR_INVALID_NAME, NO_ERROR
+        },
     };
     BOOL ret, success;
     DWORD error;
