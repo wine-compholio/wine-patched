@@ -124,6 +124,8 @@ extern struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, con
 extern mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner );
 extern int file_set_acls( struct object *obj, struct fd *fd, const struct security_descriptor *sd,
                           unsigned int set_info );
+extern struct security_descriptor *file_get_acls( struct object *obj, struct fd *fd, mode_t *mode,
+                                                  uid_t *uid );
 
 /* file mapping functions */
 
