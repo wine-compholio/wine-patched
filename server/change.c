@@ -287,7 +287,7 @@ static struct security_descriptor *dir_get_sd( struct object *obj )
     assert( obj->ops == &dir_ops );
 
     fd = dir_get_fd( obj );
-    sd = file_get_acls( obj, fd, &dir->mode, &dir->uid );
+    sd = file_get_acls( obj, fd, &dir->mode, &dir->uid, TRUE );
     release_object( fd );
     return sd;
 }
