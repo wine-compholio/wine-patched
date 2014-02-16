@@ -32,12 +32,16 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
+#include <limits.h>
 #include <unistd.h>
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
 #ifdef HAVE_POLL_H
 #include <poll.h>
+#endif
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
 #endif
 
 #include "ntstatus.h"
@@ -178,6 +182,66 @@ static struct object *create_file_obj( struct fd *fd, unsigned int access, mode_
     return &file->obj;
 }
 
+void set_xattr_acls( int fd, const struct security_descriptor *sd )
+{
+#ifdef HAVE_ATTR_XATTR_H
+    char buffer[XATTR_SIZE_MAX], *p = buffer;
+    const ACE_HEADER *ace;
+    int present, i, j, n;
+    const ACL *dacl;
+
+    if (!sd) return;
+    dacl = sd_get_dacl( sd, &present );
+    if (!present || !dacl) return;
+    ace = (const ACE_HEADER *)(dacl + 1);
+
+    for (i = 0; i < dacl->AceCount; i++, ace = ace_next( ace ))
+    {
+        BYTE type = ace->AceType, flags;
+        const ACCESS_ALLOWED_ACE *aaa;
+        const ACCESS_DENIED_ACE *ada;
+        char sidtxt[100], *s;
+        const SID *sid;
+        DWORD mask;
+
+        if (type & INHERIT_ONLY_ACE) continue;
+
+        switch (type)
+        {
+            case ACCESS_DENIED_ACE_TYPE:
+                ada   = (const ACCESS_DENIED_ACE *)ace;
+                flags = ada->Header.AceFlags;
+                mask  = ada->Mask;
+                sid   = (const SID *)&ada->SidStart;
+                break;
+            case ACCESS_ALLOWED_ACE_TYPE:
+                aaa   = (const ACCESS_ALLOWED_ACE *)ace;
+                flags = aaa->Header.AceFlags;
+                mask  = aaa->Mask;
+                sid   = (const SID *)&aaa->SidStart;
+                break;
+            default:
+                continue;
+        }
+        n = sprintf( sidtxt,  "S-%u-%d", sid->Revision,
+            MAKELONG(
+                MAKEWORD( sid->IdentifierAuthority.Value[5],
+                          sid->IdentifierAuthority.Value[4] ),
+                MAKEWORD( sid->IdentifierAuthority.Value[3],
+                          sid->IdentifierAuthority.Value[2] )
+            ) );
+        s = sidtxt + n;
+        for( j=0; j<sid->SubAuthorityCount; j++ )
+            s += sprintf( s, "-%u", sid->SubAuthority[j] );
+
+        p += snprintf( p, XATTR_SIZE_MAX-(p-buffer), "%s%x,%x,%x,%s",
+                      (p != buffer ? ";" : ""), type, flags, mask, sidtxt );
+    }
+
+    fsetxattr( fd, "user.wine.acl", buffer, p-buffer, 0 );
+#endif
+}
+
 static struct object *create_file( struct fd *root, const char *nameptr, data_size_t len,
                                    unsigned int access, unsigned int sharing, int create,
                                    unsigned int options, unsigned int attrs,
@@ -239,6 +303,7 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
     /* FIXME: should set error to STATUS_OBJECT_NAME_COLLISION if file existed before */
     fd = open_fd( root, name, flags | O_NONBLOCK | O_LARGEFILE, &mode, access, sharing, options );
     if (!fd) goto done;
+    set_xattr_acls( get_unix_fd( fd ), sd );
 
     if (S_ISDIR(mode))
         obj = create_dir_obj( fd, access, mode );
@@ -579,6 +644,8 @@ int file_set_acls( struct object *obj, struct fd *fd, const struct security_desc
         /* keep the bits that we don't map to access rights in the ACL */
         mode = st.st_mode & (S_ISUID|S_ISGID|S_ISVTX);
         mode |= sd_to_mode( sd, owner );
+
+        set_xattr_acls( unix_fd, sd );
 
         if (((st.st_mode ^ mode) & (S_IRWXU|S_IRWXG|S_IRWXO)) && fchmod( unix_fd, mode ) == -1)
         {
