@@ -1256,12 +1256,6 @@ static void Direct3D1Test(void)
            out[i].x, out[i].y, out[i].z, out[i].rhw,
            cmp[i].x, cmp[i].y, cmp[i].z, cmp[i].rhw);
     }
-    for(i = 0; i < sizeof(outH); i++) {
-        if(((unsigned char *) outH)[i] != 0xcc) {
-            ok(FALSE, "Homogeneous output was generated despite UNCLIPPED flag\n");
-            break;
-        }
-    }
 
     SET_VP_DATA(vp_data);
     hr = IDirect3DViewport_SetViewport(Viewport, &vp_data);
