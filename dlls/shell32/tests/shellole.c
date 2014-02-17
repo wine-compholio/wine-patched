@@ -876,8 +876,8 @@ if (0) /* crashes on native */
 
     hkey = (HKEY)0xdeadbeef;
     hr = pSHCreateSessionKey(0, &hkey);
-    ok(hr == E_ACCESSDENIED, "got 0x%08x\n", hr);
-    ok(hkey == NULL, "got %p\n", hkey);
+    todo_wine ok(hr == E_ACCESSDENIED, "got 0x%08x\n", hr);
+    todo_wine ok(hkey == NULL, "got %p\n", hkey);
 
     hr = pSHCreateSessionKey(KEY_READ, &hkey);
     ok(hr == S_OK, "got 0x%08x\n", hr);
