@@ -343,7 +343,7 @@
 @ stdcall NtSetInformationToken(long long ptr long)
 @ stdcall NtSetIntervalProfile(long long)
 @ stdcall NtSetIoCompletion(ptr long ptr long long)
-@ stub NtSetLdtEntries
+@ stdcall NtSetLdtEntries(long long long long long long)
 @ stub NtSetLowEventPair
 @ stub NtSetLowWaitHighEventPair
 @ stub NtSetLowWaitHighThread
@@ -1264,7 +1264,7 @@
 @ stdcall ZwSetInformationToken(long long ptr long) NtSetInformationToken
 @ stdcall ZwSetIntervalProfile(long long) NtSetIntervalProfile
 @ stdcall ZwSetIoCompletion(ptr long ptr long long) NtSetIoCompletion
-@ stub ZwSetLdtEntries
+@ stdcall ZwSetLdtEntries(long long long long long long) NtSetLdtEntries
 @ stub ZwSetLowEventPair
 @ stub ZwSetLowWaitHighEventPair
 @ stub ZwSetLowWaitHighThread
