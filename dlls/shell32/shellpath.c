@@ -2200,6 +2200,63 @@ cleanup:
     return hr;
 }
 
+PSECURITY_DESCRIPTOR _SHGetUserSecurityDescriptor( void )
+{
+    PSECURITY_DESCRIPTOR sd = HeapAlloc(GetProcessHeap(), 0, SECURITY_DESCRIPTOR_MIN_LENGTH);
+    PACL dacl = HeapAlloc(GetProcessHeap(), 0, 100);
+    PSID admin_sid = NULL, user_sid;
+    TOKEN_USER *user = NULL;
+    BOOL ret = FALSE;
+    DWORD sid_size;
+    HANDLE token;
+
+    if(!sd || !dacl) goto cleanup;
+
+    /* find the user SID */
+    if (!OpenThreadToken(GetCurrentThread(), TOKEN_READ, TRUE, &token))
+    {
+        if (GetLastError() != ERROR_NO_TOKEN) goto cleanup;
+        else if (!OpenProcessToken(GetCurrentProcess(), TOKEN_READ, &token)) goto cleanup;
+    }
+    sid_size = 0;
+    GetTokenInformation(token, TokenUser, NULL, 0, &sid_size);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) goto cleanup;
+    user = HeapAlloc(GetProcessHeap(), 0, sid_size);
+    if (!user) goto cleanup;
+    if (!GetTokenInformation(token, TokenUser, user, sid_size, &sid_size)) goto cleanup;
+    CloseHandle(token);
+    user_sid = user->User.Sid;
+
+    /* find the administrator group SID */
+    sid_size = 0;
+    CreateWellKnownSid(WinBuiltinAdministratorsSid, NULL, NULL, &sid_size);
+    if(GetLastError() != ERROR_INSUFFICIENT_BUFFER) goto cleanup;
+    admin_sid = HeapAlloc(GetProcessHeap(), 0, sid_size);
+    if(!admin_sid) goto cleanup;
+    if(!CreateWellKnownSid(WinBuiltinAdministratorsSid, NULL, admin_sid, &sid_size)) goto cleanup;
+
+    /* build the DACL */
+    if(!InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION)) goto cleanup;
+    if(!InitializeAcl(dacl, 100, ACL_REVISION)) goto cleanup;
+    if(!AddAccessAllowedAceEx(dacl, ACL_REVISION, OBJECT_INHERIT_ACE|CONTAINER_INHERIT_ACE,
+                              GENERIC_ALL, user_sid)) goto cleanup;
+    if(!AddAccessAllowedAceEx(dacl, ACL_REVISION, OBJECT_INHERIT_ACE|CONTAINER_INHERIT_ACE,
+                              GENERIC_ALL, admin_sid)) goto cleanup;
+    if(!SetSecurityDescriptorDacl(sd, TRUE, dacl, FALSE)) goto cleanup;
+    ret = TRUE;
+
+cleanup:
+    HeapFree(GetProcessHeap(), 0, user);
+    HeapFree(GetProcessHeap(), 0, admin_sid);
+    if(!ret)
+    {
+        HeapFree(GetProcessHeap(), 0, dacl);
+        HeapFree(GetProcessHeap(), 0, sd);
+        sd = NULL;
+    }
+    return sd;
+}
+
 /*************************************************************************
  * SHGetFolderPathAndSubDirW		[SHELL32.@]
  */
@@ -2211,6 +2268,8 @@ HRESULT WINAPI SHGetFolderPathAndSubDirW(
 	LPCWSTR pszSubPath,/* [I] sub directory of the specified folder */
 	LPWSTR pszPath)    /* [O] converted path */
 {
+    SECURITY_ATTRIBUTES sa, *sec = NULL;
+    PSECURITY_DESCRIPTOR sd = NULL;
     HRESULT    hr;
     WCHAR      szBuildPath[MAX_PATH], szTemp[MAX_PATH];
     DWORD      folder = nFolder & CSIDL_FOLDER_MASK;
@@ -2323,8 +2382,25 @@ HRESULT WINAPI SHGetFolderPathAndSubDirW(
         goto end;
     }
 
+    /* build the appropriate security attributes for the directory */
+    switch (type)
+    {
+        case CSIDL_Type_User:
+            sd = _SHGetUserSecurityDescriptor();
+            break;
+        default:
+            break;
+    }
+    if (sd)
+    {
+        sa.nLength = sizeof(sa);
+        sa.lpSecurityDescriptor = sd;
+        sa.bInheritHandle = TRUE;
+        sec = &sa;
+    }
+
     /* create directory/directories */
-    ret = SHCreateDirectoryExW(hwndOwner, szBuildPath, NULL);
+    ret = SHCreateDirectoryExW(hwndOwner, szBuildPath, sec);
     if (ret && ret != ERROR_ALREADY_EXISTS)
     {
         ERR("Failed to create directory %s.\n", debugstr_w(szBuildPath));
@@ -2334,6 +2410,15 @@ HRESULT WINAPI SHGetFolderPathAndSubDirW(
 
     TRACE("Created missing system directory %s\n", debugstr_w(szBuildPath));
 end:
+    if (sd)
+    {
+        BOOL present, defaulted;
+        PACL dacl = NULL;
+
+        GetSecurityDescriptorDacl(sd, &present, &dacl, &defaulted);
+        HeapFree(GetProcessHeap(), 0, dacl);
+        HeapFree(GetProcessHeap(), 0, sd);
+    }
     TRACE("returning 0x%08x (final path is %s)\n", hr, debugstr_w(szBuildPath));
     return hr;
 }
