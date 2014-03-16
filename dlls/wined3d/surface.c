@@ -2472,6 +2472,62 @@ HRESULT wined3d_surface_map(struct wined3d_surface *surface, struct wined3d_map_
     return wined3d_resource_map(&surface->resource, map_desc, box, flags);
 }
 
+void wined3d_surface_getdc_cs(struct wined3d_surface *surface)
+{
+    HRESULT hr;
+    struct wined3d_device *device = surface->resource.device;
+    struct wined3d_context *context = NULL;
+
+    if (device->d3d_initialized)
+        context = context_acquire(device, NULL);
+
+    /* Create a DIB section if there isn't a dc yet. */
+    if (!surface->hDC)
+    {
+        if (FAILED(hr = surface_create_dib_section(surface)))
+        {
+            if (context)
+                context_release(context);
+            return;
+        }
+        if (!(surface->resource.map_binding == WINED3D_LOCATION_USER_MEMORY
+                || surface->container->flags & WINED3D_TEXTURE_PIN_SYSMEM
+                || surface->resource.buffer))
+            surface->resource.map_binding = WINED3D_LOCATION_DIB;
+    }
+
+    wined3d_resource_load_location(&surface->resource, context, WINED3D_LOCATION_DIB);
+    wined3d_resource_invalidate_location(&surface->resource, ~WINED3D_LOCATION_DIB);
+
+    if (context)
+        context_release(context);
+}
+
+void wined3d_surface_releasedc_cs(struct wined3d_surface *surface)
+{
+    if (surface->resource.map_binding == WINED3D_LOCATION_USER_MEMORY || (surface->container->flags & WINED3D_TEXTURE_PIN_SYSMEM
+            && surface->resource.map_binding != WINED3D_LOCATION_DIB))
+    {
+        /* The game Salammbo modifies the surface contents without mapping the surface between
+         * a GetDC/ReleaseDC operation and flipping the surface. If the DIB remains the active
+         * copy and is copied to the screen, this update, which draws the mouse pointer, is lost.
+         * Do not only copy the DIB to the map location, but also make sure the map location is
+         * copied back to the DIB in the next getdc call.
+         *
+         * The same consideration applies to user memory surfaces. */
+        struct wined3d_device *device = surface->resource.device;
+        struct wined3d_context *context = NULL;
+
+        if (device->d3d_initialized)
+            context = context_acquire(device, NULL);
+
+        wined3d_resource_load_location(&surface->resource, context, surface->resource.map_binding);
+        wined3d_resource_invalidate_location(&surface->resource, WINED3D_LOCATION_DIB);
+        if (context)
+            context_release(context);
+    }
+}
+
 static void read_from_framebuffer(struct wined3d_surface *surface,
         struct wined3d_context *old_ctx, DWORD dst_location)
 {
