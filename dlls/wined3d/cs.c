@@ -87,6 +87,8 @@ enum wined3d_cs_op
     WINED3D_CS_OP_TEXTURE_CLEANUP,
     WINED3D_CS_OP_SAMPLER_DESTROY,
     WINED3D_CS_OP_SRV_DESTROY,
+    WINED3D_CS_OP_GET_DC,
+    WINED3D_CS_OP_RELEASE_DC,
     WINED3D_CS_OP_STOP,
 };
 
@@ -518,6 +520,13 @@ struct wined3d_cs_shader_resource_view_destroy
 {
     enum wined3d_cs_op opcode;
     struct wined3d_shader_resource_view *view;
+};
+
+struct wined3d_cs_get_release_dc
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_texture *texture;
+    unsigned int sub_resource_idx;
 };
 
 static void wined3d_cs_mt_submit(struct wined3d_cs *cs, size_t size)
@@ -2599,6 +2608,52 @@ void wined3d_cs_emit_shader_resource_view_destroy(struct wined3d_cs *cs, struct 
     cs->ops->submit(cs, sizeof(*op));
 }
 
+static UINT wined3d_cs_exec_get_dc(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_get_release_dc *op = data;
+
+    wined3d_texture_get_dc_cs(op->texture, op->sub_resource_idx);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_get_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,
+        unsigned int sub_resource_idx)
+{
+    struct wined3d_cs_get_release_dc *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_GET_DC;
+    op->texture = texture;
+    op->sub_resource_idx = sub_resource_idx;
+
+    cs->ops->submit(cs, sizeof(*op));
+    cs->ops->finish(cs);
+}
+
+static UINT wined3d_cs_exec_release_dc(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_get_release_dc *op = data;
+
+    wined3d_texture_release_dc_cs(op->texture, op->sub_resource_idx);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_release_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,
+        unsigned int sub_resource_idx)
+{
+    struct wined3d_cs_get_release_dc *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_RELEASE_DC;
+    op->texture = texture;
+    op->sub_resource_idx = sub_resource_idx;
+
+    cs->ops->submit(cs, sizeof(*op));
+    cs->ops->finish(cs);
+}
+
 static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void *data) =
 {
     /* WINED3D_CS_OP_NOP                        */ wined3d_cs_exec_nop,
@@ -2664,6 +2719,8 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_TEXTURE_CLEANUP            */ wined3d_cs_exec_texture_cleanup,
     /* WINED3D_CS_OP_SAMPLER_DESTROY            */ wined3d_cs_exec_sampler_destroy,
     /* WINED3D_CS_OP_SRV_DESTROY                */ wined3d_cs_exec_shader_resource_view_destroy,
+    /* WINED3D_CS_OP_GET_DC                     */ wined3d_cs_exec_get_dc,
+    /* WINED3D_CS_OP_RELEASE_DC                 */ wined3d_cs_exec_release_dc,
 };
 
 static inline void *_wined3d_cs_mt_require_space(struct wined3d_cs *cs, size_t size, BOOL prio)
