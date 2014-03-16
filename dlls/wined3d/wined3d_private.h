@@ -2632,6 +2632,7 @@ struct wined3d_texture
     DWORD flags;
     GLenum target;
     DWORD update_map_binding;
+    HRESULT dc_hr;
 
     GLuint rb_multisample;
     GLuint rb_resolved;
@@ -2726,6 +2727,7 @@ void wined3d_texture_changed(struct wined3d_texture *texture,
         void *swap_heap_memory) DECLSPEC_HIDDEN;
 BOOL wined3d_texture_check_block_align(const struct wined3d_texture *texture,
         unsigned int level, const struct wined3d_box *box) DECLSPEC_HIDDEN;
+void wined3d_texture_get_dc_cs(struct wined3d_texture *texture, unsigned int sub_resource_idx) DECLSPEC_HIDDEN;
 GLenum wined3d_texture_get_gl_buffer(const struct wined3d_texture *texture) DECLSPEC_HIDDEN;
 void wined3d_texture_get_memory(struct wined3d_texture *texture, unsigned int sub_resource_idx,
         struct wined3d_bo_address *data, DWORD locations, BOOL map) DECLSPEC_HIDDEN;
@@ -2745,6 +2747,8 @@ void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int
         DWORD flags) DECLSPEC_HIDDEN;
 void wined3d_texture_prepare_texture(struct wined3d_texture *texture,
         struct wined3d_context *context, BOOL srgb) DECLSPEC_HIDDEN;
+void wined3d_texture_release_dc_cs(struct wined3d_texture *texture,
+        unsigned int sub_resource_idx) DECLSPEC_HIDDEN;
 void wined3d_texture_set_map_binding(struct wined3d_texture *texture, DWORD map_binding) DECLSPEC_HIDDEN;
 void wined3d_texture_set_swapchain(struct wined3d_texture *texture,
         struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
@@ -3138,6 +3142,10 @@ void wined3d_cs_emit_buffer_preload(struct wined3d_cs *cs, struct wined3d_buffer
 void wined3d_cs_emit_create_vbo(struct wined3d_cs *cs, struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_resource_cleanup(struct wined3d_cs *cs,
         struct wined3d_resource *resource) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_get_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,
+        unsigned int sub_resource_idx) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_release_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,
+        unsigned int sub_resource_idx) DECLSPEC_HIDDEN;
 
 /* Direct3D terminology with little modifications. We do not have an issued state
  * because only the driver knows about it, but we have a created state because d3d
