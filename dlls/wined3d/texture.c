@@ -2733,13 +2733,39 @@ HRESULT CDECL wined3d_texture_create(struct wined3d_device *device, const struct
     return WINED3D_OK;
 }
 
+void wined3d_texture_get_dc_cs(struct wined3d_texture *texture, unsigned int sub_resource_idx)
+{
+    struct wined3d_device *device = texture->resource.device;
+    struct wined3d_context *context = NULL;
+    struct wined3d_texture_sub_resource *sub_resource = &texture->sub_resources[sub_resource_idx];
+    struct wined3d_surface *surface = sub_resource->u.surface;
+
+    if (device->d3d_initialized)
+        context = context_acquire(device, NULL);
+
+    wined3d_texture_load_location(texture, sub_resource_idx, context, texture->resource.map_binding);
+    wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
+
+    if (!surface->dc)
+        texture->dc_hr = wined3d_surface_create_dc(surface);
+    else
+        texture->dc_hr = WINED3D_OK;
+    if (context)
+        context_release(context);
+    if (FAILED(texture->dc_hr))
+        return;
+
+    if (!(texture->flags & WINED3D_TEXTURE_GET_DC_LENIENT))
+        texture->flags |= WINED3D_TEXTURE_DC_IN_USE;
+    ++texture->resource.map_count;
+    ++sub_resource->map_count;
+}
+
 HRESULT CDECL wined3d_texture_get_dc(struct wined3d_texture *texture, unsigned int sub_resource_idx, HDC *dc)
 {
     struct wined3d_device *device = texture->resource.device;
     struct wined3d_texture_sub_resource *sub_resource;
-    struct wined3d_context *context = NULL;
     struct wined3d_surface *surface;
-    HRESULT hr = WINED3D_OK;
 
     TRACE("texture %p, sub_resource_idx %u, dc %p.\n", texture, sub_resource_idx, dc);
 
@@ -2757,35 +2783,30 @@ HRESULT CDECL wined3d_texture_get_dc(struct wined3d_texture *texture, unsigned i
     if (texture->resource.map_count && !(texture->flags & WINED3D_TEXTURE_GET_DC_LENIENT))
         return WINED3DERR_INVALIDCALL;
 
-    if (wined3d_settings.cs_multithreaded)
-    {
-        FIXME("Waiting for cs.\n");
-        wined3d_cs_emit_glfinish(device->cs);
-        device->cs->ops->finish(device->cs);
-    }
-
-    if (device->d3d_initialized)
-        context = context_acquire(device, NULL);
-
-    wined3d_texture_load_location(texture, sub_resource_idx, context, texture->resource.map_binding);
-    wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
-
-    if (!surface->dc)
-        hr = wined3d_surface_create_dc(surface);
-    if (context)
-        context_release(context);
-    if (FAILED(hr))
-        return WINED3DERR_INVALIDCALL;
-
-    if (!(texture->flags & WINED3D_TEXTURE_GET_DC_LENIENT))
-        texture->flags |= WINED3D_TEXTURE_DC_IN_USE;
-    ++texture->resource.map_count;
-    ++sub_resource->map_count;
+    wined3d_cs_emit_get_dc(device->cs, texture, sub_resource_idx);
+    if (FAILED(texture->dc_hr))
+        return texture->dc_hr;
 
     *dc = surface->dc;
     TRACE("Returning dc %p.\n", *dc);
 
-    return hr;
+    return WINED3D_OK;
+}
+
+void wined3d_texture_release_dc_cs(struct wined3d_texture *texture, unsigned int sub_resource_idx)
+{
+    struct wined3d_device *device = texture->resource.device;
+    struct wined3d_texture_sub_resource *sub_resource = &texture->sub_resources[sub_resource_idx];
+    struct wined3d_surface *surface = sub_resource->u.surface;
+
+    if (!(texture->resource.usage & WINED3DUSAGE_OWNDC) && !(device->wined3d->flags & WINED3D_NO3D))
+        wined3d_surface_destroy_dc(surface);
+
+    --sub_resource->map_count;
+    if (!--texture->resource.map_count && texture->update_map_binding)
+        wined3d_texture_update_map_binding(texture);
+    if (!(texture->flags & WINED3D_TEXTURE_GET_DC_LENIENT))
+        texture->flags &= ~WINED3D_TEXTURE_DC_IN_USE;
 }
 
 HRESULT CDECL wined3d_texture_release_dc(struct wined3d_texture *texture, unsigned int sub_resource_idx, HDC dc)
@@ -2816,14 +2837,7 @@ HRESULT CDECL wined3d_texture_release_dc(struct wined3d_texture *texture, unsign
         return WINED3DERR_INVALIDCALL;
     }
 
-    if (!(texture->resource.usage & WINED3DUSAGE_OWNDC) && !(device->wined3d->flags & WINED3D_NO3D))
-        wined3d_surface_destroy_dc(surface);
-
-    --sub_resource->map_count;
-    if (!--texture->resource.map_count && texture->update_map_binding)
-        wined3d_texture_update_map_binding(texture);
-    if (!(texture->flags & WINED3D_TEXTURE_GET_DC_LENIENT))
-        texture->flags &= ~WINED3D_TEXTURE_DC_IN_USE;
+    wined3d_cs_emit_release_dc(device->cs, texture, sub_resource_idx);
 
     return WINED3D_OK;
 }
