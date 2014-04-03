@@ -106,12 +106,18 @@ struct sock
     struct sock        *deferred;    /* socket that waits for a deferred accept */
     struct async_queue *read_q;      /* queue for asynchronous reads */
     struct async_queue *write_q;     /* queue for asynchronous writes */
+    struct async_queue *ifchange_q;  /* queue for interface change notifications */
+    struct object      *ifchange_obj; /* the interface change notification object */
+    struct list         ifchange_entry; /* entry in ifchange notification list */
 };
 
 static void sock_dump( struct object *obj, int verbose );
+static int sock_add_ifchange( struct sock *sock, const async_data_t *async_data );
 static int sock_signaled( struct object *obj, struct wait_queue_entry *entry );
 static struct fd *sock_get_fd( struct object *obj );
 static void sock_destroy( struct object *obj );
+static int sock_get_ifchange_q( struct sock *sock, struct async_queue **async_queue );
+static void sock_destroy_ifchange_q( struct sock *sock );
 
 static int sock_get_poll_events( struct fd *fd );
 static void sock_poll_event( struct fd *fd, int event );
@@ -539,7 +545,8 @@ obj_handle_t sock_ioctl( struct fd *fd, ioctl_code_t code, const async_data_t *a
     switch(code)
     {
     case WS_SIO_ADDRESS_LIST_CHANGE:
-        /* intentional fallthrough, not yet supported */
+        error = sock_add_ifchange( sock, async_data );
+        break;
     default:
         error = STATUS_NOT_SUPPORTED;
         break;
@@ -625,6 +632,7 @@ static void sock_destroy( struct object *obj )
 
     free_async_queue( sock->read_q );
     free_async_queue( sock->write_q );
+    sock_destroy_ifchange_q( sock );
     if (sock->event) release_object( sock->event );
     if (sock->fd)
     {
@@ -651,6 +659,8 @@ static void init_sock(struct sock *sock)
     sock->deferred = NULL;
     sock->read_q  = NULL;
     sock->write_q = NULL;
+    sock->ifchange_q = NULL;
+    sock->ifchange_obj = NULL;
     memset( sock->errors, 0, sizeof(sock->errors) );
 }
 
@@ -937,6 +947,86 @@ static int sock_get_ntstatus( int err )
 static void sock_set_error(void)
 {
     set_error( sock_get_ntstatus( errno ) );
+}
+
+/* add interface change notification to a socket */
+static int sock_add_ifchange( struct sock *sock, const async_data_t *async_data )
+{
+    struct async_queue *ifchange_q = NULL;
+    struct async *async;
+    int error;
+
+    error = sock_get_ifchange_q( sock, &ifchange_q );
+    if (error != STATUS_PENDING)
+        return error;
+
+    if (!(async = create_async( current, ifchange_q, async_data )))
+    {
+        if (!async_queued( ifchange_q ))
+            sock_destroy_ifchange_q( sock );
+
+        return STATUS_NO_MEMORY;
+    }
+
+    release_object( async );
+    return error;
+}
+
+/* stub ifchange object */
+static int get_ifchange( struct object **obj )
+{
+    return STATUS_NOT_SUPPORTED;
+}
+
+/* stub ifchange add socket to list */
+static void ifchange_add_sock( struct object *obj, struct sock *sock )
+{
+}
+
+/* create a new ifchange queue for a specific socket or, if one already exists, reuse the existing one */
+static int sock_get_ifchange_q( struct sock *sock, struct async_queue **async_queue )
+{
+    struct object *ifchange = NULL;
+    struct fd *fd;
+    int error;
+
+    if (sock->ifchange_q) /* reuse existing ifchange_q for this socket */
+    {
+        *async_queue = sock->ifchange_q;
+        return STATUS_PENDING;
+    }
+
+    error = get_ifchange( &ifchange );
+    if (error != STATUS_PENDING)
+        return error;
+
+    /* create the ifchange notification queue */
+    fd = ifchange->ops->get_fd( ifchange );
+    sock->ifchange_q = create_async_queue( fd );
+    release_object( fd );
+    if (!sock->ifchange_q)
+    {
+        release_object( ifchange );
+        return STATUS_NO_MEMORY;
+    }
+
+    /* add the socket to the ifchange notification list */
+    ifchange_add_sock( ifchange, sock );
+    sock->ifchange_obj = ifchange;
+    *async_queue = sock->ifchange_q;
+    return error;
+}
+
+/* destroy an existing ifchange queue for a specific socket */
+static void sock_destroy_ifchange_q( struct sock *sock )
+{
+    if (sock->ifchange_q)
+    {
+        list_remove( &sock->ifchange_entry );
+        free_async_queue( sock->ifchange_q );
+        sock->ifchange_q = NULL;
+        release_object( sock->ifchange_obj );
+    }
 }
 
 /* create a socket */
