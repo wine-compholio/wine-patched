@@ -523,17 +523,32 @@ obj_handle_t sock_ioctl( struct fd *fd, ioctl_code_t code, const async_data_t *a
                          int blocking, const void *data, data_size_t size )
 {
     struct sock *sock = get_fd_user( fd );
+    obj_handle_t wait_handle = 0;
+    async_data_t new_data;
+    int error;
 
     assert( sock->obj.ops == &sock_ops );
 
+    if (blocking)
+    {
+        if (!(wait_handle = alloc_wait_event( current->process ))) return 0;
+        new_data = *async_data;
+        new_data.event = wait_handle;
+        async_data = &new_data;
+    }
     switch(code)
     {
     case WS_SIO_ADDRESS_LIST_CHANGE:
         /* intentional fallthrough, not yet supported */
     default:
-        set_error( STATUS_NOT_SUPPORTED );
-        return 0;
+        error = STATUS_NOT_SUPPORTED;
+        break;
     }
+    set_error( error );
+    if (error == STATUS_PENDING)
+        return wait_handle;
+    close_handle( current->process, wait_handle );
+    return 0;
 }
 
 static void sock_queue_async( struct fd *fd, const async_data_t *data, int type, int count )
