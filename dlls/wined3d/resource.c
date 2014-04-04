@@ -56,9 +56,14 @@ static void resource_check_usage(DWORD usage)
             | WINED3DUSAGE_STATICDECL
             | WINED3DUSAGE_OVERLAY
             | WINED3DUSAGE_TEXTURE;
+    static DWORD notified = 0;
+    DWORD unhandled = usage & ~handled;
 
-    if (usage & ~handled)
-        FIXME("Unhandled usage flags %#x.\n", usage & ~handled);
+    if (unhandled && (unhandled & ~notified))
+    {
+        FIXME("Unhandled usage flags %#x.\n", unhandled);
+        notified |= unhandled;
+    }
 }
 
 HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *device,
