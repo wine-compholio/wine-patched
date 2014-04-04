@@ -49,7 +49,7 @@ static DWORD resource_access_from_pool(enum wined3d_pool pool)
 
 static void resource_check_usage(DWORD usage)
 {
-    static const DWORD handled = WINED3DUSAGE_RENDERTARGET
+    static DWORD handled = WINED3DUSAGE_RENDERTARGET
             | WINED3DUSAGE_DEPTHSTENCIL
             | WINED3DUSAGE_DYNAMIC
             | WINED3DUSAGE_AUTOGENMIPMAP
@@ -58,7 +58,10 @@ static void resource_check_usage(DWORD usage)
             | WINED3DUSAGE_TEXTURE;
 
     if (usage & ~handled)
+    {
         FIXME("Unhandled usage flags %#x.\n", usage & ~handled);
+        handled |= usage;
+    }
 }
 
 HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *device,
