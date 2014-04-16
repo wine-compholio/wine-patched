@@ -38,6 +38,8 @@
 
 #include "wine/unicode.h"
 
+#define WINE_IOCS_PROPERTY "WINE_IOCS"
+
 WINE_DEFAULT_DEBUG_CHANNEL(atl);
 
 typedef struct IOCS {
@@ -150,7 +152,7 @@ static HRESULT IOCS_Detach( IOCS *This ) /* remove subclassing */
     if ( This->hWnd )
     {
         SetWindowLongPtrW( This->hWnd, GWLP_WNDPROC, (ULONG_PTR) This->OrigWndProc );
-        SetWindowLongPtrW( This->hWnd, GWLP_USERDATA, 0 );
+        RemovePropA( This->hWnd, WINE_IOCS_PROPERTY );
         This->hWnd = NULL;
     }
     if ( This->control )
@@ -906,7 +908,7 @@ static LRESULT IOCS_OnWndProc( IOCS *This, HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 static LRESULT CALLBACK AtlHost_wndproc( HWND hWnd, UINT wMsg, WPARAM wParam, LPARAM lParam )
 {
-    IOCS *This = (IOCS*) GetWindowLongPtrW( hWnd, GWLP_USERDATA );
+    IOCS *This = (IOCS *)GetPropA( hWnd, WINE_IOCS_PROPERTY );
     return IOCS_OnWndProc( This, hWnd, wMsg, wParam, lParam );
 }
 
@@ -915,7 +917,7 @@ static HRESULT IOCS_Attach( IOCS *This, HWND hWnd, IUnknown *pUnkControl ) /* su
     This->hWnd = hWnd;
     IUnknown_QueryInterface( pUnkControl, &IID_IOleObject, (void**)&This->control );
     IOleObject_SetClientSite( This->control, &This->IOleClientSite_iface );
-    SetWindowLongPtrW( hWnd, GWLP_USERDATA, (ULONG_PTR) This );
+    SetPropA( hWnd, WINE_IOCS_PROPERTY, This );
     This->OrigWndProc = (WNDPROC)SetWindowLongPtrW( hWnd, GWLP_WNDPROC, (ULONG_PTR) AtlHost_wndproc );
 
     return S_OK;
@@ -1329,7 +1331,7 @@ HRESULT WINAPI AtlAxGetHost(HWND hWnd, IUnknown **host)
 
     *host = NULL;
 
-    This = (IOCS*) GetWindowLongPtrW( hWnd, GWLP_USERDATA );
+    This = (IOCS *)GetPropA( hWnd, WINE_IOCS_PROPERTY );
     if ( !This )
     {
         WARN("No container attached to %p\n", hWnd );
@@ -1351,7 +1353,7 @@ HRESULT WINAPI AtlAxGetControl(HWND hWnd, IUnknown **pUnk)
 
     *pUnk = NULL;
 
-    This = (IOCS*) GetWindowLongPtrW( hWnd, GWLP_USERDATA );
+    This = (IOCS *)GetPropA ( hWnd, WINE_IOCS_PROPERTY );
     if ( !This || !This->control )
     {
         WARN("No control attached to %p\n", hWnd );
