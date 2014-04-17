@@ -538,18 +538,13 @@ mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner )
     return new_mode & ~denied_mode;
 }
 
-static int file_set_sd( struct object *obj, const struct security_descriptor *sd,
-                        unsigned int set_info )
+int set_file_sd( struct object *obj, struct fd *fd, const struct security_descriptor *sd,
+                 unsigned int set_info )
 {
-    struct file *file = (struct file *)obj;
+    int unix_fd = get_unix_fd( fd );
     const SID *owner;
     struct stat st;
     mode_t mode;
-    int unix_fd;
-
-    assert( obj->ops == &file_ops );
-
-    unix_fd = get_file_unix_fd( file );
 
     if (unix_fd == -1 || fstat( unix_fd, &st ) == -1) return 1;
 
@@ -586,6 +581,20 @@ static int file_set_sd( struct object *obj, const struct security_descriptor *sd
         }
     }
     return 1;
+}
+
+static int file_set_sd( struct object *obj, const struct security_descriptor *sd,
+                        unsigned int set_info )
+{
+    struct fd *fd;
+    int ret;
+
+    assert( obj->ops == &file_ops );
+
+    fd = file_get_fd( obj );
+    ret = set_file_sd( obj, fd, sd, set_info );
+    release_object( fd );
+    return ret;
 }
 
 static void file_destroy( struct object *obj )
