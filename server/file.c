@@ -191,10 +191,11 @@ static struct object *create_file_obj( struct fd *fd, unsigned int access, mode_
     return &file->obj;
 }
 
-void set_xattr_sd( int fd, const struct security_descriptor *sd )
+void set_xattr_sd( int fd, const struct security_descriptor *sd, const SID *user, const SID *group )
 {
-    char buffer[XATTR_SIZE_MAX];
-    int present, len;
+    char buffer[XATTR_SIZE_MAX], *dst_ptr = &buffer[2], *src_ptr = (char *)sd;
+    int present, len, owner_len, group_len;
+    struct security_descriptor *dst_sd;
     const ACL *dacl;
 
     /* there's no point in storing the security descriptor if there's no DACL */
@@ -202,14 +203,52 @@ void set_xattr_sd( int fd, const struct security_descriptor *sd )
     dacl = sd_get_dacl( sd, &present );
     if (!present || !dacl) return;
 
-    len = 2 + sizeof(struct security_descriptor) + sd->owner_len + sd->group_len + sd->sacl_len
+    /* make sure that we always store the ownership information */
+    if (!sd->owner_len)
+        owner_len = FIELD_OFFSET(SID, SubAuthority[user->SubAuthorityCount]);
+    else
+        owner_len = sd->owner_len;
+    if (!sd->group_len)
+        group_len = FIELD_OFFSET(SID, SubAuthority[group->SubAuthorityCount]);
+    else
+        group_len = sd->group_len;
+    len = 2 + sizeof(struct security_descriptor) + owner_len + group_len + sd->sacl_len
           + sd->dacl_len;
     if (len > XATTR_SIZE_MAX) return;
 
     /* include the descriptor revision and resource manager control bits */
     buffer[0] = SECURITY_DESCRIPTOR_REVISION;
     buffer[1] = 0;
-    memcpy( &buffer[2], sd, len - 2 );
+    memcpy( dst_ptr, sd, sizeof(struct security_descriptor) );
+    dst_sd = (struct security_descriptor *)dst_ptr;
+    dst_sd->owner_len = owner_len;
+    dst_sd->group_len = group_len;
+    src_ptr += sizeof(struct security_descriptor);
+    dst_ptr += sizeof(struct security_descriptor);
+    /* copy the appropriate ownership information (explicit or inferred) */
+    if (sd->owner_len)
+    {
+        memcpy( dst_ptr, src_ptr, sd->owner_len );
+        src_ptr += sd->owner_len;
+    }
+    else
+        memcpy( dst_ptr, user, owner_len );
+    dst_ptr += owner_len;
+    if (sd->group_len)
+    {
+        memcpy( dst_ptr, src_ptr, sd->group_len );
+        src_ptr += sd->group_len;
+    }
+    else
+        memcpy( dst_ptr, group, group_len );
+    dst_ptr += group_len;
+    /* copy the ACL information (explicit only) */
+    memcpy( dst_ptr, src_ptr, sd->sacl_len );
+    src_ptr += sd->sacl_len;
+    dst_ptr += sd->sacl_len;
+    memcpy( dst_ptr, src_ptr, sd->dacl_len );
+    src_ptr += sd->dacl_len;
+    dst_ptr += sd->dacl_len;
     xattr_fset( fd, WINE_XATTR_SD, buffer, len );
 }
 
@@ -218,6 +257,7 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
                                    unsigned int options, unsigned int attrs,
                                    const struct security_descriptor *sd )
 {
+    const SID *owner = NULL, *group = NULL;
     struct object *obj = NULL;
     struct fd *fd;
     int flags;
@@ -248,9 +288,12 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
 
     if (sd)
     {
-        const SID *owner = sd_get_owner( sd );
+        owner = sd_get_owner( sd );
         if (!owner)
             owner = token_get_user( current->process->token );
+        group = sd_get_group( sd );
+        if (!group)
+            group = token_get_primary_group( current->process->token );
         mode = sd_to_mode( sd, owner );
     }
     else if (options & FILE_DIRECTORY_FILE)
@@ -274,7 +317,7 @@ static struct object *create_file( struct fd *root, const char *nameptr, data_si
     /* FIXME: should set error to STATUS_OBJECT_NAME_COLLISION if file existed before */
     fd = open_fd( root, name, flags | O_NONBLOCK | O_LARGEFILE, &mode, access, sharing, options );
     if (!fd) goto done;
-    set_xattr_sd( get_unix_fd( fd ), sd );
+    set_xattr_sd( get_unix_fd( fd ), sd, owner, group );
 
     if (S_ISDIR(mode))
         obj = create_dir_obj( fd, access, mode );
@@ -584,7 +627,7 @@ int set_file_sd( struct object *obj, struct fd *fd, const struct security_descri
                  unsigned int set_info )
 {
     int unix_fd = get_unix_fd( fd );
-    const SID *owner;
+    const SID *owner, *group;
     struct stat st;
     mode_t mode;
 
@@ -608,6 +651,24 @@ int set_file_sd( struct object *obj, struct fd *fd, const struct security_descri
     else
         owner = token_get_user( current->process->token );
 
+    if (set_info & GROUP_SECURITY_INFORMATION)
+    {
+        group = sd_get_group( sd );
+        if (!group)
+        {
+            set_error( STATUS_INVALID_SECURITY_DESCR );
+            return 0;
+        }
+        if (!obj->sd || !security_equal_sid( group, sd_get_group( obj->sd ) ))
+        {
+            /* FIXME: get Unix uid and call fchown */
+        }
+    }
+    else if (obj->sd)
+        group = sd_get_group( obj->sd );
+    else
+        group = token_get_primary_group( current->process->token );
+
     /* group and sacl not supported */
 
     if (set_info & DACL_SECURITY_INFORMATION)
@@ -616,7 +677,7 @@ int set_file_sd( struct object *obj, struct fd *fd, const struct security_descri
         mode = st.st_mode & (S_ISUID|S_ISGID|S_ISVTX);
         mode |= sd_to_mode( sd, owner );
 
-        set_xattr_sd( unix_fd, sd );
+        set_xattr_sd( unix_fd, sd, owner, group );
 
         if (((st.st_mode ^ mode) & (S_IRWXU|S_IRWXG|S_IRWXO)) && fchmod( unix_fd, mode ) == -1)
         {
