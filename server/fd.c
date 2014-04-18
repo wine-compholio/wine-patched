@@ -1638,6 +1638,16 @@ struct fd *alloc_pseudo_fd( const struct fd_ops *fd_user_ops, struct object *use
     return fd;
 }
 
+char *fd_get_unix_name( struct fd *obj )
+{
+    char *unix_name;
+    if (!obj->unix_name) return NULL;
+    unix_name = mem_alloc( strlen(obj->unix_name) + 1 );
+    if (!unix_name) return NULL;
+    strcpy( unix_name, obj->unix_name );
+    return unix_name;
+}
+
 /* duplicate an fd object for a different user */
 struct fd *dup_fd_object( struct fd *orig, unsigned int access, unsigned int sharing, unsigned int options )
 {
@@ -1651,8 +1661,7 @@ struct fd *dup_fd_object( struct fd *orig, unsigned int access, unsigned int sha
 
     if (orig->unix_name)
     {
-        if (!(fd->unix_name = mem_alloc( strlen(orig->unix_name) + 1 ))) goto failed;
-        strcpy( fd->unix_name, orig->unix_name );
+        if (!(fd->unix_name = fd_get_unix_name( orig ))) goto failed;
     }
 
     if (orig->inode)
