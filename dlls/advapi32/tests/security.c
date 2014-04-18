@@ -3338,7 +3338,7 @@ static void test_CreateDirectoryA(void)
                                    (PSID *)&owner, NULL, &pDacl, NULL, &pSD);
     ok(error == ERROR_SUCCESS, "Failed to get permissions on file\n");
     test_inherited_dacl(pDacl, admin_sid, user_sid, INHERITED_ACE,
-                        0x1f01ff, TRUE, TRUE, TRUE, __LINE__);
+                        0x1f01ff, FALSE, FALSE, FALSE, __LINE__);
     LocalFree(pSD);
     CloseHandle(hTemp);
 
@@ -3406,7 +3406,7 @@ static void test_CreateDirectoryA(void)
                                    (PSID *)&owner, NULL, &pDacl, NULL, &pSD);
     ok(error == ERROR_SUCCESS, "Failed to get permissions on file\n");
     test_inherited_dacl(pDacl, admin_sid, user_sid, INHERITED_ACE,
-                        0x1f01ff, TRUE, TRUE, TRUE, __LINE__);
+                        0x1f01ff, FALSE, FALSE, FALSE, __LINE__);
     LocalFree(pSD);
     CloseHandle(hTemp);
 
@@ -3472,7 +3472,7 @@ static void test_CreateDirectoryA(void)
     ok(error == ERROR_SUCCESS, "Failed to get permissions on file\n");
     test_inherited_dacl(pDacl, admin_sid, user_sid,
                         OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE | INHERITED_ACE,
-                        0x1f01ff, TRUE, TRUE, TRUE, __LINE__);
+                        0x1f01ff, FALSE, FALSE, FALSE, __LINE__);
     LocalFree(pSD);
     bret = RemoveDirectoryA(tmpfile);
     ok(bret == TRUE, "RemoveDirectoryA failed with error %u\n", GetLastError());
@@ -3552,7 +3552,7 @@ static void test_CreateDirectoryA(void)
     ok(error == ERROR_SUCCESS, "Failed to get permissions on file\n");
     test_inherited_dacl(pDacl, admin_sid, user_sid,
                         OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE | INHERITED_ACE,
-                        0x1f01ff, TRUE, TRUE, TRUE, __LINE__);
+                        0x1f01ff, FALSE, FALSE, FALSE, __LINE__);
     LocalFree(pSD);
     CloseHandle(hTemp);
 
