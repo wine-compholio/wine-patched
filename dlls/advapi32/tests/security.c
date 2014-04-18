@@ -3109,7 +3109,7 @@ static void get_nt_pathW(const char *name, UNICODE_STRING *nameW)
 }
 
 static void test_inherited_dacl(PACL dacl, PSID admin_sid, PSID user_sid, DWORD flags, DWORD mask,
-                                BOOL todo_count, BOOL todo_sid, BOOL todo_flags, BOOL todo_mask, int line)
+                                BOOL todo_count, BOOL todo_sid, BOOL todo_flags, int line)
 {
     ACL_SIZE_INFORMATION acl_size;
     ACCESS_ALLOWED_ACE *ace;
@@ -3150,15 +3150,9 @@ static void test_inherited_dacl(PACL dacl, PSID admin_sid, PSID user_sid, DWORD 
                 "Current User ACE has unexpected flags (0x%x != 0x%x)\n",
                 ((ACE_HEADER *)ace)->AceFlags, flags);
 
-        if (todo_mask)
-            todo_wine
-            ok_(__FILE__, line)(ace->Mask == mask,
-                "Current User ACE has unexpected mask (0x%x != 0x%x)\n",
-                ace->Mask, mask);
-        else
-            ok_(__FILE__, line)(ace->Mask == mask,
-                "Current User ACE has unexpected mask (0x%x != 0x%x)\n",
-                ace->Mask, mask);
+        ok_(__FILE__, line)(ace->Mask == mask,
+            "Current User ACE has unexpected mask (0x%x != 0x%x)\n",
+            ace->Mask, mask);
     }
     if (acl_size.AceCount > 1)
     {
@@ -3182,15 +3176,9 @@ static void test_inherited_dacl(PACL dacl, PSID admin_sid, PSID user_sid, DWORD 
                 "Administators Group ACE has unexpected flags (0x%x != 0x%x)\n",
                 ((ACE_HEADER *)ace)->AceFlags, flags);
 
-        if (todo_mask)
-            todo_wine
-            ok_(__FILE__, line)(ace->Mask == mask,
-                "Administators Group ACE has unexpected mask (0x%x != 0x%x)\n",
-                ace->Mask, mask);
-        else
-            ok_(__FILE__, line)(ace->Mask == mask,
-                "Administators Group ACE has unexpected mask (0x%x != 0x%x)\n",
-                ace->Mask, mask);
+        ok_(__FILE__, line)(ace->Mask == mask,
+            "Administators Group ACE has unexpected mask (0x%x != 0x%x)\n",
+            ace->Mask, mask);
     }
 }
 
@@ -3274,7 +3262,7 @@ static void test_CreateDirectoryA(void)
     }
     ok(!error, "GetNamedSecurityInfo failed with error %d\n", error);
     test_inherited_dacl(pDacl, admin_sid, user_sid, OBJECT_INHERIT_ACE|CONTAINER_INHERIT_ACE,
-                        0x1f01ff, FALSE, FALSE, FALSE, TRUE, __LINE__);
+                        0x1f01ff, FALSE, FALSE, FALSE, __LINE__);
     LocalFree(pSD);
 
     /* Test inheritance of ACLs in CreateFile without security descriptor */
@@ -3290,7 +3278,7 @@ static void test_CreateDirectoryA(void)
                                    (PSID *)&owner, NULL, &pDacl, NULL, &pSD);
     ok(error == ERROR_SUCCESS, "Failed to get permissions on file\n");
     test_inherited_dacl(pDacl, admin_sid, user_sid, INHERITED_ACE,
-                        0x1f01ff, TRUE, TRUE, TRUE, FALSE, __LINE__);
+                        0x1f01ff, TRUE, TRUE, TRUE, __LINE__);
     LocalFree(pSD);
     CloseHandle(hTemp);
 
@@ -3360,7 +3348,7 @@ static void test_CreateDirectoryA(void)
                                    (PSID *)&owner, NULL, &pDacl, NULL, &pSD);
     ok(error == ERROR_SUCCESS, "Failed to get permissions on file\n");
     test_inherited_dacl(pDacl, admin_sid, user_sid, INHERITED_ACE,
-                        0x1f01ff, TRUE, TRUE, TRUE, FALSE, __LINE__);
+                        0x1f01ff, TRUE, TRUE, TRUE, __LINE__);
     LocalFree(pSD);
     CloseHandle(hTemp);
 
@@ -3734,8 +3722,8 @@ static void test_GetNamedSecurityInfoA(void)
         ok(bret, "Current User ACE != Current User SID.\n");
         ok(((ACE_HEADER *)ace)->AceFlags == 0,
            "Current User ACE has unexpected flags (0x%x != 0x0)\n", ((ACE_HEADER *)ace)->AceFlags);
-        todo_wine ok(ace->Mask == 0x1f01ff,
-                     "Current User ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
+        ok(ace->Mask == 0x1f01ff, "Current User ACE has unexpected mask (0x%x != 0x1f01ff)\n",
+                                  ace->Mask);
     }
     if (acl_size.AceCount > 1)
     {
@@ -3745,8 +3733,8 @@ static void test_GetNamedSecurityInfoA(void)
         ok(bret || broken(!bret) /* win2k */, "Administators Group ACE != Administators Group SID.\n");
         ok(((ACE_HEADER *)ace)->AceFlags == 0,
            "Administators Group ACE has unexpected flags (0x%x != 0x0)\n", ((ACE_HEADER *)ace)->AceFlags);
-        todo_wine ok(ace->Mask == 0x1f01ff || broken(ace->Mask == GENERIC_ALL) /* win2k */,
-                     "Administators Group ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
+        ok(ace->Mask == 0x1f01ff || broken(ace->Mask == GENERIC_ALL) /* win2k */,
+           "Administators Group ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
     }
     LocalFree(pSD);
     HeapFree(GetProcessHeap(), 0, user);
@@ -4399,8 +4387,8 @@ static void test_GetSecurityInfo(void)
         ok(bret, "Current User ACE != Current User SID.\n");
         ok(((ACE_HEADER *)ace)->AceFlags == 0,
            "Current User ACE has unexpected flags (0x%x != 0x0)\n", ((ACE_HEADER *)ace)->AceFlags);
-        todo_wine ok(ace->Mask == 0x1f01ff,
-                     "Current User ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
+        ok(ace->Mask == 0x1f01ff, "Current User ACE has unexpected mask (0x%x != 0x1f01ff)\n",
+                                    ace->Mask);
     }
     if (acl_size.AceCount > 1)
     {
@@ -4410,8 +4398,8 @@ static void test_GetSecurityInfo(void)
         ok(bret, "Administators Group ACE != Administators Group SID.\n");
         ok(((ACE_HEADER *)ace)->AceFlags == 0,
            "Administators Group ACE has unexpected flags (0x%x != 0x0)\n", ((ACE_HEADER *)ace)->AceFlags);
-        todo_wine ok(ace->Mask == 0x1f01ff,
-                     "Administators Group ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
+        ok(ace->Mask == 0x1f01ff, "Administators Group ACE has unexpected mask (0x%x != 0x1f01ff)\n",
+                                  ace->Mask);
     }
     LocalFree(pSD);
     CloseHandle(obj);
