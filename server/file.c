@@ -504,12 +504,43 @@ struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID 
     return sd;
 }
 
+struct security_descriptor *get_xattr_sd( int fd )
+{
+#if defined(HAVE_ATTR_XATTR_H) || defined(HAVE_SYS_EXTATTR_H)
+    struct security_descriptor *sd;
+    char buffer[XATTR_SIZE_MAX];
+    int n;
+
+#if defined(HAVE_ATTR_XATTR_H)
+    n = fgetxattr( fd, "user.wine.sd", buffer, sizeof(buffer) );
+#else
+    n = extattr_get_fd( fd, EXTATTR_NAMESPACE_USER, "wine.sd", buffer, sizeof(buffer) );
+#endif
+    if (n == -1 || n < 2 + sizeof(struct security_descriptor)) return NULL;
+
+    /* validate that we can handle the descriptor */
+    if (buffer[0] != SECURITY_DESCRIPTOR_REVISION || buffer[1] != 0) return NULL;
+
+    sd = (struct security_descriptor *)&buffer[2];
+    if (n  < 2 + sizeof(struct security_descriptor) + sd->owner_len
+               + sd->group_len + sd->sacl_len + sd->dacl_len)
+        return NULL;
+
+    sd = mem_alloc( n - 2 );
+    if (sd) memcpy( sd, &buffer[2], n - 2 );
+    return sd;
+#else
+    return NULL;
+#endif
+}
+
 struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode_t *mode,
                                          uid_t *uid )
 {
     int unix_fd = get_unix_fd( fd );
     struct stat st;
     struct security_descriptor *sd;
+    const SID *user, *group;
 
     if (unix_fd == -1 || fstat( unix_fd, &st ) == -1)
         return obj->sd;
@@ -519,9 +550,10 @@ struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode
         (st.st_uid == *uid))
         return obj->sd;
 
-    sd = mode_to_sd( st.st_mode,
-                     security_unix_uid_to_sid( st.st_uid ),
-                     token_get_primary_group( current->process->token ));
+    user = security_unix_uid_to_sid( st.st_uid );
+    group = token_get_primary_group( current->process->token );
+    sd = get_xattr_sd( unix_fd );
+    if (!sd) sd = mode_to_sd( st.st_mode, user, group);
     if (!sd) return obj->sd;
 
     *mode = st.st_mode;
