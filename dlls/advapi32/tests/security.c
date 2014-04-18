@@ -3439,6 +3439,74 @@ static void test_GetNamedSecurityInfoA(void)
            "Administators Group ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
     }
     LocalFree(pSD);
+    CloseHandle(hTemp);
+
+    /* Create security descriptor with no inheritance and test that it comes back the same */
+    pSD = &sd;
+    pDacl = HeapAlloc(GetProcessHeap(), 0, 100);
+    InitializeSecurityDescriptor(pSD, SECURITY_DESCRIPTOR_REVISION);
+    pCreateWellKnownSid(WinBuiltinAdministratorsSid, NULL, admin_sid, &sid_size);
+    bret = InitializeAcl(pDacl, 100, ACL_REVISION);
+    ok(bret, "Failed to initialize ACL.\n");
+    bret = pAddAccessAllowedAceEx(pDacl, ACL_REVISION, 0, GENERIC_ALL, user_sid);
+    ok(bret, "Failed to add Current User to ACL.\n");
+    bret = pAddAccessAllowedAceEx(pDacl, ACL_REVISION, 0, GENERIC_ALL, admin_sid);
+    ok(bret, "Failed to add Administrator Group to ACL.\n");
+    bret = SetSecurityDescriptorDacl(pSD, TRUE, pDacl, FALSE);
+    ok(bret, "Failed to add ACL to security desciptor.\n");
+    GetTempFileNameA(".", "foo", 0, tmpfile);
+    hTemp = CreateFileA(tmpfile, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                        FILE_FLAG_DELETE_ON_CLOSE, NULL);
+    SetLastError(0xdeadbeef);
+    error = pSetNamedSecurityInfoA(tmpfile, SE_FILE_OBJECT,
+                                   DACL_SECURITY_INFORMATION|PROTECTED_DACL_SECURITY_INFORMATION,
+                                    NULL, NULL, pDacl, NULL);
+    HeapFree(GetProcessHeap(), 0, pDacl);
+    if (error != ERROR_SUCCESS && (GetLastError() == ERROR_CALL_NOT_IMPLEMENTED))
+    {
+        win_skip("SetNamedSecurityInfoA is not implemented\n");
+        HeapFree(GetProcessHeap(), 0, user);
+        CloseHandle(hTemp);
+        return;
+    }
+    ok(!error, "SetNamedSecurityInfoA failed with error %d\n", error);
+    SetLastError(0xdeadbeef);
+    error = pGetNamedSecurityInfoA(tmpfile, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                                   NULL, NULL, &pDacl, NULL, &pSD);
+    if (error != ERROR_SUCCESS && (GetLastError() == ERROR_CALL_NOT_IMPLEMENTED))
+    {
+        win_skip("GetNamedSecurityInfoA is not implemented\n");
+        HeapFree(GetProcessHeap(), 0, user);
+        CloseHandle(hTemp);
+        return;
+    }
+    ok(!error, "GetNamedSecurityInfo failed with error %d\n", error);
+
+    bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+    ok(bret, "GetAclInformation failed\n");
+    if (acl_size.AceCount > 0)
+    {
+        bret = pGetAce(pDacl, 0, (VOID **)&ace);
+        ok(bret, "Failed to get Current User ACE.\n");
+        bret = EqualSid(&ace->SidStart, user_sid);
+        ok(bret, "Current User ACE != Current User SID.\n");
+        ok(((ACE_HEADER *)ace)->AceFlags == 0,
+           "Current User ACE has unexpected flags (0x%x != 0x0)\n", ((ACE_HEADER *)ace)->AceFlags);
+        ok(ace->Mask == 0x1f01ff, "Current User ACE has unexpected mask (0x%x != 0x1f01ff)\n",
+                                  ace->Mask);
+    }
+    if (acl_size.AceCount > 1)
+    {
+        bret = pGetAce(pDacl, 1, (VOID **)&ace);
+        ok(bret, "Failed to get Administators Group ACE.\n");
+        bret = EqualSid(&ace->SidStart, admin_sid);
+        ok(bret || broken(!bret) /* win2k */, "Administators Group ACE != Administators Group SID.\n");
+        ok(((ACE_HEADER *)ace)->AceFlags == 0,
+           "Administators Group ACE has unexpected flags (0x%x != 0x0)\n", ((ACE_HEADER *)ace)->AceFlags);
+        ok(ace->Mask == 0x1f01ff || broken(ace->Mask == GENERIC_ALL) /* win2k */,
+           "Administators Group ACE has unexpected mask (0x%x != 0x1f01ff)\n", ace->Mask);
+    }
+    LocalFree(pSD);
     HeapFree(GetProcessHeap(), 0, user);
     CloseHandle(hTemp);
 
