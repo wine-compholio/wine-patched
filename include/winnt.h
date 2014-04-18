@@ -5084,14 +5084,15 @@ typedef struct _TAPE_GET_MEDIA_PARAMETERS {
     BOOLEAN WriteProtected;
 } TAPE_GET_MEDIA_PARAMETERS, *PTAPE_GET_MEDIA_PARAMETERS;
 
-/* ----------------------------- begin registry ----------------------------- */
-
-/* Registry security values */
 #define OWNER_SECURITY_INFORMATION	0x00000001
 #define GROUP_SECURITY_INFORMATION	0x00000002
 #define DACL_SECURITY_INFORMATION	0x00000004
 #define SACL_SECURITY_INFORMATION	0x00000008
+#define PROTECTED_DACL_SECURITY_INFORMATION  0x80000000
 
+/* ----------------------------- begin registry ----------------------------- */
+
+/* Registry security values */
 #define REG_OPTION_RESERVED		0x00000000
 #define REG_OPTION_NON_VOLATILE		0x00000000
 #define REG_OPTION_VOLATILE		0x00000001
