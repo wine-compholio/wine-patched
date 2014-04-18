@@ -522,6 +522,27 @@ struct security_descriptor *get_xattr_sd( int fd )
     return sd;
 }
 
+/* Convert generic rights into standard access rights */
+void convert_generic_sd( struct security_descriptor *sd )
+{
+    const ACL *dacl;
+    int present;
+
+    dacl = sd_get_dacl( sd, &present );
+    if (present && dacl)
+    {
+        const ACE_HEADER *ace = (const ACE_HEADER *)(dacl + 1);
+        ULONG i;
+
+        for (i = 0; i < dacl->AceCount; i++, ace = ace_next( ace ))
+        {
+            DWORD *mask = (DWORD *)(ace + 1);
+
+            *mask = generic_file_map_access( *mask );
+        }
+    }
+}
+
 struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode_t *mode,
                                          uid_t *uid )
 {
@@ -538,6 +559,7 @@ struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode
         return obj->sd;
 
     sd = get_xattr_sd( unix_fd );
+    if (sd) convert_generic_sd( sd );
     if (!sd) sd = mode_to_sd( st.st_mode,
                               security_unix_uid_to_sid( st.st_uid ),
                               token_get_primary_group( current->process->token ));
