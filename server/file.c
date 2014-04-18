@@ -333,6 +333,105 @@ struct security_descriptor *inherit_sd( const struct security_descriptor *parent
     return sd;
 }
 
+struct security_descriptor *file_combine_sds( const struct security_descriptor *parent_sd,
+                                              const struct security_descriptor *child_sd )
+{
+    size_t dacl_size = sizeof(ACL), ace_count = 0;
+    const struct security_descriptor *old_sd;
+    struct security_descriptor *sd = NULL;
+    const ACL *child_dacl, *parent_dacl;
+    int child_present, parent_present;
+    const SID *user, *group;
+    const ACE_HEADER *old_ace;
+    ACE_HEADER *ace;
+    ACL *dacl;
+    char *ptr;
+    ULONG i;
+
+    child_dacl = sd_get_dacl( child_sd, &child_present );
+    if (child_present && child_dacl)
+    {
+        old_ace = (const ACE_HEADER *)(child_dacl + 1);
+        for (i = 0; i < child_dacl->AceCount; i++, old_ace = ace_next( old_ace ))
+        {
+            ace_count++;
+            dacl_size += sizeof(ACE_HEADER) + old_ace->AceSize;
+        }
+    }
+
+    parent_dacl = sd_get_dacl( parent_sd, &parent_present );
+    if (parent_present && parent_dacl)
+    {
+        old_ace = (const ACE_HEADER *)(parent_dacl + 1);
+        for (i = 0; i < parent_dacl->AceCount; i++, old_ace = ace_next( old_ace ))
+        {
+            ace_count++;
+            dacl_size += sizeof(ACE_HEADER) + old_ace->AceSize;
+        }
+    }
+
+    if(!ace_count) return sd; /* No inheritance */
+
+    if (child_present && child_dacl)
+        old_sd = child_sd;
+    else
+        old_sd = parent_sd;
+
+    /* Fill in the security descriptor so that it is compatible with our DACL */
+    user = (const SID *)(old_sd + 1);
+    group = (const SID *)((char *)(old_sd + 1) + old_sd->owner_len);
+    sd = mem_alloc( sizeof(struct security_descriptor) + security_sid_len( user )
+                    + security_sid_len( group ) + dacl_size );
+    if (!sd) return sd;
+    sd->control = SE_DACL_PRESENT;
+    sd->owner_len = old_sd->owner_len;
+    sd->group_len = old_sd->group_len;
+    sd->sacl_len = 0;
+    sd->dacl_len = dacl_size;
+    ptr = (char *)(sd + 1);
+    memcpy( ptr, user, sd->owner_len );
+    ptr += sd->owner_len;
+    memcpy( ptr, group, sd->group_len );
+    ptr += sd->group_len;
+    dacl = (ACL *)ptr;
+    dacl->AclRevision = ACL_REVISION;
+    dacl->Sbz1 = 0;
+    dacl->AclSize = dacl_size;
+    dacl->AceCount = ace_count;
+    dacl->Sbz2 = 0;
+    ace = (ACE_HEADER *)(dacl + 1);
+
+    if (parent_present && parent_dacl)
+    {
+        /* Build the new DACL, inheriting from the parent's information */
+        old_ace = (const ACE_HEADER *)(parent_dacl + 1);
+        for (i = 0; i < parent_dacl->AceCount; i++, old_ace = ace_next( old_ace ))
+        {
+            ace->AceType = old_ace->AceType;
+            ace->AceFlags = old_ace->AceFlags;
+            ace->AceSize = old_ace->AceSize;
+            memcpy( ace + 1, old_ace + 1, old_ace->AceSize);
+            ace = (ACE_HEADER *)ace_next( ace );
+        }
+    }
+
+    if (child_present && child_dacl)
+    {
+        /* Build the new DACL, inheriting from the child's information */
+        old_ace = (const ACE_HEADER *)(child_dacl + 1);
+        for (i = 0; i < child_dacl->AceCount; i++, old_ace = ace_next( old_ace ))
+        {
+            ace->AceType = old_ace->AceType;
+            ace->AceFlags = old_ace->AceFlags;
+            ace->AceSize = old_ace->AceSize;
+            memcpy( ace + 1, old_ace + 1, old_ace->AceSize);
+            ace = (ACE_HEADER *)ace_next( ace );
+        }
+    }
+
+    return sd;
+}
+
 static struct security_descriptor *file_get_parent_sd( struct fd *root, const char *child_name,
                                                        int child_len, int is_dir )
 {
@@ -813,15 +912,32 @@ mode_t sd_to_mode( const struct security_descriptor *sd, const SID *owner )
     return new_mode & ~denied_mode;
 }
 
-int set_file_sd( struct object *obj, struct fd *fd, const struct security_descriptor *sd,
+int set_file_sd( struct object *obj, struct fd *fd, const struct security_descriptor *new_sd,
                  unsigned int set_info )
 {
+    const struct security_descriptor *sd = new_sd;
+    struct security_descriptor *parent_sd = NULL;
     int unix_fd = get_unix_fd( fd );
     const SID *owner, *group;
     struct stat st;
     mode_t mode;
+    int ret = 1;
 
     if (unix_fd == -1 || fstat( unix_fd, &st ) == -1) return 1;
+
+    if (!(set_info & PROTECTED_DACL_SECURITY_INFORMATION))
+    {
+        char *child_name = fd_get_unix_name( fd );
+
+        if (child_name)
+        {
+            parent_sd = file_get_parent_sd( NULL, child_name, strlen(child_name),
+                                                  S_ISDIR(st.st_mode) );
+            free( child_name );
+            if (parent_sd)
+                sd = file_combine_sds( parent_sd, new_sd );
+        }
+    }
 
     if (set_info & OWNER_SECURITY_INFORMATION)
     {
@@ -872,10 +988,14 @@ int set_file_sd( struct object *obj, struct fd *fd, const struct security_descri
         if (((st.st_mode ^ mode) & (S_IRWXU|S_IRWXG|S_IRWXO)) && fchmod( unix_fd, mode ) == -1)
         {
             file_set_error();
-            return 0;
+            ret = 0;
         }
     }
-    return 1;
+
+    if (parent_sd)
+        free( parent_sd );
+
+    return ret;
 }
 
 static int file_set_sd( struct object *obj, const struct security_descriptor *sd,
