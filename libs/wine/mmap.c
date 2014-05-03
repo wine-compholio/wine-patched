@@ -82,7 +82,8 @@ static inline int get_fdzero(void)
     return fd;
 }
 
-#if (defined(__svr4__) || defined(__NetBSD__)) && !defined(MAP_TRYFIXED)
+#if (defined(__svr4__) || defined(__NetBSD__) || (defined(__FreeBSD__) && defined(__x86_64__))) && \
+    !defined(MAP_TRYFIXED)
 /***********************************************************************
  *             try_mmap_fixed
  *
@@ -213,7 +214,8 @@ void *wine_anon_mmap( void *start, size_t size, int prot, int flags )
 #ifdef MAP_TRYFIXED
         /* If available, this will attempt a fixed mapping in-kernel */
         flags |= MAP_TRYFIXED;
-#elif defined(__svr4__) || defined(__NetBSD__) || defined(__APPLE__)
+#elif defined(__svr4__) || defined(__NetBSD__) || defined(__APPLE__) || \
+      (defined(__FreeBSD__) && defined(__x86_64__))
         if ( try_mmap_fixed( start, size, prot, flags, get_fdzero(), 0 ) )
             return start;
 #endif
