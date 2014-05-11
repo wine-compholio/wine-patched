@@ -36,6 +36,14 @@ typedef struct
 
 HRESULT wiadevmgr_Constructor(IWiaDevMgr **ppObj) DECLSPEC_HIDDEN;
 
+typedef struct
+{
+    IEnumWIA_DEV_INFO IEnumWIA_DEV_INFO_iface;
+    LONG ref;
+} enumwiadevinfo;
+
+HRESULT enumwiadevinfo_Constructor(IEnumWIA_DEV_INFO **ppObj) DECLSPEC_HIDDEN;
+
 /* Little helper functions */
 static inline char *
 wiaservc_strdup(const char *s)
