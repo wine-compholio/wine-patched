@@ -72,8 +72,18 @@ static ULONG WINAPI wiadevmgr_Release(IWiaDevMgr *iface)
 static HRESULT WINAPI wiadevmgr_EnumDeviceInfo(IWiaDevMgr *iface, LONG lFlag, IEnumWIA_DEV_INFO **ppIEnum)
 {
     wiadevmgr *This = impl_from_IWiaDevMgr(iface);
-    FIXME("(%p, %d, %p): stub\n", This, lFlag, ppIEnum);
-    return E_NOTIMPL;
+    HRESULT res;
+    IEnumWIA_DEV_INFO *enumdevinfo = NULL;
+
+    FIXME("(%p, %d, %p): returning empty IEnumWIA_DEV_INFO\n", This, lFlag, ppIEnum);
+
+    res = enumwiadevinfo_Constructor(&enumdevinfo);
+    if (FAILED(res))
+        return res;
+
+    res = IEnumWIA_DEV_INFO_QueryInterface(enumdevinfo, &IID_IEnumWIA_DEV_INFO, (void **)ppIEnum);
+    IEnumWIA_DEV_INFO_Release(enumdevinfo);
+    return res;
 }
 
 static HRESULT WINAPI wiadevmgr_CreateDevice(IWiaDevMgr *iface, BSTR bstrDeviceID, IWiaItem **ppWiaItemRoot)
