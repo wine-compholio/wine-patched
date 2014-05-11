@@ -4,6 +4,7 @@ IMPORTS   = uuid ole32 advapi32
 C_SRCS = \
 	factory.c \
 	service.c \
+	enumwiadevinfo.c \
 	wiadevmgr.c \
 	wiaservc_main.c
 
