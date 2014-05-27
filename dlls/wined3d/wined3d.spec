@@ -277,3 +277,5 @@
 @ cdecl wined3d_volume_preload(ptr)
 @ cdecl wined3d_volume_set_priority(ptr long)
 @ cdecl wined3d_volume_unmap(ptr)
+
+@ cdecl wined3d_strictdrawing_set(long)
