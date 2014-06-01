@@ -738,12 +738,18 @@ struct security_descriptor *get_xattr_sd( int fd )
     int n;
 
     n = fgetxattr( fd, "user.wine.sd", buffer, sizeof(buffer) );
-    if (n == -1) return NULL;
+    if (n == -1 || n < 2 + sizeof(struct security_descriptor)) return NULL;
+
     /* validate that we can handle the descriptor */
     if (buffer[0] != SECURITY_DESCRIPTOR_REVISION || buffer[1] != 0) return NULL;
 
+    sd = (struct security_descriptor *)&buffer[2];
+    if (n  < 2 + sizeof(struct security_descriptor) + sd->owner_len
+               + sd->group_len + sd->sacl_len + sd->dacl_len)
+        return NULL;
+
     sd = mem_alloc( n - 2 );
-    memcpy( sd, &buffer[2], n - 2 );
+    if (sd) memcpy( sd, &buffer[2], n - 2 );
     return sd;
 #else
     return NULL;
