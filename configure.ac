@@ -667,7 +667,7 @@ AC_CHECK_HEADERS([libprocstat.h],,,
 
 if test "x$with_xattr" != "xno"
 then
-  AC_CHECK_HEADERS(attr/xattr.h,HAVE_XATTR=1)
+  AC_CHECK_HEADERS(attr/xattr.h sys/extattr.h,HAVE_XATTR=1)
 fi
 if test "x$with_xattr" == "xyes"
 then
