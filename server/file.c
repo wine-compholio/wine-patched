@@ -43,6 +43,10 @@
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
+#ifdef HAVE_SYS_EXTATTR_H
+#include <sys/extattr.h>
+#define XATTR_SIZE_MAX 65536
+#endif
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
@@ -184,7 +188,7 @@ static struct object *create_file_obj( struct fd *fd, unsigned int access, mode_
 
 void set_xattr_sd( int fd, const struct security_descriptor *sd, const SID *user, const SID *group )
 {
-#ifdef HAVE_ATTR_XATTR_H
+#if defined(HAVE_ATTR_XATTR_H) || defined(HAVE_SYS_EXTATTR_H)
     char buffer[XATTR_SIZE_MAX], *dst_ptr = &buffer[2], *src_ptr = (char *)sd;
     int present, len, owner_len, group_len;
     struct security_descriptor *dst_sd;
@@ -241,7 +245,11 @@ void set_xattr_sd( int fd, const struct security_descriptor *sd, const SID *user
     memcpy( dst_ptr, src_ptr, sd->dacl_len );
     src_ptr += sd->dacl_len;
     dst_ptr += sd->dacl_len;
+#if defined(HAVE_ATTR_XATTR_H)
     fsetxattr( fd, "user.wine.sd", buffer, len, 0 );
+#else
+    extattr_set_fd( fd, EXTATTR_NAMESPACE_USER, "wine.sd", buffer, len );
+#endif
 #endif
 }
 
@@ -732,12 +740,16 @@ struct security_descriptor *mode_to_sd( mode_t mode, const SID *user, const SID 
 
 struct security_descriptor *get_xattr_sd( int fd )
 {
-#ifdef HAVE_ATTR_XATTR_H
+#if defined(HAVE_ATTR_XATTR_H) || defined(HAVE_SYS_EXTATTR_H)
     struct security_descriptor *sd;
     char buffer[XATTR_SIZE_MAX];
     int n;
 
+#if defined(HAVE_ATTR_XATTR_H)
     n = fgetxattr( fd, "user.wine.sd", buffer, sizeof(buffer) );
+#else
+    n = extattr_get_fd( fd, EXTATTR_NAMESPACE_USER, "wine.sd", buffer, sizeof(buffer) );
+#endif
     if (n == -1 || n < 2 + sizeof(struct security_descriptor)) return NULL;
 
     /* validate that we can handle the descriptor */
