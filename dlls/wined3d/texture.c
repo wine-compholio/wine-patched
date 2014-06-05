@@ -1200,6 +1200,14 @@ static void wined3d_texture_prepare_buffer_object(struct wined3d_texture *textur
 
     TRACE("Created buffer object %u for texture %p, sub-resource %u.\n",
             sub_resource->buffer->name, texture, sub_resource_idx);
+
+    /* FIXME: PBOs are (still) allocated per sub resource, this is global for the texture. It *should* work
+     * since whether we use PBOs is a per-texture choice, but it is shaky.
+     *
+     * This is needed because otherwise the next unmap will re-assign it with the resource_changed
+     * message. Freeing the actual memory and setting the read pointer to 0 is
+     * the task of the worker thread. */
+    texture->resource.map_heap_memory = NULL;
 }
 
 static void wined3d_texture_force_reload(struct wined3d_texture *texture)
