@@ -3957,8 +3957,18 @@ BOOL WINAPI GetLogicalProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION
 BOOL WINAPI GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer, PDWORD pBufLen)
 {
     FIXME("(%u,%p,%p): stub\n", relationship, buffer, pBufLen);
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return FALSE;
+
+    if (!pBufLen)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    /* MSDN says '[...] at least one SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
+     * structure is written to the output buffer.' - don't be surprised if this
+     * stub doesn't work always. */
+    *pBufLen = 0;
+    return TRUE;
 }
 
 /***********************************************************************
