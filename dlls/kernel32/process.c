@@ -2025,19 +2025,23 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
 
     SERVER_START_REQ( new_process )
     {
-        req->inherit_all    = inherit;
-        req->create_flags   = flags;
-        req->socket_fd      = socketfd[1];
-        req->exe_file       = wine_server_obj_handle( hFile );
-        req->process_access = PROCESS_ALL_ACCESS;
-        req->process_attr   = (psa && (psa->nLength >= sizeof(*psa)) && psa->bInheritHandle) ? OBJ_INHERIT : 0;
-        req->thread_access  = THREAD_ALL_ACCESS;
-        req->thread_attr    = (tsa && (tsa->nLength >= sizeof(*tsa)) && tsa->bInheritHandle) ? OBJ_INHERIT : 0;
-        req->cpu            = cpu;
-        req->info_size      = startup_info_size;
-
-        wine_server_add_data( req, startup_info, startup_info_size );
-        wine_server_add_data( req, env, (env_end - env) * sizeof(WCHAR) );
+        req->inherit_all     = inherit;
+        req->create_flags    = flags;
+        req->socket_fd       = socketfd[1];
+        req->exe_file        = wine_server_obj_handle( hFile );
+        req->process_access  = PROCESS_ALL_ACCESS;
+        req->process_attr    = (psa && (psa->nLength >= sizeof(*psa)) && psa->bInheritHandle) ? OBJ_INHERIT : 0;
+        req->thread_access   = THREAD_ALL_ACCESS;
+        req->thread_attr     = (tsa && (tsa->nLength >= sizeof(*tsa)) && tsa->bInheritHandle) ? OBJ_INHERIT : 0;
+        req->cpu             = cpu;
+        req->process_sd_size = 0;
+        req->thread_sd_size  = 0;
+        req->info_size       = startup_info_size;
+        req->env_size        = (env_end - env) * sizeof(WCHAR);
+        
+        wine_server_add_data( req, startup_info, req->info_size       );
+        wine_server_add_data( req, env         , req->env_size        );
+        
         if (!(status = wine_server_call( req )))
         {
             info->dwProcessId = (DWORD)reply->pid;
