@@ -4793,11 +4793,6 @@ static BOOL LISTVIEW_DrawItem(LISTVIEW_INFO *infoPtr, HDC hdc, INT nItem, ITERAT
 
             if (cdsubitemmode & CDRF_NOTIFYSUBITEMDRAW)
                 subitemstage = notify_customdraw(infoPtr, CDDS_SUBITEM | CDDS_ITEMPREPAINT, &nmlvcd);
-            else
-            {
-                nmlvcd.clrTextBk = infoPtr->clrTextBk;
-                nmlvcd.clrText   = infoPtr->clrText;
-            }
 
             if (subitems->nItem == 0 || (cdmode & CDRF_NOTIFYITEMDRAW))
                 prepaint_setup(infoPtr, hdc, &nmlvcd, FALSE);
