@@ -726,6 +726,8 @@ HRESULT WINAPI AUDDRV_GetEndpointIDs(EDataFlow flow, const WCHAR ***ids, GUID **
         UINT *num, UINT *def_index)
 {
     HRESULT hr = S_OK;
+    WCHAR *id;
+
     TRACE("%d %p %p %p\n", flow, ids, num, def_index);
 
     pthread_mutex_lock(&pulse_lock);
@@ -737,16 +739,22 @@ HRESULT WINAPI AUDDRV_GetEndpointIDs(EDataFlow flow, const WCHAR ***ids, GUID **
     *def_index = 0;
 
     *ids = HeapAlloc(GetProcessHeap(), 0, sizeof(**ids));
+    *keys = NULL;
     if (!*ids)
         return E_OUTOFMEMORY;
-    (*ids)[0] = defaultW;
 
+    (*ids)[0] = id = HeapAlloc(GetProcessHeap(), 0, sizeof(defaultW));
     *keys = HeapAlloc(GetProcessHeap(), 0, sizeof(**keys));
-    if (!*keys) {
+    if (!*keys || !id) {
+        HeapFree(GetProcessHeap(), 0, id);
+        HeapFree(GetProcessHeap(), 0, *keys);
         HeapFree(GetProcessHeap(), 0, *ids);
         *ids = NULL;
+        *keys = NULL;
         return E_OUTOFMEMORY;
     }
+    memcpy(id, defaultW, sizeof(defaultW));
+
     if (flow == eRender)
         (*keys)[0] = pulse_render_guid;
     else
