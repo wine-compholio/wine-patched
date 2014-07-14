@@ -101,6 +101,8 @@ BOOL WINAPI DllMain(HINSTANCE dll, DWORD reason, void *reserved)
         }
         DisableThreadLibraryCalls(dll);
     } else if (reason == DLL_PROCESS_DETACH) {
+        if (pulse_thread)
+           SetThreadPriority(pulse_thread, 0);
         if (pulse_ctx) {
            pa_context_disconnect(pulse_ctx);
            pa_context_unref(pulse_ctx);
