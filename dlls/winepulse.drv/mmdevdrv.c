@@ -59,6 +59,7 @@
 #define NULL_PTR_ERR MAKE_HRESULT(SEVERITY_ERROR, FACILITY_WIN32, RPC_X_NULL_REF_POINTER)
 
 WINE_DEFAULT_DEBUG_CHANNEL(pulse);
+WINE_DECLARE_DEBUG_CHANNEL(winediag);
 
 static const REFERENCE_TIME MinimumPeriod = 30000;
 static const REFERENCE_TIME DefaultPeriod = 100000;
@@ -81,6 +82,8 @@ const WCHAR pulse_keyW[] = {'S','o','f','t','w','a','r','e','\\',
     'W','i','n','e','\\','P','u','l','s','e',0};
 const WCHAR pulse_streamW[] = { 'S','t','r','e','a','m','V','o','l',0 };
 
+static HANDLE warn_once;
+
 BOOL WINAPI DllMain(HINSTANCE dll, DWORD reason, void *reserved)
 {
     if (reason == DLL_PROCESS_ATTACH) {
@@ -99,7 +102,10 @@ BOOL WINAPI DllMain(HINSTANCE dll, DWORD reason, void *reserved)
         }
         if (pulse_ml)
             pa_mainloop_quit(pulse_ml, 0);
-        CloseHandle(pulse_thread);
+        if (pulse_thread)
+            CloseHandle(pulse_thread);
+        if (warn_once)
+            CloseHandle(warn_once);
     }
     return TRUE;
 }
@@ -758,6 +764,10 @@ HRESULT WINAPI AUDDRV_GetEndpointIDs(EDataFlow flow, WCHAR ***ids, void ***keys,
 int WINAPI AUDDRV_GetPriority(void)
 {
     HRESULT hr;
+    if (getenv("WINENOPULSE")) {
+        FIXME_(winediag)("winepulse has been temporarily disabled through the environment\n");
+        return 0;
+    }
     pthread_mutex_lock(&pulse_lock);
     hr = pulse_connect();
     pthread_mutex_unlock(&pulse_lock);
@@ -771,7 +781,18 @@ HRESULT WINAPI AUDDRV_GetAudioEndpoint(void *key, IMMDevice *dev,
     ACImpl *This;
     int i;
 
-    TRACE("%p %p %d %p\n", key, dev, dataflow, out);
+    /* Give one visible warning per session
+     * Sadly wine has chosen not to accept the winepulse patch, so support ourselves
+     */
+    if (!warn_once && (warn_once = CreateEventA(0, 0, 0, "__winepulse_warn_event")) && GetLastError() != ERROR_ALREADY_EXISTS) {
+        FIXME_(winediag)("Winepulse is not officially supported by the wine project\n");
+        FIXME_(winediag)("For sound related feedback and support, please visit http://ubuntuforums.org/showthread.php?t=1960599\n");
+    } else {
+        WARN_(winediag)("Winepulse is not officially supported by the wine project\n");
+        WARN_(winediag)("For sound related feedback and support, please visit http://ubuntuforums.org/showthread.php?t=1960599\n");
+    }
+
+    TRACE("%s %p %p\n", debugstr_guid(guid), dev, out);
     if (dataflow != eRender && dataflow != eCapture)
         return E_UNEXPECTED;
 
