@@ -1109,7 +1109,22 @@ static HRESULT pulse_spec_from_waveformat(ACImpl *This, const WAVEFORMATEX *fmt)
         }
         break;
         }
-        default: FIXME("Unhandled tag %x\n", fmt->wFormatTag);
+        case WAVE_FORMAT_ALAW:
+        case WAVE_FORMAT_MULAW:
+            if (fmt->wBitsPerSample != 8) {
+                FIXME("Unsupported bpp %u for LAW\n", fmt->wBitsPerSample);
+                return AUDCLNT_E_UNSUPPORTED_FORMAT;
+            }
+            if (fmt->nChannels != 1 && fmt->nChannels != 2) {
+                FIXME("Unsupported channels %u for LAW\n", fmt->nChannels);
+                return AUDCLNT_E_UNSUPPORTED_FORMAT;
+            }
+            This->ss.format = fmt->wFormatTag == WAVE_FORMAT_MULAW ? PA_SAMPLE_ULAW : PA_SAMPLE_ALAW;
+            pa_channel_map_init_auto(&This->map, fmt->nChannels, PA_CHANNEL_MAP_ALSA);
+            break;
+        default:
+            WARN("Unhandled tag %x\n", fmt->wFormatTag);
+            return AUDCLNT_E_UNSUPPORTED_FORMAT;
     }
     This->ss.channels = This->map.channels;
     if (!pa_channel_map_valid(&This->map) || This->ss.format == PA_SAMPLE_INVALID) {
