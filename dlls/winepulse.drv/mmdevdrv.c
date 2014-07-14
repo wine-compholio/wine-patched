@@ -596,10 +596,11 @@ static void pulse_rd_loop(ACImpl *This, size_t bytes)
         dst = p->data;
         while (rem) {
             pa_stream_peek(This->stream, (const void**)&src, &src_len);
-            assert(src_len && src_len <= bytes);
+            assert(src_len);
             assert(This->peek_ofs < src_len);
             src += This->peek_ofs;
             src_len -= This->peek_ofs;
+            assert(src_len <= bytes);
 
             copy = rem;
             if (copy > src_len)
@@ -627,9 +628,10 @@ static void pulse_rd_drop(ACImpl *This, size_t bytes)
         while (rem) {
             const void *src;
             pa_stream_peek(This->stream, &src, &src_len);
-            assert(src_len && src_len <= bytes);
+            assert(src_len);
             assert(This->peek_ofs < src_len);
             src_len -= This->peek_ofs;
+            assert(src_len <= bytes);
 
             copy = rem;
             if (copy > src_len)
