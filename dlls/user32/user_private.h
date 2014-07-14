@@ -190,10 +190,13 @@ struct user_thread_info
     HWND                          top_window;             /* Desktop window */
     HWND                          msg_window;             /* HWND_MESSAGE parent window */
     RAWINPUT                     *rawinput;
+    INT                           key_state_epoch;        /* Counter to invalidate the key state */
 
-    ULONG                         pad[5];                 /* Available for more data */
+    ULONG                         pad[4];                 /* Available for more data */
 };
 #include <poppack.h>
+
+extern INT global_key_state_epoch DECLSPEC_HIDDEN;
 
 struct hook_extra_info
 {
