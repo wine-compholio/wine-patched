@@ -1822,7 +1822,7 @@ static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
 {
     ACImpl *This = impl_from_IAudioRenderClient(iface);
     UINT32 written_bytes = written_frames * pa_frame_size(&This->ss);
-    UINT32 period;
+//    UINT32 period;
 
     TRACE("(%p)->(%u, %x)\n", This, written_frames, flags);
 
@@ -1858,10 +1858,10 @@ static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
     TRACE("Released %u, pad %zu\n", written_frames, This->pad / pa_frame_size(&This->ss));
     assert(This->pad <= This->bufsize_bytes);
 
-    period = pa_stream_get_buffer_attr(This->stream)->minreq;
+//    period = pa_stream_get_buffer_attr(This->stream)->minreq;
     /* Require a minimum of 3 periods filled, if possible */
-    if (This->event && This->pad + period <= This->bufsize_bytes && This->pad < period * 3)
-        SetEvent(This->event);
+//    if (This->event && This->pad + period <= This->bufsize_bytes && This->pad < period * 3)
+//        SetEvent(This->event);
     pthread_mutex_unlock(&pulse_lock);
     return S_OK;
 }
