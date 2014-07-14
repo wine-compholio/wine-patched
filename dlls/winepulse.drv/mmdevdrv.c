@@ -1898,7 +1898,7 @@ static HRESULT WINAPI AudioCaptureClient_GetNextPacketSize(
     TRACE("(%p)->(%p)\n", This, frames);
     if (!frames)
         return E_POINTER;
-    
+
     pthread_mutex_lock(&pulse_lock);
     ACImpl_GetCapturePad(This, NULL);
     p = This->locked_ptr;
@@ -1998,7 +1998,7 @@ static HRESULT WINAPI AudioClock_GetPosition(IAudioClock *iface, UINT64 *pos,
         else
             *pos += This->pad;
     }
-    
+
     /* Make time never go backwards */
     if (*pos < This->clock_lastpos)
         *pos = This->clock_lastpos;
