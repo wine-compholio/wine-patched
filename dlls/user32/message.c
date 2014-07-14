@@ -3300,6 +3300,7 @@ NTSTATUS send_hardware_message( HWND hwnd, const INPUT *input, UINT flags )
     struct send_message_info info;
     int prev_x, prev_y, new_x, new_y;
     NTSTATUS ret;
+    INT epoch = global_key_state_epoch;
     BOOL wait;
 
     info.type     = MSG_HARDWARE;
@@ -3347,7 +3348,11 @@ NTSTATUS send_hardware_message( HWND hwnd, const INPUT *input, UINT flags )
 
     if (!ret)
     {
-        if (thread_info->key_state) thread_info->key_state_time = GetTickCount();
+        if (thread_info->key_state)
+        {
+            thread_info->key_state_time  = GetTickCount();
+            thread_info->key_state_epoch = epoch;
+        }
         if ((flags & SEND_HWMSG_INJECTED) && (prev_x != new_x || prev_y != new_y))
             USER_Driver->pSetCursorPos( new_x, new_y );
     }
