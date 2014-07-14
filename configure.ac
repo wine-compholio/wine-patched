@@ -73,6 +73,7 @@ AC_ARG_WITH(pcap,      AS_HELP_STRING([--without-pcap],[do not use the Packet Ca
 AC_ARG_WITH(png,       AS_HELP_STRING([--without-png],[do not use PNG]))
 AC_ARG_WITH(pthread,   AS_HELP_STRING([--without-pthread],[do not use the pthread library]),
             [if test "x$withval" = "xno"; then ac_cv_header_pthread_h=no; fi])
+AC_ARG_WITH(pulse,     AC_HELP_STRING([--without-pulse],[do not use PulseAudio sound support]))
 AC_ARG_WITH(sane,      AS_HELP_STRING([--without-sane],[do not use SANE (scanner support)]))
 AC_ARG_WITH(tiff,      AS_HELP_STRING([--without-tiff],[do not use TIFF]))
 AC_ARG_WITH(v4l,       AS_HELP_STRING([--without-v4l],[do not use v4l1 (v4l support)]))
@@ -1593,6 +1594,30 @@ then
           [GetText ${notice_platform}development files not found (or too old), po files can't be rebuilt.])
 fi
 
+dnl **** Check for PulseAudio ****
+AC_SUBST(PULSELIBS,"")
+AC_SUBST(PULSEINCL,"")
+if test "x$with_pulse" != "xno";
+then
+    ac_save_CPPFLAGS="$CPPFLAGS"
+    if test "$PKG_CONFIG" != "false";
+    then
+        ac_pulse_libs="`$PKG_CONFIG --libs libpulse 2>/dev/null`"
+        ac_pulse_cflags="`$PKG_CONFIG --cflags-only-I libpulse 2>/dev/null`"
+
+        CPPFLAGS="$CPPFLAGS $ac_pulse_cflags"
+        AC_CHECK_HEADERS(pulse/pulseaudio.h,
+            [AC_CHECK_LIB(pulse, pa_stream_is_corked,
+                [AC_DEFINE(HAVE_PULSEAUDIO, 1, [Define if you have pulseaudio])
+                 PULSELIBS="$ac_pulse_libs"
+                 PULSEINCL="$ac_pulse_cflags"],,$ac_pulse_libs)
+        ])
+    fi
+    CPPFLAGS="$ac_save_CPPFLAGS"
+fi
+WINE_WARNING_WITH(pulse, [test "$ac_cv_lib_pulse_pa_stream_is_corked" != "yes"],
+        [libpulse ${notice_platform}development files not found or too old, Pulse won't be supported.])
+
 dnl **** Check for gstreamer ****
 if test "x$with_gstreamer" != "xno"
 then
@@ -1814,13 +1839,14 @@ fi
 dnl **** Disable unsupported winmm drivers ****
 test -n "$ALSA_LIBS" || enable_winealsa_drv=${enable_winealsa_drv:-no}
 test -n "$COREAUDIO_LIBS" || enable_winecoreaudio_drv=${enable_winecoreaudio_drv:-no}
+test -n "$PULSELIBS" || enable_winepulse_drv=${enable_winepulse_drv:-no}
 test "x$ac_cv_member_oss_sysinfo_numaudioengines" = xyes || enable_wineoss_drv=${enable_wineoss_drv:-no}
 test "$ac_cv_header_linux_joystick_h" = "yes" || enable_winejoystick_drv=${enable_winejoystick_drv:-no}
 
 dnl **** Check for any sound system ****
-if test "x$ALSA_LIBS$COREAUDIO_LIBS" = "x" -a \
+if test "x$ALSA_LIBS$COREAUDIO_LIBS$PULSELIBS" = "x" -a \
         "x$ac_cv_member_oss_sysinfo_numaudioengines" != xyes -a \
-        "x$with_alsa$with_coreaudio$with_oss" != xnonono
+        "x$with_alsa$with_coreaudio$with_oss$with_pulse" != xnononono
 then
     WINE_WARNING([No sound system was found. Windows applications will be silent.])
 fi
@@ -3400,6 +3426,7 @@ WINE_CONFIG_DLL(winemp3.acm)
 WINE_CONFIG_DLL(wineoss.drv)
 WINE_CONFIG_DLL(wineps.drv,,[clean,po])
 WINE_CONFIG_DLL(wineps16.drv16,enable_win16)
+WINE_CONFIG_DLL(winepulse.drv)
 WINE_CONFIG_DLL(wineqtdecoder)
 WINE_CONFIG_DLL(winex11.drv)
 WINE_CONFIG_DLL(wing.dll16,enable_win16)
