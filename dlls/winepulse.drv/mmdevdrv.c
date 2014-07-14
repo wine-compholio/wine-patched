@@ -559,11 +559,7 @@ static void pulse_latency_callback(pa_stream *s, void *userdata)
 
 static void pulse_started_callback(pa_stream *s, void *userdata)
 {
-    ACImpl *This = userdata;
-
     TRACE("(Re)started playing\n");
-    if (This->event)
-        SetEvent(This->event);
 }
 
 static void pulse_rd_loop(ACImpl *This, size_t bytes)
