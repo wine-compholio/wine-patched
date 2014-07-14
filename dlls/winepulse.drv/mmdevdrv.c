@@ -1205,11 +1205,15 @@ static HRESULT WINAPI AudioClient_Initialize(IAudioClient *iface,
          * default
          */
         if (duration < 2 * def)
-           period = min;
+            period = min;
         else
-           period = def;
+            period = def;
         if (duration < 2 * period)
             duration = 2 * period;
+
+        /* Uh oh, really low latency requested.. */
+        if (duration <= 2 * period)
+            period /= 2;
     }
     period_bytes = pa_frame_size(&This->ss) * MulDiv(period, This->ss.rate, 10000000);
 
@@ -1820,6 +1824,7 @@ static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
 {
     ACImpl *This = impl_from_IAudioRenderClient(iface);
     UINT32 written_bytes = written_frames * pa_frame_size(&This->ss);
+    UINT32 period;
 
     TRACE("(%p)->(%u, %x)\n", This, written_frames, flags);
 
@@ -1854,6 +1859,11 @@ static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
     This->locked_ptr = NULL;
     TRACE("Released %u, pad %zu\n", written_frames, This->pad / pa_frame_size(&This->ss));
     assert(This->pad <= This->bufsize_bytes);
+
+    period = pa_stream_get_buffer_attr(This->stream)->minreq;
+    /* Require a minimum of 3 periods filled, if possible */
+    if (This->event && This->pad + period <= This->bufsize_bytes && This->pad < period * 3)
+        SetEvent(This->event);
     pthread_mutex_unlock(&pulse_lock);
     return S_OK;
 }
