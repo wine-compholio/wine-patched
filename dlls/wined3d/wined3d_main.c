@@ -515,6 +515,11 @@ void wined3d_unregister_window(HWND window)
     wined3d_wndproc_mutex_unlock();
 }
 
+void wined3d_strictdrawing_set(int value)
+{
+    wined3d_settings.strict_draw_ordering = value;
+}
+
 /* At process attach */
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, void *reserved)
 {
