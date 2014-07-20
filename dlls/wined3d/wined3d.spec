@@ -288,3 +288,5 @@
 @ cdecl wined3d_volume_map(ptr ptr ptr long)
 @ cdecl wined3d_volume_preload(ptr)
 @ cdecl wined3d_volume_unmap(ptr)
+
+@ cdecl wined3d_strictdrawing_set(long)
