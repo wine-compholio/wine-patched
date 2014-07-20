@@ -221,6 +221,8 @@
 @ cdecl wined3d_stateblock_decref(ptr)
 @ cdecl wined3d_stateblock_incref(ptr)
 
+@ cdecl wined3d_strictdrawing_set(long)
+
 @ cdecl wined3d_surface_blt(ptr ptr ptr ptr long ptr long)
 @ cdecl wined3d_surface_decref(ptr)
 @ cdecl wined3d_surface_from_resource(ptr)
