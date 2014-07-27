@@ -7109,6 +7109,16 @@ PCSTR WINAPI WS_inet_ntop( INT family, PVOID addr, PSTR buffer, SIZE_T len )
 }
 
 /***********************************************************************
+ *              inet_pton                      (WS2_32.@)
+ */
+INT WINAPI WS_inet_pton( INT family, PCSTR addr, PVOID buffer)
+{
+    INT ret = inet_pton(family, addr, buffer);
+    if (ret == -1) SetLastError(wsaErrno());
+    return ret;
+}
+
+/***********************************************************************
  *              WSAStringToAddressA                      (WS2_32.80)
  */
 INT WINAPI WSAStringToAddressA(LPSTR AddressString,
