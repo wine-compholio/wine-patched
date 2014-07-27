@@ -1447,3 +1447,17 @@ VOID WINAPI GlobalMemoryStatus( LPMEMORYSTATUS lpBuffer )
           lpBuffer->dwAvailPhys, lpBuffer->dwTotalPageFile, lpBuffer->dwAvailPageFile,
           lpBuffer->dwTotalVirtual, lpBuffer->dwAvailVirtual );
 }
+
+BOOL WINAPI GetSystemFileCacheSize(PSIZE_T mincache, PSIZE_T maxcache, PDWORD flags)
+{
+    FIXME("stub: %p %p %p\n", mincache, maxcache, flags);
+    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+    return FALSE;
+}
+
+BOOL WINAPI SetSystemFileCacheSize(SIZE_T mincache, SIZE_T maxcache, DWORD flags)
+{
+    FIXME("stub: %ld %ld %d\n", mincache, maxcache, flags);
+    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+    return FALSE;
+}
