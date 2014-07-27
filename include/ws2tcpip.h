@@ -177,7 +177,7 @@ PCSTR WINAPI WS(inet_ntop)(INT,PVOID,PSTR,SIZE_T);
 #define     InetNtopA WS(inet_ntop)
 PCWSTR WINAPI InetNtopW(INT,PVOID,PWSTR,SIZE_T);
 #define     InetNtop WINELIB_NAME_AW(InetNtop)
-int WINAPI  WS(inet_pton)(INT,PCSTR,PVOID);
+INT WINAPI  WS(inet_pton)(INT,PCSTR,PVOID);
 #define     InetPtonA WS(inet_pton)
 int WINAPI  InetPtonW(INT,PCWSTR,PVOID);
 #define     InetPton WINELIB_NAME_AW(InetPton)
