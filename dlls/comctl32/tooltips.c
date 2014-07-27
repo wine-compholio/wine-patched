@@ -484,6 +484,8 @@ TOOLTIPS_GetTipText (const TOOLTIPS_INFO *infoPtr, INT nTool, WCHAR *buffer)
 {
     TTTOOL_INFO *toolPtr = &infoPtr->tools[nTool];
 
+    /* always NULL-terminate the buffer, just in case we fail to load the string */
+    buffer[0] = '\0';
     if (IS_INTRESOURCE(toolPtr->lpszText) && toolPtr->hinst) {
 	/* load a resource */
 	TRACE("load res string %p %x\n",
@@ -505,7 +507,6 @@ TOOLTIPS_GetTipText (const TOOLTIPS_INFO *infoPtr, INT nTool, WCHAR *buffer)
     }
     else {
 	/* no text available */
-        buffer[0] = '\0';
     }
 
     TRACE("%s\n", debugstr_w(buffer));
