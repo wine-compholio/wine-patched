@@ -751,13 +751,13 @@ static void test_GetSystemTimes(void)
         return;
     }
 
-    todo_wine ok( pGetSystemTimes(NULL, NULL, NULL), "GetSystemTimes failed unexpectedly\n" );
+    ok( pGetSystemTimes(NULL, NULL, NULL), "GetSystemTimes failed unexpectedly\n" );
 
     memset( &idletime, 0x11, sizeof(idletime) );
     memset( &kerneltime, 0x11, sizeof(kerneltime) );
     memset( &usertime, 0x11, sizeof(usertime) );
-    todo_wine ok( pGetSystemTimes(&idletime, &kerneltime , &usertime),
-                  "GetSystemTimes failed unexpectedly\n" );
+    ok( pGetSystemTimes(&idletime, &kerneltime , &usertime),
+        "GetSystemTimes failed unexpectedly\n" );
 
     ul1.LowPart = idletime.dwLowDateTime;
     ul1.HighPart = idletime.dwHighDateTime;
@@ -800,9 +800,9 @@ static void test_GetSystemTimes(void)
     trace( "total_idletime %f total_kerneltime %f total_usertime %f \n", total_idletime,
           total_kerneltime, total_usertime );
 
-    todo_wine ok( (total_idletime - (double)ul1.QuadPart/10000000.0) < 1.0, "test idletime failed\n" );
-    todo_wine ok( (total_kerneltime - (double)ul2.QuadPart/10000000.0) < 1.0, "test kerneltime failed\n" );
-    todo_wine ok( (total_usertime - (double)ul3.QuadPart/10000000.0) < 1.0, "test usertime failed\n" );
+    ok( (total_idletime - (double)ul1.QuadPart/10000000.0) < 1.0, "test idletime failed\n" );
+    ok( (total_kerneltime - (double)ul2.QuadPart/10000000.0) < 1.0, "test kerneltime failed\n" );
+    ok( (total_usertime - (double)ul3.QuadPart/10000000.0) < 1.0, "test usertime failed\n" );
 
     HeapFree(GetProcessHeap(), 0, sppi);
 }
