@@ -4141,6 +4141,8 @@ static void test_send(void)
     OVERLAPPED ov;
     BOOL bret;
     DWORD id, bytes_sent, dwRet;
+    socklen_t optlen;
+    DWORD connect_time;
 
     memset(&ov, 0, sizeof(ov));
 
@@ -4234,6 +4236,18 @@ static void test_send(void)
     ret = WSASend(dst, &buf, 1, NULL, 0, &ov, NULL);
     ok(ret == SOCKET_ERROR && WSAGetLastError() == ERROR_IO_PENDING,
        "Failed to start overlapped send %d - %d\n", ret, WSAGetLastError());
+
+    connect_time = 0;
+    optlen = sizeof(connect_time);
+    ret = getsockopt(dst, SOL_SOCKET, SO_CONNECT_TIME, (char *)&connect_time, &optlen);
+    ok(!ret, "getsockopt failed %d\n", WSAGetLastError());
+    ok(connect_time > 0, "unexpected connect time %u\n", connect_time);
+
+    connect_time = 0;
+    optlen = sizeof(connect_time);
+    ret = getsockopt(src, SOL_SOCKET, SO_CONNECT_TIME, (char *)&connect_time, &optlen);
+    ok(!ret, "getsockopt failed %d\n", WSAGetLastError());
+    ok(connect_time > 0, "unexpected connect time %u\n", connect_time);
 
 end:
     if (src != INVALID_SOCKET)
