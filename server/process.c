@@ -880,7 +880,7 @@ DECL_HANDLER(new_process)
     struct process *process;
     struct process *parent = current->process;
     int socket_fd = thread_get_inflight_fd( current, req->socket_fd );
-    const struct security_descriptor *req_psd = NULL;
+    const struct security_descriptor *req_psd = NULL, *req_tsd = NULL;
     const startup_info_t *req_info;
     data_size_t req_info_size;
     const WCHAR *req_env;
@@ -903,7 +903,17 @@ DECL_HANDLER(new_process)
             return;
         }
     }
+    if (req->thread_sd_size)
+    {
+        req_tsd = (const struct security_descriptor *)
+                  ((char*)get_req_data() + req->process_sd_size);
 
+        if (!sd_is_valid( req_tsd, req->thread_sd_size ))
+        {
+            set_error( STATUS_INVALID_SECURITY_DESCR );
+            return;
+        }
+    }
     req_info = (const startup_info_t *)
                ((char*)get_req_data() + req->process_sd_size + req->thread_sd_size);
     req_env = (const WCHAR *)
@@ -1043,7 +1053,18 @@ DECL_HANDLER(new_process)
                         DACL_SECURITY_INFORMATION|
                         SACL_SECURITY_INFORMATION );
     }
-
+    if (req_tsd)
+    {
+        /* In CreateProcess the thread defaults come from the process token,
+         * (this is not the case during CreateThread however) */
+        set_sd_defaults_from_token( &thread->obj,
+                                    req_tsd, 
+                                    OWNER_SECURITY_INFORMATION|
+                                    GROUP_SECURITY_INFORMATION|
+                                    DACL_SECURITY_INFORMATION|
+                                    SACL_SECURITY_INFORMATION,
+                                    process->token );
+    }
  done:
     release_object( info );
 }

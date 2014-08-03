@@ -2003,8 +2003,8 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
     int socketfd[2], stdin_fd = -1, stdout_fd = -1;
     pid_t pid;
     int err, cpu;
-    struct security_descriptor *psd = NULL;
-    data_size_t psd_len = 0;
+    struct security_descriptor *psd = NULL, *tsd = NULL;
+    data_size_t psd_len = 0, tsd_len = 0;
 
     if ((cpu = get_process_cpu( filename, binary_info )) == -1)
     {
@@ -2022,12 +2022,26 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
             return FALSE;
         }
      }
+    if (tsa && (tsa->nLength >= sizeof(*tsa)) && tsa->lpSecurityDescriptor)
+    {
+        status = create_struct_sd( tsa->lpSecurityDescriptor, &tsd, &tsd_len );
+        
+        if (status != STATUS_SUCCESS)
+        {
+            RtlFreeHeap(GetProcessHeap(), 0, psd);
+            RtlFreeHeap(GetProcessHeap(), 0, tsd);
+            WARN("Invalid thread security descriptor with status %x\n", status);
+            SetLastError( RtlNtStatusToDosError(status) );
+            return FALSE;
+        }
+    }
 
     /* create the socket for the new process */
 
     if (socketpair( PF_UNIX, SOCK_STREAM, 0, socketfd ) == -1)
     {
         RtlFreeHeap(GetProcessHeap(), 0, psd);
+        RtlFreeHeap(GetProcessHeap(), 0, tsd);
         SetLastError( ERROR_TOO_MANY_OPEN_FILES );
         return FALSE;
     }
@@ -2068,6 +2082,7 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
         }
         close( socketfd[0] );
         RtlFreeHeap(GetProcessHeap(), 0, psd);
+        RtlFreeHeap(GetProcessHeap(), 0, tsd);
         SetLastError( RtlNtStatusToDosError( status ));
         return FALSE;
     }
@@ -2081,6 +2096,7 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
         close( socketfd[0] );
         close( socketfd[1] );
         RtlFreeHeap(GetProcessHeap(), 0, psd);
+        RtlFreeHeap(GetProcessHeap(), 0, tsd);
         return FALSE;
     }
     if (!env) env = NtCurrentTeb()->Peb->ProcessParameters->Environment;
@@ -2115,10 +2131,11 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
         req->thread_attr    = (tsa && (tsa->nLength >= sizeof(*tsa)) && tsa->bInheritHandle) ? OBJ_INHERIT : 0;
         req->cpu            = cpu;
         req->process_sd_size= psd_len;
-        req->thread_sd_size = 0;
+        req->thread_sd_size = tsd_len;
         req->info_size      = startup_info_size;
 
         wine_server_add_data( req, psd, psd_len );
+        wine_server_add_data( req, tsd, tsd_len );
         wine_server_add_data( req, startup_info, startup_info_size );
         wine_server_add_data( req, env, (env_end - env) * sizeof(WCHAR) );
         if (!(status = wine_server_call( req )))
@@ -2133,6 +2150,7 @@ static BOOL create_process( HANDLE hFile, LPCWSTR filename, LPWSTR cmd_line, LPW
     SERVER_END_REQ;
 
     RtlFreeHeap(GetProcessHeap(), 0, psd);
+    RtlFreeHeap(GetProcessHeap(), 0, tsd);
 
     RtlReleasePebLock();
     if (status)
