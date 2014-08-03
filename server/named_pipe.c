@@ -929,6 +929,7 @@ DECL_HANDLER(create_named_pipe)
         return;
     }
 
+    reply->flags = req->flags & ~(NAMED_PIPE_MESSAGE_STREAM_WRITE | NAMED_PIPE_MESSAGE_STREAM_READ);
     reply->handle = 0;
 
     if (!objattr_is_valid( objattr, get_req_data_size() ))
