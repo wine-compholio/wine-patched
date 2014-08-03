@@ -238,4 +238,7 @@ static inline WCHAR *strdupW(const WCHAR *src)
     return dest;
 }
 
+void SHELL_GetInternalImageLists(HIMAGELIST *lpSmallList, HIMAGELIST *lpLargeList,
+    HIMAGELIST *lpExtraLargeList, HIMAGELIST *lpJumboList) DECLSPEC_HIDDEN;
+
 #endif
