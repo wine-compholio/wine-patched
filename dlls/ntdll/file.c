@@ -3494,6 +3494,7 @@ NTSTATUS WINAPI NtCreateNamedPipeFile( PHANDLE handle, ULONG access,
 {
     struct security_descriptor *sd = NULL;
     struct object_attributes objattr;
+    unsigned int flags;
     NTSTATUS status;
 
     TRACE("(%p %x %s %p %x %d %x %d %d %d %d %d %d %p)\n",
@@ -3512,16 +3513,17 @@ NTSTATUS WINAPI NtCreateNamedPipeFile( PHANDLE handle, ULONG access,
     status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
     if (status != STATUS_SUCCESS) return status;
 
+    flags = (pipe_type ? NAMED_PIPE_MESSAGE_STREAM_WRITE   : 0) |
+            (read_mode ? NAMED_PIPE_MESSAGE_STREAM_READ    : 0) |
+            (completion_mode ? NAMED_PIPE_NONBLOCKING_MODE : 0);
+
     SERVER_START_REQ( create_named_pipe )
     {
         req->access  = access;
         req->attributes = attr->Attributes;
         req->options = options;
         req->sharing = sharing;
-        req->flags = 
-            (pipe_type ? NAMED_PIPE_MESSAGE_STREAM_WRITE   : 0) |
-            (read_mode ? NAMED_PIPE_MESSAGE_STREAM_READ    : 0) |
-            (completion_mode ? NAMED_PIPE_NONBLOCKING_MODE : 0);
+        req->flags   = flags;
         req->maxinstances = max_inst;
         req->outsize = outbound_quota;
         req->insize  = inbound_quota;
@@ -3531,8 +3533,12 @@ NTSTATUS WINAPI NtCreateNamedPipeFile( PHANDLE handle, ULONG access,
         wine_server_add_data( req, attr->ObjectName->Buffer, attr->ObjectName->Length );
         status = wine_server_call( req );
         if (!status) *handle = wine_server_ptr_handle( reply->handle );
+        flags &= ~reply->flags; /* contains now all unsupported flags */
     }
     SERVER_END_REQ;
+
+    if (!status && (flags & (NAMED_PIPE_MESSAGE_STREAM_WRITE | NAMED_PIPE_MESSAGE_STREAM_READ)))
+        FIXME("Message mode not supported, falling back to byte mode.\n");
 
     NTDLL_free_struct_sd( sd );
     return status;
