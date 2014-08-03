@@ -232,4 +232,7 @@ BOOL CreateFolderEnumList(IEnumIDListImpl *list, LPCWSTR lpszPath, DWORD dwFlags
 void release_typelib(void) DECLSPEC_HIDDEN;
 void release_desktop_folder(void) DECLSPEC_HIDDEN;
 
+void SHELL_GetInternalImageLists(HIMAGELIST *lpSmallList, HIMAGELIST *lpLargeList,
+    HIMAGELIST *lpExtraLargeList, HIMAGELIST *lpJumboList) DECLSPEC_HIDDEN;
+
 #endif
