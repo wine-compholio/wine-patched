@@ -880,6 +880,7 @@ DECL_HANDLER(new_process)
     struct process *process;
     struct process *parent = current->process;
     int socket_fd = thread_get_inflight_fd( current, req->socket_fd );
+    const struct security_descriptor *req_psd = NULL;
     const startup_info_t *req_info;
     data_size_t req_info_size;
     const WCHAR *req_env;
@@ -891,6 +892,16 @@ DECL_HANDLER(new_process)
     {
         close( socket_fd );
         return;
+    }
+    
+    if (req->process_sd_size)
+    {
+        req_psd = get_req_data();        
+        if (!sd_is_valid( req_psd, req->process_sd_size ))
+        {
+            set_error( STATUS_INVALID_SECURITY_DESCR );
+            return;
+        }
     }
 
     req_info = (const startup_info_t *)
@@ -1019,6 +1030,19 @@ DECL_HANDLER(new_process)
     reply->tid = get_thread_id( thread );
     reply->phandle = alloc_handle( parent, process, req->process_access, req->process_attr );
     reply->thandle = alloc_handle( parent, thread, req->thread_access, req->thread_attr );
+
+    /* note: alloc_handle might fail with access denied 
+     * if the security descriptor is set before that call */
+    
+    if (req_psd)
+    {
+        default_set_sd( &process->obj,
+                        req_psd,
+                        OWNER_SECURITY_INFORMATION|
+                        GROUP_SECURITY_INFORMATION|
+                        DACL_SECURITY_INFORMATION|
+                        SACL_SECURITY_INFORMATION );
+    }
 
  done:
     release_object( info );
