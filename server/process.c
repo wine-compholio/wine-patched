@@ -880,6 +880,24 @@ DECL_HANDLER(new_process)
     struct process *process;
     struct process *parent = current->process;
     int socket_fd = thread_get_inflight_fd( current, req->socket_fd );
+    const startup_info_t *req_info;
+    data_size_t req_info_size;
+    const WCHAR *req_env;
+    data_size_t req_env_size;
+
+    if (req->process_sd_size > get_req_data_size() ||
+        req->thread_sd_size > get_req_data_size() - req->process_sd_size ||
+        req->info_size > get_req_data_size() - req->process_sd_size - req->thread_sd_size)
+    {
+        close( socket_fd );
+        return;
+    }
+
+    req_info = (const startup_info_t *)
+               ((char*)get_req_data() + req->process_sd_size + req->thread_sd_size);
+    req_env = (const WCHAR *)
+              ((char*)get_req_data() + req->process_sd_size + req->thread_sd_size + req->info_size);
+    req_env_size = get_req_data_size() - (req->process_sd_size + req->thread_sd_size + req->info_size);
 
     if (socket_fd == -1)
     {
@@ -920,27 +938,25 @@ DECL_HANDLER(new_process)
         !(info->exe_file = get_file_obj( current->process, req->exe_file, FILE_READ_DATA )))
         goto done;
 
-    info->data_size = get_req_data_size();
-    info->info_size = min( req->info_size, info->data_size );
-
     if (req->info_size < sizeof(*info->data))
     {
         /* make sure we have a full startup_info_t structure */
-        data_size_t env_size = info->data_size - info->info_size;
-        data_size_t info_size = min( req->info_size, FIELD_OFFSET( startup_info_t, curdir_len ));
-
-        if (!(info->data = mem_alloc( sizeof(*info->data) + env_size ))) goto done;
-        memcpy( info->data, get_req_data(), info_size );
-        memset( (char *)info->data + info_size, 0, sizeof(*info->data) - info_size );
-        memcpy( info->data + 1, (const char *)get_req_data() + req->info_size, env_size );
-        info->info_size = sizeof(startup_info_t);
-        info->data_size = info->info_size + env_size;
+        info->info_size = sizeof(*info->data);
+        info->data_size = sizeof(*info->data) + req_env_size;
+        
+        req_info_size = min( req->info_size, FIELD_OFFSET( startup_info_t, curdir_len ));
+        if (!(info->data = mem_alloc( info->data_size ))) goto done;
+        memset( info->data, 0, info->data_size );
+        memcpy( info->data, req_info, req_info_size );
+        memcpy( info->data + 1, req_env, req_env_size );
     }
     else
     {
         data_size_t pos = sizeof(*info->data);
-
-        if (!(info->data = memdup( get_req_data(), info->data_size ))) goto done;
+        info->info_size = req->info_size;
+        info->data_size = req->info_size + req_env_size;
+ 
+        if (!(info->data = memdup( req_info, info->data_size ))) goto done;
 #define FIXUP_LEN(len) do { (len) = min( (len), info->info_size - pos ); pos += (len); } while(0)
         FIXUP_LEN( info->data->curdir_len );
         FIXUP_LEN( info->data->dllpath_len );
