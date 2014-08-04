@@ -61,6 +61,7 @@
 
 #include "process.h"
 #include "file.h"
+#include "sock.h"
 #include "handle.h"
 #include "thread.h"
 #include "request.h"
@@ -138,7 +139,6 @@ static void sock_cancel_async( struct fd *fd, struct process *process, struct th
 
 static int sock_get_ntstatus( int err );
 static int sock_get_error( int err );
-static void sock_set_error(void);
 
 static const struct object_ops sock_ops =
 {
@@ -955,7 +955,7 @@ static int sock_get_ntstatus( int err )
 }
 
 /* set the last error depending on errno */
-static void sock_set_error(void)
+void sock_set_error(void)
 {
     set_error( sock_get_ntstatus( errno ) );
 }
