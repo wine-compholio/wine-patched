@@ -286,7 +286,6 @@ static void test_CreateNamedPipe(int pipemode)
         if (pipemode == PIPE_TYPE_BYTE)
             ok(leftmsg == 0, "peek got %d bytes left in message\n", leftmsg);
         else
-            todo_wine
             ok(leftmsg == sizeof(obuf2) - 4, "peek got %d bytes left in message\n", leftmsg);
         ok(ReadFile(hFile, ibuf + 4, sizeof(ibuf) - 4, &readden, NULL), "ReadFile\n");
         ok(readden == sizeof(obuf2) - 4, "read got %d bytes\n", readden);
@@ -510,12 +509,10 @@ static void test_CreateNamedPipe(int pipemode)
             readden = leftmsg = -1;
             ok(PeekNamedPipe(hFile, NULL, 0, NULL, &readden, &leftmsg), "PeekNamedPipe 9\n");
             ok(readden == sizeof(obuf) + sizeof(obuf2), "peek got %d bytes total 9\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf), "peek got %d bytes left in message 9\n", leftmsg);
             readden = leftmsg = -1;
             ok(RpcPeekNamedPipe(hFile, NULL, 0, NULL, &readden, &leftmsg), "RpcPeekNamedPipe 9\n");
             ok(readden == sizeof(obuf) + sizeof(obuf2), "peek got %d bytes total 9\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf), "peek got %d bytes left in message 9\n", leftmsg);
             SetLastError(0xdeadbeef);
             todo_wine
@@ -533,12 +530,10 @@ static void test_CreateNamedPipe(int pipemode)
             readden = leftmsg = -1;
             ok(PeekNamedPipe(hFile, NULL, 0, NULL, &readden, &leftmsg), "PeekNamedPipe 9\n");
             ok(readden == sizeof(obuf) - 8 + sizeof(obuf2), "peek got %d bytes total 9\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf) - 8, "peek got %d bytes left in message 9\n", leftmsg);
             readden = leftmsg = -1;
             ok(RpcPeekNamedPipe(hFile, NULL, 0, NULL, &readden, &leftmsg), "RpcPeekNamedPipe 9\n");
             ok(readden == sizeof(obuf) - 8 + sizeof(obuf2), "peek got %d bytes total 9\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf) - 8, "peek got %d bytes left in message 9\n", leftmsg);
             ret = RpcReadFile(hFile, ibuf + 8, sizeof(ibuf), &readden, NULL);
             ok(ret, "RpcReadFile 9\n");
@@ -599,12 +594,10 @@ static void test_CreateNamedPipe(int pipemode)
             readden = leftmsg = -1;
             ok(PeekNamedPipe(hnp, NULL, 0, NULL, &readden, &leftmsg), "PeekNamedPipe 10\n");
             ok(readden == sizeof(obuf) + sizeof(obuf2), "peek got %d bytes total 10\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf2), "peek got %d bytes left in message 10\n", leftmsg);
             readden = leftmsg = -1;
             ok(RpcPeekNamedPipe(hnp, NULL, 0, NULL, &readden, &leftmsg), "RpcPeekNamedPipe 10\n");
             ok(readden == sizeof(obuf) + sizeof(obuf2), "peek got %d bytes total 10\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf2), "peek got %d bytes left in message 10\n", leftmsg);
             SetLastError(0xdeadbeef);
             todo_wine
@@ -622,12 +615,10 @@ static void test_CreateNamedPipe(int pipemode)
             readden = leftmsg = -1;
             ok(PeekNamedPipe(hnp, NULL, 0, NULL, &readden, &leftmsg), "PeekNamedPipe 10\n");
             ok(readden == sizeof(obuf2) - 8 + sizeof(obuf), "peek got %d bytes total 10\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf2) - 8, "peek got %d bytes left in message 10\n", leftmsg);
             readden = leftmsg = -1;
             ok(RpcPeekNamedPipe(hnp, NULL, 0, NULL, &readden, &leftmsg), "RpcPeekNamedPipe 10\n");
             ok(readden == sizeof(obuf2) - 8 + sizeof(obuf), "peek got %d bytes total 10\n", readden);
-            todo_wine
             ok(leftmsg == sizeof(obuf2) - 8, "peek got %d bytes left in message 10\n", leftmsg);
             ret = RpcReadFile(hnp, ibuf + 8, sizeof(ibuf), &readden, NULL);
             ok(ret, "RpcReadFile 10\n");
