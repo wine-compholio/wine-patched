@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <windows.h>
+#include <commctrl.h>
 
 #include "wine/test.h"
 #include "v6util.h"
@@ -33,6 +34,8 @@ static INT (WINAPI * pStr_GetPtrA)(LPCSTR, LPSTR, INT);
 static BOOL (WINAPI * pStr_SetPtrA)(LPSTR, LPCSTR);
 static INT (WINAPI * pStr_GetPtrW)(LPCWSTR, LPWSTR, INT);
 static BOOL (WINAPI * pStr_SetPtrW)(LPWSTR, LPCWSTR);
+
+static HRESULT (WINAPI * pLoadIconMetric)(HINSTANCE, const WCHAR *, int, HICON *);
 
 static HMODULE hComctl32 = 0;
 
@@ -205,6 +208,62 @@ static void test_TaskDialogIndirect(void)
     ok(ptr == ptr2, "got wrong pointer for ordinal 345, %p expected %p\n", ptr2, ptr);
 }
 
+static void test_LoadIconMetric(void)
+{
+    static const WCHAR non_existing_fileW[] = {'n','o','n','e','x','i','s','t','i','n','g','.','i','c','o','\0'};
+    HRESULT result;
+    ICONINFO info;
+    HICON icon;
+    BITMAP bmp;
+    void *ptr;
+    int bytes;
+    BOOL res;
+
+    pLoadIconMetric = (void *)GetProcAddress(hComctl32, "LoadIconMetric");
+    if (!pLoadIconMetric)
+    {
+        win_skip("LoadIconMetric not exported by name\n");
+        return;
+    }
+
+    ptr = GetProcAddress(hComctl32, (const char *)380);
+    ok(ptr == pLoadIconMetric, "got wrong pointer for ordinal 380, %p expected %p\n",
+       ptr, pLoadIconMetric);
+
+    result = pLoadIconMetric(NULL, MAKEINTRESOURCEW(IDI_APPLICATION), 0x100, &icon);
+    ok(result == E_INVALIDARG, "Expected E_INVALIDARG, got %x\n", result);
+
+    icon = (HICON)0x1234;
+    result = pLoadIconMetric(NULL, NULL, LIM_LARGE, &icon);
+    ok(result == E_INVALIDARG, "Expected E_INVALIDARG, got %x\n", result);
+    ok(icon == NULL, "Expected NULL, got %p\n", icon);
+
+    result = pLoadIconMetric(NULL, non_existing_fileW, LIM_LARGE, &icon);
+    ok(result == HRESULT_FROM_WIN32(ERROR_RESOURCE_TYPE_NOT_FOUND),
+       "Expected HRESULT_FROM_WIN32(ERROR_RESOURCE_TYPE_NOT_FOUND), got %x\n", result);
+
+    result = pLoadIconMetric(NULL, MAKEINTRESOURCEW(IDI_APPLICATION), LIM_SMALL, &icon);
+    ok(result == S_OK, "Expected S_OK, got %x\n", result);
+    res = GetIconInfo(icon, &info);
+    ok(res, "Failed to get icon info, error %d\n", GetLastError());
+    bytes = GetObjectA(info.hbmColor, sizeof(bmp), &bmp);
+    ok(bytes > 0, "Failed to get bitmap info for icon\n");
+    ok(bmp.bmWidth  == GetSystemMetrics(SM_CXSMICON), "Wrong icon width\n");
+    ok(bmp.bmHeight == GetSystemMetrics(SM_CYSMICON), "Wrong icon height\n");
+    DestroyIcon(icon);
+
+    result = pLoadIconMetric(NULL, MAKEINTRESOURCEW(IDI_APPLICATION), LIM_LARGE, &icon);
+    ok(result == S_OK, "Expected S_OK, got %x\n", result);
+    res = GetIconInfo(icon, &info);
+    ok(res, "Failed to get icon info, error %d\n", GetLastError());
+    bytes = GetObjectA(info.hbmColor, sizeof(bmp), &bmp);
+    ok(bytes > 0, "Failed to get bitmap info for icon\n");
+    ok(bmp.bmWidth  == GetSystemMetrics(SM_CXICON), "Wrong icon width\n");
+    ok(bmp.bmHeight == GetSystemMetrics(SM_CYICON), "Wrong icon height\n");
+    DestroyIcon(icon);
+}
+
+
 START_TEST(misc)
 {
     ULONG_PTR ctx_cookie;
@@ -220,6 +279,7 @@ START_TEST(misc)
         return;
 
     test_TaskDialogIndirect();
+    test_LoadIconMetric();
 
     unload_v6_module(ctx_cookie, hCtx);
 }
