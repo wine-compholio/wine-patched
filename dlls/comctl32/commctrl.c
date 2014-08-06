@@ -3,6 +3,7 @@
  *
  * Copyright 1997 Dimitrie O. Paun
  * Copyright 1998,2000 Eric Kohl
+ * Copyright 2014 Michael Müller
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -1645,4 +1646,43 @@ HRESULT WINAPI LoadIconWithScaleDown(HINSTANCE hinst, PCWSTR name, int cx, int c
 {
     FIXME("stub: %p %s %d %d %p\n", hinst, wine_dbgstr_w(name), cx, cy, icon);
     return E_NOTIMPL;
+}
+
+/***********************************************************************
+ * LoadIconMetric [COMCTL32.@]
+ */
+HRESULT WINAPI LoadIconMetric(HINSTANCE hinst, const WCHAR *name, int size, HICON *icon)
+{
+    int width, height;
+
+    TRACE("(%p %s %d %p)\n", hinst, debugstr_w(name), size, icon);
+
+    if (!icon)
+        return E_INVALIDARG;
+
+    /* Windows sets it to zero in a case of failure. */
+    *icon = NULL;
+
+    if (!name)
+        return E_INVALIDARG;
+
+    if (size == LIM_SMALL)
+    {
+        width  = GetSystemMetrics(SM_CXSMICON);
+        height = GetSystemMetrics(SM_CYSMICON);
+    }
+    else if (size == LIM_LARGE)
+    {
+        width  = GetSystemMetrics(SM_CXICON);
+        height = GetSystemMetrics(SM_CYICON);
+    }
+    else
+        return E_INVALIDARG;
+
+    /* FIXME: This doesn't seem to work properly yet with file names. */
+    *icon = LoadImageW(hinst, name, IMAGE_ICON, width, height, 0);
+    if (*icon)
+        return S_OK;
+
+    return HRESULT_FROM_WIN32(GetLastError());
 }
