@@ -1374,6 +1374,12 @@ typedef struct tagTBADDBITMAP {
 #define HIST_ADDTOFAVORITES     3
 #define HIST_VIEWTREE           4
 
+enum _LI_METRIC
+{
+   LIM_SMALL,
+   LIM_LARGE,
+};
+
 typedef struct tagTBSAVEPARAMSA {
     HKEY   hkr;
     LPCSTR pszSubKey;
