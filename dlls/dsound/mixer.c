@@ -247,7 +247,50 @@ static UINT cp_fields_noresample(IDirectSoundBufferImpl *dsb, UINT count)
     return count;
 }
 
-static UINT cp_fields_resample(IDirectSoundBufferImpl *dsb, UINT count, float *freqAcc)
+static UINT cp_fields_resample_lq(IDirectSoundBufferImpl *dsb, UINT count, float *freqAcc)
+{
+    UINT i, channel;
+    UINT istride = dsb->pwfx->nBlockAlign;
+    UINT ostride = dsb->device->pwfx->nChannels * sizeof(float);
+    UINT channels = dsb->mix_channels;
+
+    float freqAdjust = dsb->freqAdjust;
+    float freqAcc_start = *freqAcc;
+    float freqAcc_end = freqAcc_start + count * freqAdjust;
+    UINT max_ipos = freqAcc_end;
+
+    freqAcc_end -= (int)freqAcc_end;
+
+    for(i = 0; i < count; ++i) {
+        float cur_freqAcc = freqAcc_start + i * freqAdjust;
+	float cur_freqAcc2;
+        UINT ipos = cur_freqAcc;
+        UINT idx = dsb->sec_mixpos + ipos * istride;
+        cur_freqAcc -= (int)cur_freqAcc;
+        cur_freqAcc2 = 1.0 - cur_freqAcc;
+        for (channel = 0; channel < channels; channel++) {
+            /**
+             * Generally we cannot cache the result of get_current_sample().
+             * Consider the case of resampling from 192000 Hz to 44100 Hz -
+             * none of the values will get reused for the next value of i.
+             * OTOH, for resampling from 44100 Hz to 192000 Hz both values
+             * will likely be reused.
+             *
+             * So far, this possibility of saving calls to
+             * get_current_sample() is ignored.
+             */
+            float s1 = get_current_sample(dsb, idx, channel);
+            float s2 = get_current_sample(dsb, idx + istride, channel);
+            float result = s1 * cur_freqAcc2 + s2 * cur_freqAcc;
+            dsb->put(dsb, i * ostride, channel, result);
+        }
+    }
+
+    *freqAcc = freqAcc_end;
+    return max_ipos;
+}
+
+static UINT cp_fields_resample_hq(IDirectSoundBufferImpl *dsb, UINT count, float *freqAcc)
 {
     UINT i, channel;
     UINT istride = dsb->pwfx->nBlockAlign;
@@ -321,8 +364,10 @@ static void cp_fields(IDirectSoundBufferImpl *dsb, UINT count, float *freqAcc)
 
     if (dsb->freqAdjust == 1.0)
         adv = cp_fields_noresample(dsb, count); /* *freqAcc is unmodified */
+    else if (dsb->device->nrofbuffers > ds_hq_buffers_max)
+        adv = cp_fields_resample_lq(dsb, count, freqAcc);
     else
-        adv = cp_fields_resample(dsb, count, freqAcc);
+        adv = cp_fields_resample_hq(dsb, count, freqAcc);
 
     ipos = dsb->sec_mixpos + adv * dsb->pwfx->nBlockAlign;
     if (ipos >= dsb->buflen) {
