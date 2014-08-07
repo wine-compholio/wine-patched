@@ -606,11 +606,30 @@ static HRESULT WINAPI ITextRange_fnSetChar(ITextRange *me, LONG ch)
 static HRESULT WINAPI ITextRange_fnGetDuplicate(ITextRange *me, ITextRange **ppRange)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
+    ITextRangeImpl *txtRge = NULL;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    TRACE("%p %p\n", This, ppRange);
+    if (!ppRange)
+        return E_INVALIDARG;
+
+    txtRge = heap_alloc(sizeof *txtRge);
+    if (!txtRge)
+        return E_FAIL;
+
+    txtRge->ITextRange_iface.lpVtbl = This->ITextRange_iface.lpVtbl;
+    txtRge->ref = 1;
+    txtRge->reOle = This->reOle;
+    txtRge->start = This->start;
+    txtRge->end  = This->end;
+    txtRge->next = This->reOle->txtRgehead->next;
+    This->reOle->txtRgehead->next->prev = txtRge;
+    This->reOle->txtRgehead->next = txtRge;
+    txtRge->prev = This->reOle->txtRgehead;
+    *ppRange = &txtRge->ITextRange_iface;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextRange_fnGetFormattedText(ITextRange *me, ITextRange **ppRange)
