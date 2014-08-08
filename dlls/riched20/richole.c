@@ -685,14 +685,27 @@ static HRESULT WINAPI ITextRange_fnGetStart(ITextRange *me, LONG *pcpFirst)
     return S_OK;
 }
 
+static HRESULT range_SetStart(ME_TextEditor *editor, LONG cpFirst, LONG *start, LONG *end)
+{
+    int len = ME_GetTextLength(editor);
+
+    TRACE("%d\n", cpFirst);
+    if (cpFirst == *start)
+        return S_FALSE;
+    cpFirst = min(cpFirst, len);
+    cpFirst = max(cpFirst, 0);
+    *end = max(*end, cpFirst);
+    *start = cpFirst;
+    return S_OK;
+}
+
 static HRESULT WINAPI ITextRange_fnSetStart(ITextRange *me, LONG cpFirst)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    return range_SetStart(This->reOle->editor, cpFirst, &This->start, &This->end);
 }
 
 static HRESULT WINAPI ITextRange_fnGetEnd(ITextRange *me, LONG *pcpLim)
@@ -708,14 +721,27 @@ static HRESULT WINAPI ITextRange_fnGetEnd(ITextRange *me, LONG *pcpLim)
     return S_OK;
 }
 
+static HRESULT range_SetEnd(ME_TextEditor *editor, LONG cpLim, LONG *start, LONG *end)
+{
+    int len = ME_GetTextLength(editor) + 1;
+
+    TRACE("%d\n", cpLim);
+    if (cpLim == *end)
+        return S_FALSE;
+    cpLim = min(cpLim, len);
+    cpLim = max(cpLim, 0);
+    *start = min(*start, cpLim);
+    *end = cpLim;
+    return S_OK;
+}
+
 static HRESULT WINAPI ITextRange_fnSetEnd(ITextRange *me, LONG cpLim)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    return range_SetEnd(This->reOle->editor, cpLim, &This->start, &This->end);
 }
 
 static HRESULT WINAPI ITextRange_fnGetFont(ITextRange *me, ITextFont **pFont)
@@ -1695,11 +1721,16 @@ static HRESULT WINAPI ITextSelection_fnGetStart(ITextSelection *me, LONG *pcpFir
 static HRESULT WINAPI ITextSelection_fnSetStart(ITextSelection *me, LONG cpFirst)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    int start, end;
+    HRESULT hres;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    ME_GetSelectionOfs(This->reOle->editor, &start, &end);
+    hres = range_SetStart(This->reOle->editor, cpFirst, &start, &end);
+    if (!hres)
+        ME_SetSelection(This->reOle->editor, start, end);
+    return hres;
 }
 
 static HRESULT WINAPI ITextSelection_fnGetEnd(ITextSelection *me, LONG *pcpLim)
@@ -1719,11 +1750,16 @@ static HRESULT WINAPI ITextSelection_fnGetEnd(ITextSelection *me, LONG *pcpLim)
 static HRESULT WINAPI ITextSelection_fnSetEnd(ITextSelection *me, LONG cpLim)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    int start, end;
+    HRESULT hres;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    ME_GetSelectionOfs(This->reOle->editor, &start, &end);
+    hres = range_SetEnd(This->reOle->editor, cpLim, &start, &end);
+    if (!hres)
+        ME_SetSelection(This->reOle->editor, start, end);
+    return hres;
 }
 
 static HRESULT WINAPI ITextSelection_fnGetFont(ITextSelection *me, ITextFont **pFont)
