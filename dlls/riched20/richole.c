@@ -46,10 +46,12 @@ DEFINE_GUID(IID_ITextHost2, 0x13e670f5,0x1a5a,0x11cf,0xab,0xeb,0x00,0xaa,0x00,0x
 DEFINE_GUID(IID_ITextDocument, 0x8cc497c0, 0xa1df, 0x11ce, 0x80, 0x98, 0x00, 0xaa, 0x00, 0x47, 0xbe, 0x5d);
 DEFINE_GUID(IID_ITextRange, 0x8cc497c2, 0xa1df, 0x11ce, 0x80, 0x98, 0x00, 0xaa, 0x00, 0x47, 0xbe, 0x5d);
 DEFINE_GUID(IID_ITextSelection, 0x8cc497c1, 0xa1df, 0x11ce, 0x80, 0x98, 0x00, 0xaa, 0x00, 0x47, 0xbe, 0x5d);
+DEFINE_GUID(IID_ITextFont, 0x8cc497c3, 0xa1df, 0x11ce, 0x80, 0x98, 0x00, 0xaa, 0x00, 0x47, 0xbe, 0x5d);
 
 typedef struct ITextSelectionImpl ITextSelectionImpl;
 typedef struct IOleClientSiteImpl IOleClientSiteImpl;
 typedef struct ITextRangeImpl ITextRangeImpl;
+typedef struct ITextFontImpl ITextFontImpl;
 
 typedef struct IRichEditOleImpl {
     IRichEditOle IRichEditOle_iface;
@@ -60,6 +62,7 @@ typedef struct IRichEditOleImpl {
     ITextSelectionImpl *txtSel;
     IOleClientSiteImpl *clientSite;
     ITextRangeImpl *txtRgehead, *txtRgetail;
+    ITextFontImpl *txtFonthead, *txtFonttail;
 } IRichEditOleImpl;
 
 struct ITextRangeImpl {
@@ -69,6 +72,16 @@ struct ITextRangeImpl {
     ITextRangeImpl *prev, *next;
 
     IRichEditOleImpl *reOle;
+};
+
+struct ITextFontImpl {
+    ITextFont ITextFont_iface;
+    LONG ref;
+    ITextFontImpl *prev, *next;
+
+    IRichEditOleImpl *reOle;
+    ITextRangeImpl *txtRge;
+    ITextSelectionImpl *txtSel;
 };
 
 struct ITextSelectionImpl {
@@ -140,6 +153,7 @@ IRichEditOle_fnRelease(IRichEditOle *me)
     if (!ref)
     {
         ITextRangeImpl *txtRgeImpl = This->txtRgehead->next;
+        ITextFontImpl *txtFontImpl = This->txtFonthead->next;
         TRACE ("Destroying %p\n", This);
         This->txtSel->reOle = NULL;
         ITextSelection_Release(&This->txtSel->ITextSelection_iface);
@@ -151,6 +165,13 @@ IRichEditOle_fnRelease(IRichEditOle *me)
         }
         heap_free(This->txtRgehead);
         heap_free(This->txtRgetail);
+        while (txtFontImpl)
+        {
+            txtFontImpl->reOle = NULL;
+            txtFontImpl = txtFontImpl->next;
+        }
+        heap_free(This->txtFonthead);
+        heap_free(This->txtFonttail);
         heap_free(This);
     }
     return ref;
@@ -462,6 +483,741 @@ static const IRichEditOleVtbl revt = {
     IRichEditOle_fnImportDataObject
 };
 
+/* ITextFont interface */
+static inline ITextFontImpl *impl_from_ITextFont(ITextFont *iface)
+{
+    return CONTAINING_RECORD(iface, ITextFontImpl, ITextFont_iface);
+}
+
+static HRESULT WINAPI ITextFont_fnQueryInterface(ITextFont *me, REFIID riid, void **ppvObj)
+{
+    *ppvObj = NULL;
+    if (IsEqualGUID(riid, &IID_IUnknown)
+        || IsEqualGUID(riid, &IID_ITextFont)
+        || IsEqualGUID(riid, &IID_IDispatch))
+    {
+        *ppvObj = me;
+        ITextFont_AddRef(me);
+        return S_OK;
+    }
+
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI ITextFont_fnAddRef(ITextFont *me)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    return InterlockedIncrement(&This->ref);
+}
+
+static ULONG WINAPI ITextFont_fnRelease(ITextFont *me)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    ULONG ref = InterlockedDecrement(&This->ref);
+
+    TRACE ("%p ref=%u\n", This, ref);
+    if (ref == 0)
+    {
+        if (!This->txtSel)
+            ITextRange_Release(&This->txtRge->ITextRange_iface);
+        else
+            ITextSelection_Release(&This->txtSel->ITextSelection_iface);
+        This->reOle = NULL;
+        This->txtRge = NULL;
+        This->txtSel = NULL;
+        This->prev->next = This->next;
+        This->next->prev = This->prev;
+        heap_free(This);
+    }
+    return ref;
+}
+
+static HRESULT WINAPI ITextFont_fnGetTypeInfoCount(ITextFont *me, UINT *pctinfo)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetTypeInfo(ITextFont *me, UINT iTInfo, LCID lcid,
+                                              ITypeInfo **ppTInfo)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetIDsOfNames(ITextFont *me, REFIID riid,
+                                                LPOLESTR *rgszNames, UINT cNames,
+                                                LCID lcid, DISPID *rgDispId)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnInvoke(ITextFont *me, DISPID dispIdMember, REFIID riid,
+                                         LCID lcid, WORD wFlags, DISPPARAMS *pDispParams,
+                                         VARIANT *pVarResult, EXCEPINFO *pExcepInfo,
+                                         UINT *puArgErr)
+{
+    FIXME("not implemented\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetDuplicate(ITextFont *me, ITextFont **ppFont)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetDuplicate(ITextFont *me, ITextFont *pFont)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnCanChange(ITextFont *me, LONG *pB)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnIsEqual(ITextFont *me, ITextFont *pFont, LONG *pB)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnReset(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetStyle(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetStyle(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetAllCaps(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetAllCaps(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetAnimation(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetAnimation(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetBackColor(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetBackColor(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetBold(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomFalse;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetBold(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetEmboss(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetEmboss(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetForeColor(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomAutoColor;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetForeColor(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetHidden(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetHidden(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetEngrave(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetEngrave(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetItalic(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomFalse;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetItalic(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetKerning(ITextFont *me, float *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetKerning(ITextFont *me, float Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetLanguageID(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetLanguageID(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetName(ITextFont *me, BSTR *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    WCHAR font[] = {'S', 'y', 's', 't', 'e', 'm', 0};
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = SysAllocString(font);
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetName(ITextFont *me, BSTR Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetOutline(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetOutline(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetPosition(ITextFont *me, float *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetPosition(ITextFont *me, float Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetProtected(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetProtected(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetShadow(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetShadow(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetSize(ITextFont *me, float *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = 12.0;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetSize(ITextFont *me, float Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetSmallCaps(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetSmallCaps(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetSpacing(ITextFont *me, float *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetSpacing(ITextFont *me, float Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetStrikeThrough(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomFalse;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetStrikeThrough(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetSubscript(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+      return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomFalse;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetSubscript(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetSuperscript(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomFalse;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetSuperscript(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetUnderline(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!pValue)
+        return E_INVALIDARG;
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("Stub\n");
+    *pValue = tomNone;
+    return S_OK;
+}
+
+static HRESULT WINAPI ITextFont_fnSetUnderline(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnGetWeight(ITextFont *me, LONG *pValue)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ITextFont_fnSetWeight(ITextFont *me, LONG Value)
+{
+    ITextFontImpl *This = impl_from_ITextFont(me);
+    if (!This->reOle)
+        return CO_E_RELEASED;
+
+    FIXME("not implemented: %p\n", This);
+    return E_NOTIMPL;
+}
+
+static const ITextFontVtbl tfvt = {
+    ITextFont_fnQueryInterface,
+    ITextFont_fnAddRef,
+    ITextFont_fnRelease,
+    ITextFont_fnGetTypeInfoCount,
+    ITextFont_fnGetTypeInfo,
+    ITextFont_fnGetIDsOfNames,
+    ITextFont_fnInvoke,
+    ITextFont_fnGetDuplicate,
+    ITextFont_fnSetDuplicate,
+    ITextFont_fnCanChange,
+    ITextFont_fnIsEqual,
+    ITextFont_fnReset,
+    ITextFont_fnGetStyle,
+    ITextFont_fnSetStyle,
+    ITextFont_fnGetAllCaps,
+    ITextFont_fnSetAllCaps,
+    ITextFont_fnGetAnimation,
+    ITextFont_fnSetAnimation,
+    ITextFont_fnGetBackColor,
+    ITextFont_fnSetBackColor,
+    ITextFont_fnGetBold,
+    ITextFont_fnSetBold,
+    ITextFont_fnGetEmboss,
+    ITextFont_fnSetEmboss,
+    ITextFont_fnGetForeColor,
+    ITextFont_fnSetForeColor,
+    ITextFont_fnGetHidden,
+    ITextFont_fnSetHidden,
+    ITextFont_fnGetEngrave,
+    ITextFont_fnSetEngrave,
+    ITextFont_fnGetItalic,
+    ITextFont_fnSetItalic,
+    ITextFont_fnGetKerning,
+    ITextFont_fnSetKerning,
+    ITextFont_fnGetLanguageID,
+    ITextFont_fnSetLanguageID,
+    ITextFont_fnGetName,
+    ITextFont_fnSetName,
+    ITextFont_fnGetOutline,
+    ITextFont_fnSetOutline,
+    ITextFont_fnGetPosition,
+    ITextFont_fnSetPosition,
+    ITextFont_fnGetProtected,
+    ITextFont_fnSetProtected,
+    ITextFont_fnGetShadow,
+    ITextFont_fnSetShadow,
+    ITextFont_fnGetSize,
+    ITextFont_fnSetSize,
+    ITextFont_fnGetSmallCaps,
+    ITextFont_fnSetSmallCaps,
+    ITextFont_fnGetSpacing,
+    ITextFont_fnSetSpacing,
+    ITextFont_fnGetStrikeThrough,
+    ITextFont_fnSetStrikeThrough,
+    ITextFont_fnGetSubscript,
+    ITextFont_fnSetSubscript,
+    ITextFont_fnGetSuperscript,
+    ITextFont_fnSetSuperscript,
+    ITextFont_fnGetUnderline,
+    ITextFont_fnSetUnderline,
+    ITextFont_fnGetWeight,
+    ITextFont_fnSetWeight
+};
+/* ITextFont interface */
+
 /* ITextRange interface */
 static inline ITextRangeImpl *impl_from_ITextRange(ITextRange *iface)
 {
@@ -724,14 +1480,45 @@ static HRESULT WINAPI ITextRange_fnSetEnd(ITextRange *me, LONG cpLim)
     return range_SetEnd(This->reOle->editor, cpLim, &This->start, &This->end);
 }
 
+static HRESULT range_GetFont(IRichEditOleImpl *reOle, ITextFontImpl **ptxtFont)
+{
+    ITextFontImpl *txtFont = NULL;
+    txtFont = heap_alloc(sizeof(ITextFontImpl));
+    if (!txtFont)
+        return E_OUTOFMEMORY;
+
+    txtFont->ITextFont_iface.lpVtbl = &tfvt;
+    txtFont->ref = 1;
+    txtFont->reOle = reOle;
+    txtFont->next = reOle->txtFonthead->next;
+    reOle->txtFonthead->next->prev = txtFont;
+    reOle->txtFonthead->next = txtFont;
+    txtFont->prev = reOle->txtFonthead;
+    *ptxtFont = txtFont;
+    return S_OK;
+}
+
 static HRESULT WINAPI ITextRange_fnGetFont(ITextRange *me, ITextFont **pFont)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
+    ITextFontImpl *txtFont = NULL;
+    HRESULT hres;
+
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    TRACE("%p\n", This);
+    if (!pFont)
+        return E_INVALIDARG;
+    hres = range_GetFont(This->reOle, &txtFont);
+    if (!hres)
+    {
+        txtFont->txtSel = NULL;
+        txtFont->txtRge = This;
+        ITextRange_AddRef(me);
+        *pFont = &txtFont->ITextFont_iface;
+    }
+    return hres;
 }
 
 static HRESULT WINAPI ITextRange_fnSetFont(ITextRange *me, ITextFont *pFont)
@@ -1742,11 +2529,24 @@ static HRESULT WINAPI ITextSelection_fnSetEnd(ITextSelection *me, LONG cpLim)
 static HRESULT WINAPI ITextSelection_fnGetFont(ITextSelection *me, ITextFont **pFont)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    ITextFontImpl *txtFont = NULL;
+    HRESULT hres;
+
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    TRACE("%p\n", This);
+    if (!pFont)
+        return E_INVALIDARG;
+    hres = range_GetFont(This->reOle, &txtFont);
+    if (!hres)
+    {
+        txtFont->txtSel = This;
+        txtFont->txtRge = NULL;
+        ITextSelection_AddRef(me);
+        *pFont = &txtFont->ITextFont_iface;
+    }
+    return hres;
 }
 
 static HRESULT WINAPI ITextSelection_fnSetFont(ITextSelection *me, ITextFont *pFont)
@@ -2423,6 +3223,33 @@ LRESULT CreateIRichEditOle(ME_TextEditor *editor, LPVOID *ppObj)
     }
     CreateEmptyITextRangeImpl(reo, 1);
     CreateEmptyITextRangeImpl(reo, 0);
+
+    reo->txtFonthead = heap_alloc(sizeof(ITextFontImpl));
+    if (!reo->txtFonthead)
+    {
+        ITextSelection_Release(&reo->txtSel->ITextSelection_iface);
+        IOleClientSite_Release(&reo->clientSite->IOleClientSite_iface);
+        heap_free(reo->txtRgehead);
+        heap_free(reo->txtRgetail);
+        heap_free(reo);
+        return 0;
+    }
+    reo->txtFonttail = heap_alloc(sizeof(ITextFontImpl));
+    if (!reo->txtFonttail)
+    {
+        ITextSelection_Release(&reo->txtSel->ITextSelection_iface);
+        IOleClientSite_Release(&reo->clientSite->IOleClientSite_iface);
+        heap_free(reo->txtRgehead);
+        heap_free(reo->txtRgetail);
+        heap_free(reo->txtFonthead);
+        heap_free(reo);
+        return 0;
+    }
+    reo->txtFonthead->next = reo->txtFonttail;
+    reo->txtFonthead->prev = NULL;
+    reo->txtFonttail->next = NULL;
+    reo->txtFonttail->prev = reo->txtFonthead;
+
     return 1;
 }
 
