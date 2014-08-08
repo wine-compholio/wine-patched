@@ -45,7 +45,7 @@ typedef struct tagWINDOWPROC
     WNDPROC        procW;    /* Unicode window proc */
 } WINDOWPROC;
 
-#define MAX_WINPROCS  4096
+#define MAX_WINPROCS  16384
 #define MAX_WINPROC_RECURSION  64
 #define WINPROC_PROC16  ((WINDOWPROC *)1)  /* placeholder for 16-bit window procs */
 
