@@ -1921,6 +1921,36 @@ unsigned int get_fd_options( struct fd *fd )
     return fd->options;
 }
 
+/* set disposition for the fd */
+void set_fd_disposition( struct fd *fd, int unlink )
+{
+    struct stat st;
+
+    if (fd->unix_fd == -1)
+    {
+        set_error( STATUS_INVALID_HANDLE );
+        return;
+    }
+
+    if (fstat( fd->unix_fd, &st ) == -1)
+    {
+        file_set_error();
+        return;
+    }
+
+    if (unlink && !S_ISDIR(st.st_mode) && !S_ISREG(st.st_mode))
+    {
+        /* can't unlink special files */
+        set_error( STATUS_INVALID_PARAMETER );
+        return;
+    }
+
+    if (unlink)
+        fd->closed->unlink = 1;
+    else if (!(fd->options & FILE_DELETE_ON_CLOSE))
+        fd->closed->unlink = 0;
+}
+
 /* retrieve the unix fd for an object */
 int get_unix_fd( struct fd *fd )
 {
