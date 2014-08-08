@@ -1178,6 +1178,12 @@ enum server_fd_type
 @END
 
 
+/* Set file information */
+@REQ(set_file_info)
+    obj_handle_t handle;        /* handle to the file */
+    int          unlink;        /* whether to unlink file on close */
+@END
+
 /* Create a socket */
 @REQ(create_socket)
     unsigned int access;        /* wanted access rights */

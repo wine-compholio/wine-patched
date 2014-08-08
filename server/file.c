@@ -732,3 +732,26 @@ DECL_HANDLER(unlock_file)
         release_object( file );
     }
 }
+
+/* set file information */
+DECL_HANDLER(set_file_info)
+{
+    struct file *file;
+
+    if ((file = get_file_obj( current->process, req->handle, DELETE )))
+    {
+        set_fd_disposition( file->fd, req->unlink );
+        release_object( file );
+        return;
+    }
+
+    if (get_error() == STATUS_OBJECT_TYPE_MISMATCH)
+    {
+        clear_error();
+        if ((file = (struct file *)get_dir_obj( current->process, req->handle, DELETE )))
+        {
+            set_fd_disposition( file->fd, req->unlink );
+            release_object( file );
+        }
+    }
+}
