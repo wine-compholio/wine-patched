@@ -108,7 +108,7 @@ typedef struct
 #include "poppack.h"
 
 #define WINPROC_HANDLE (~0u >> 16)
-#define MAX_WINPROCS32 4096
+#define MAX_WINPROCS32 16384
 #define MAX_WINPROCS16 1024
 
 static WNDPROC16 winproc16_array[MAX_WINPROCS16];
