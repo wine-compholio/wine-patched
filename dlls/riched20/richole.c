@@ -757,15 +757,26 @@ static HRESULT WINAPI ITextRange_fnGetStoryType(ITextRange *me, LONG *pValue)
     FIXME("not implemented %p\n", This);
     return E_NOTIMPL;
 }
+static HRESULT range_Collapse(LONG bStart, LONG *start, LONG *end)
+{
+  BOOL isdege = !(*end - *start);
+
+  if (isdege)
+      return S_FALSE;
+
+  if (bStart == tomEnd || bStart == tomFalse)
+      *start = *end;
+  else
+      *end = *start;
+  return S_OK;
+}
 
 static HRESULT WINAPI ITextRange_fnCollapse(ITextRange *me, LONG bStart)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
     if (!This->reOle)
         return CO_E_RELEASED;
-
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    return range_Collapse(bStart, &This->start, &This->end);
 }
 
 static HRESULT WINAPI ITextRange_fnExpand(ITextRange *me, LONG Unit, LONG *pDelta)
@@ -1755,11 +1766,16 @@ static HRESULT WINAPI ITextSelection_fnGetStoryType(ITextSelection *me, LONG *pV
 static HRESULT WINAPI ITextSelection_fnCollapse(ITextSelection *me, LONG bStart)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    int start, end;
+    HRESULT hres;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    ME_GetSelectionOfs(This->reOle->editor, &start, &end);
+    hres = range_Collapse(bStart, &start, &end);
+    if (!hres)
+        ME_SetSelection(This->reOle->editor, start, end);
+    return hres;
 }
 
 static HRESULT WINAPI ITextSelection_fnExpand(ITextSelection *me, LONG Unit, LONG *pDelta)
