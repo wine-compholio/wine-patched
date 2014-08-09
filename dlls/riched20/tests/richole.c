@@ -671,6 +671,84 @@ static void test_ITextRange_GetDuplicate(void)
   release_interfaces(&w, &reOle, &txtDoc, NULL);
 }
 
+static void test_ITextRange_Collapse(void)
+{
+  HWND w;
+  IRichEditOle *reOle = NULL;
+  ITextDocument *txtDoc = NULL;
+  ITextRange *txtRge = NULL;
+  HRESULT hres;
+  LONG first, lim, start, end;
+  static const CHAR test_text1[] = "TestSomeText";
+
+  create_interfaces(&w, &reOle, &txtDoc, NULL);
+  SendMessageA(w, WM_SETTEXT, 0, (LPARAM)test_text1);
+
+#define TEST_TXTRGE_COLLAPSE(bStart, expected_start, expected_end, expected_return) \
+  ITextDocument_Range(txtDoc, first, lim, &txtRge);                     \
+  hres = ITextRange_Collapse(txtRge, bStart);                           \
+  ok(hres == expected_return, "ITextRange_Collapse\n");                 \
+  ITextRange_GetStart(txtRge, &start);                                  \
+  ok(start == expected_start, "got wrong start value: %d\n", start);    \
+  ITextRange_GetEnd(txtRge, &end);                                      \
+  ok(end == expected_end, "got wrong end value: %d\n", end);            \
+  ITextRange_Release(txtRge);
+
+  first = 4, lim = 8;
+  TEST_TXTRGE_COLLAPSE(tomTrue, 4, 4, S_OK)
+  TEST_TXTRGE_COLLAPSE(tomStart, 4, 4, S_OK)
+  TEST_TXTRGE_COLLAPSE(tomFalse, 8, 8, S_OK)
+  TEST_TXTRGE_COLLAPSE(tomEnd, 8, 8, S_OK)
+  /* tomStart is the default */
+  TEST_TXTRGE_COLLAPSE(256, 4, 4, S_OK)
+
+  first = 6, lim = 6;
+  TEST_TXTRGE_COLLAPSE(tomEnd, 6, 6, S_FALSE)
+
+  first = 8, lim = 8;
+  TEST_TXTRGE_COLLAPSE(tomStart, 8, 8, S_FALSE)
+
+  release_interfaces(&w, &reOle, &txtDoc, NULL);
+}
+
+static void test_ITextSelection_Collapse(void)
+{
+  HWND w;
+  IRichEditOle *reOle = NULL;
+  ITextDocument *txtDoc = NULL;
+  ITextSelection *txtSel = NULL;
+  HRESULT hres;
+  LONG first, lim, start, end;
+  static const CHAR test_text1[] = "TestSomeText";
+
+  create_interfaces(&w, &reOle, &txtDoc, &txtSel);
+  SendMessageA(w, WM_SETTEXT, 0, (LPARAM)test_text1);
+
+#define TEST_TXTSEL_COLLAPSE(bStart, expected_start, expected_end, expected_return) \
+  SendMessageA(w, EM_SETSEL, first, lim);                               \
+  hres = ITextSelection_Collapse(txtSel, bStart);                       \
+  ok(hres == expected_return, "ITextSelection_Collapse\n");             \
+  SendMessageA(w, EM_GETSEL, (LPARAM)&start, (WPARAM)&end);             \
+  ok(start == expected_start, "got wrong start value: %d\n", start);    \
+  ok(end == expected_end, "got wrong end value: %d\n", end);
+
+  first = 4, lim = 8;
+  TEST_TXTSEL_COLLAPSE(tomTrue, 4, 4, S_OK)
+  TEST_TXTSEL_COLLAPSE(tomStart, 4, 4, S_OK)
+  TEST_TXTSEL_COLLAPSE(tomFalse, 8, 8, S_OK)
+  TEST_TXTSEL_COLLAPSE(tomEnd, 8, 8, S_OK)
+  /* tomStart is the default */
+  TEST_TXTSEL_COLLAPSE(256, 4, 4, S_OK)
+
+  first = 6, lim = 6;
+  TEST_TXTSEL_COLLAPSE(tomEnd, 6, 6, S_FALSE)
+
+  first = 8, lim = 8;
+  TEST_TXTSEL_COLLAPSE(tomStart, 8, 8, S_FALSE)
+
+  release_interfaces(&w, &reOle, &txtDoc, &txtSel);
+}
+
 START_TEST(richole)
 {
   /* Must explicitly LoadLibrary(). The test has no references to functions in
@@ -682,8 +760,10 @@ START_TEST(richole)
   test_ITextDocument_Open();
   test_ITextSelection_GetText();
   test_ITextSelection_GetChar();
+  test_ITextSelection_Collapse();
   test_ITextDocument_Range();
   test_ITextRange_GetChar();
   test_ITextRange_GetDuplicate();
   test_GetStart_GetEnd();
+  test_ITextRange_Collapse();
 }
