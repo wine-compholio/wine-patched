@@ -1480,7 +1480,7 @@ static char *get_make_variable( struct makefile *make, const char *name )
  */
 static char *get_expanded_make_variable( struct makefile *make, const char *name )
 {
-    char *p, *end, *var, *expand, *tmp;
+    char *p, *end, *var, *expand, *tmp = NULL;
 
     expand = get_make_variable( make, name );
     if (!expand) return NULL;
