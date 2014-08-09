@@ -428,7 +428,7 @@ int default_set_sd( struct object *obj, const struct security_descriptor *sd,
 {
     struct security_descriptor new_sd, *new_sd_ptr;
     int present;
-    const SID *owner, *group;
+    const SID *owner = NULL, *group = NULL;
     const ACL *sacl, *dacl;
     char *ptr;
 
