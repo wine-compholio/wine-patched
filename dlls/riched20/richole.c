@@ -599,14 +599,24 @@ static HRESULT WINAPI ITextRange_fnSetChar(ITextRange *me, LONG ch)
     return E_NOTIMPL;
 }
 
+static HRESULT CreateITextRange(IRichEditOleImpl *reOle, LONG start, LONG end,
+                                ITextRangeImpl *txtRge, ITextRange** ppRange);
+
 static HRESULT WINAPI ITextRange_fnGetDuplicate(ITextRange *me, ITextRange **ppRange)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
+    ITextRangeImpl *txtRge = NULL;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    TRACE("%p %p\n", This, ppRange);
+    if (!ppRange)
+        return E_INVALIDARG;
+
+    txtRge = heap_alloc(sizeof *txtRge);
+    if (!txtRge)
+        return E_FAIL;
+    return CreateITextRange(This->reOle, This->start, This->end, txtRge, ppRange);
 }
 
 static HRESULT WINAPI ITextRange_fnGetFormattedText(ITextRange *me, ITextRange **ppRange)
