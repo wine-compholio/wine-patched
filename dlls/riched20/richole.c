@@ -564,14 +564,29 @@ static HRESULT WINAPI ITextRange_fnSetText(ITextRange *me, BSTR bstr)
     return E_NOTIMPL;
 }
 
+static HRESULT range_GetChar(ME_TextEditor *editor, ME_Cursor *cursor, LONG *pch)
+{
+    WCHAR wch[2];
+
+    ME_GetTextW(editor, wch, 1, cursor, 1, FALSE, cursor->pRun->next->type == diTextEnd);
+    *pch = wch[0];
+
+    return S_OK;
+}
+
 static HRESULT WINAPI ITextRange_fnGetChar(ITextRange *me, LONG *pch)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
+    ME_Cursor cursor;
+
     if (!This->reOle)
         return CO_E_RELEASED;
+    TRACE("%p\n", pch);
+    if (!pch)
+        return E_INVALIDARG;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    ME_CursorFromCharOfs(This->reOle->editor, This->start, &cursor);
+    return range_GetChar(This->reOle->editor, &cursor, pch);
 }
 
 static HRESULT WINAPI ITextRange_fnSetChar(ITextRange *me, LONG ch)
@@ -1551,11 +1566,16 @@ static HRESULT WINAPI ITextSelection_fnSetText(ITextSelection *me, BSTR bstr)
 static HRESULT WINAPI ITextSelection_fnGetChar(ITextSelection *me, LONG *pch)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    ME_Cursor *start = NULL, *end = NULL;
+
     if (!This->reOle)
         return CO_E_RELEASED;
+    TRACE("%p\n", pch);
+    if (!pch)
+        return E_INVALIDARG;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    ME_GetSelection(This->reOle->editor, &start, &end);
+    return range_GetChar(This->reOle->editor, start, pch);
 }
 
 static HRESULT WINAPI ITextSelection_fnSetChar(ITextSelection *me, LONG ch)

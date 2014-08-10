@@ -518,6 +518,74 @@ static void test_ITextDocument_Range(void)
   ITextRange_Release(txtRge);
 }
 
+static void test_ITextSelection_GetChar(void)
+{
+  HWND w;
+  IRichEditOle *reOle = NULL;
+  ITextDocument *txtDoc = NULL;
+  ITextSelection *txtSel = NULL;
+  HRESULT hres;
+  LONG pch = 0xdeadbeef;
+  static const CHAR test_text1[] = "TestSomeText";
+
+  create_interfaces(&w, &reOle, &txtDoc, &txtSel);
+  SendMessageA(w, WM_SETTEXT, 0, (LPARAM)test_text1);
+
+#define TEST_TXTSEL_GETCHAR(first, lim, expected_char)  \
+  SendMessageA(w, EM_SETSEL, first, lim);               \
+  pch = 0xdeadbeef;                                     \
+  hres = ITextSelection_GetChar(txtSel, &pch);          \
+  ok(hres == S_OK, "ITextSelection_GetChar\n");         \
+  ok(pch == expected_char, "got wrong char: %c\n", pch);
+
+  TEST_TXTSEL_GETCHAR(0, 4, 'T')
+  TEST_TXTSEL_GETCHAR(0, 0, 'T')
+  TEST_TXTSEL_GETCHAR(12, 12, '\r')
+  TEST_TXTSEL_GETCHAR(13, 13, '\r')
+
+  hres = ITextSelection_GetChar(txtSel, NULL);
+  ok(hres == E_INVALIDARG, "ITextSelection_GetChar\n");
+
+  release_interfaces(&w, &reOle, &txtDoc, &txtSel);
+}
+
+static void test_ITextRange_GetChar(void)
+{
+  HWND w;
+  IRichEditOle *reOle = NULL;
+  ITextDocument *txtDoc = NULL;
+  ITextRange *txtRge = NULL;
+  HRESULT hres;
+  LONG pch = 0xdeadbeef;
+  int first, lim;
+  static const CHAR test_text1[] = "TestSomeText";
+
+#define TEST_TXTRGE_GETCHAR(first, lim, expected_char)                  \
+  create_interfaces(&w, &reOle, &txtDoc, NULL);                         \
+  SendMessageA(w, WM_SETTEXT, 0, (LPARAM)test_text1);                   \
+  ITextDocument_Range(txtDoc, first, lim, &txtRge);                     \
+  pch = 0xdeadbeef;                                                     \
+  hres = ITextRange_GetChar(txtRge, &pch);                              \
+  ok(hres == S_OK, "ITextRange_GetChar\n");                             \
+  ok(pch == expected_char, "got wrong char: %c\n", pch);                \
+  ITextRange_Release(txtRge);                                           \
+  release_interfaces(&w, &reOle, &txtDoc, NULL);
+
+  TEST_TXTRGE_GETCHAR(0, 4, 'T')
+  TEST_TXTRGE_GETCHAR(0, 0, 'T')
+  TEST_TXTRGE_GETCHAR(12, 12, '\r')
+  TEST_TXTRGE_GETCHAR(13, 13, '\r')
+
+  create_interfaces(&w, &reOle, &txtDoc, NULL);
+  SendMessageA(w, WM_SETTEXT, 0, (LPARAM)test_text1);
+  first = 12, lim = 12;
+  ITextDocument_Range(txtDoc, first, lim, &txtRge);
+  hres = ITextRange_GetChar(txtRge, NULL);
+  ok(hres == E_INVALIDARG, "ITextRange_GetChar\n");
+  ITextRange_Release(txtRge);
+  release_interfaces(&w, &reOle, &txtDoc, NULL);
+}
+
 START_TEST(richole)
 {
   /* Must explicitly LoadLibrary(). The test has no references to functions in
@@ -528,5 +596,7 @@ START_TEST(richole)
   test_Interfaces();
   test_ITextDocument_Open();
   test_ITextSelection_GetText();
+  test_ITextSelection_GetChar();
   test_ITextDocument_Range();
+  test_ITextRange_GetChar();
 }
