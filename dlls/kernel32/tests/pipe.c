@@ -305,9 +305,7 @@ static void test_CreateNamedPipe(int pipemode)
         else
         {
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hnp, ibuf, 4, &readden, NULL), "ReadFile\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error\n");
         }
         ok(readden == 4, "read got %d bytes\n", readden);
@@ -328,15 +326,11 @@ static void test_CreateNamedPipe(int pipemode)
         else
         {
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hnp, ibuf, 4, &readden, NULL), "ReadFile\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error\n");
             ok(readden == 4, "read got %d bytes\n", readden);
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hnp, ibuf + 4, 4, &readden, NULL), "ReadFile\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error\n");
         }
         ok(readden == 4, "read got %d bytes\n", readden);
@@ -398,9 +392,7 @@ static void test_CreateNamedPipe(int pipemode)
             ok(readden == sizeof(obuf) + sizeof(obuf2), "read 4 got %d bytes\n", readden);
         }
         else {
-            todo_wine {
-                ok(readden == sizeof(obuf), "read 4 got %d bytes\n", readden);
-            }
+            ok(readden == sizeof(obuf), "read 4 got %d bytes\n", readden);
         }
         pbuf = ibuf;
         ok(memcmp(obuf, pbuf, sizeof(obuf)) == 0, "content 4a check\n");
@@ -430,9 +422,7 @@ static void test_CreateNamedPipe(int pipemode)
             pbuf = ibuf;
             ok(memcmp(obuf, pbuf, sizeof(obuf)) == 0, "content 5a check\n");
             ok(ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile\n");
-            todo_wine {
-                ok(readden == sizeof(obuf), "read 5 got %d bytes\n", readden);
-            }
+            ok(readden == sizeof(obuf), "read 5 got %d bytes\n", readden);
             pbuf = ibuf;
             ok(memcmp(obuf, pbuf, sizeof(obuf)) == 0, "content 5a check\n");
             if (readden <= sizeof(obuf))
@@ -441,10 +431,8 @@ static void test_CreateNamedPipe(int pipemode)
             /* Multiple writes in the reverse direction */
             /* the write of obuf2 from write4 should still be in the buffer */
             ok(PeekNamedPipe(hnp, ibuf, sizeof(ibuf), &readden, &avail, NULL), "Peek6a\n");
-            todo_wine {
-                ok(readden == sizeof(obuf2), "peek6a got %d bytes\n", readden);
-                ok(avail == sizeof(obuf2), "peek6a got %d bytes available\n", avail);
-            }
+            ok(readden == sizeof(obuf2), "peek6a got %d bytes\n", readden);
+            ok(avail == sizeof(obuf2), "peek6a got %d bytes available\n", avail);
             if (avail > 0) {
                 ok(ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile\n");
                 ok(readden == sizeof(obuf2), "read 6a got %d bytes\n", readden);
@@ -462,9 +450,7 @@ static void test_CreateNamedPipe(int pipemode)
             pbuf = ibuf;
             ok(memcmp(obuf, pbuf, sizeof(obuf)) == 0, "content 6a check\n");
             ok(ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile\n");
-            todo_wine {
-                ok(readden == sizeof(obuf), "read 6b got %d bytes\n", readden);
-            }
+            ok(readden == sizeof(obuf), "read 6b got %d bytes\n", readden);
             pbuf = ibuf;
             ok(memcmp(obuf, pbuf, sizeof(obuf)) == 0, "content 6a check\n");
             if (readden <= sizeof(obuf))
@@ -475,9 +461,7 @@ static void test_CreateNamedPipe(int pipemode)
             ok(WriteFile(hnp, obuf2, sizeof(obuf2), &written, NULL), "WriteFile 7\n");
             ok(written == sizeof(obuf2), "write file len 7\n");
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hFile, ibuf, 4, &readden, NULL), "ReadFile 7\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error 7\n");
             ok(readden == 4, "read got %d bytes 7\n", readden);
             ok(ReadFile(hFile, ibuf + 4, sizeof(ibuf) - 4, &readden, NULL), "ReadFile 7\n");
@@ -488,9 +472,7 @@ static void test_CreateNamedPipe(int pipemode)
             ok(WriteFile(hFile, obuf, sizeof(obuf), &written, NULL), "WriteFile 8\n");
             ok(written == sizeof(obuf), "write file len 8\n");
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hnp, ibuf, 4, &readden, NULL), "ReadFile 8\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error 8\n");
             ok(readden == 4, "read got %d bytes 8\n", readden);
             ok(ReadFile(hnp, ibuf + 4, sizeof(ibuf) - 4, &readden, NULL), "ReadFile 8\n");
@@ -515,16 +497,12 @@ static void test_CreateNamedPipe(int pipemode)
             ok(readden == sizeof(obuf) + sizeof(obuf2), "peek got %d bytes total 9\n", readden);
             ok(leftmsg == sizeof(obuf), "peek got %d bytes left in message 9\n", leftmsg);
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hFile, ibuf, 4, &readden, NULL), "ReadFile 9\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error 9\n");
             ok(readden == 4, "read got %d bytes 9\n", readden);
             SetLastError(0xdeadbeef);
             ret = RpcReadFile(hFile, ibuf + 4, 4, &readden, NULL);
-            todo_wine
             ok(!ret, "RpcReadFile 9\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error 9\n");
             ok(readden == 4, "read got %d bytes 9\n", readden);
             readden = leftmsg = -1;
@@ -537,7 +515,6 @@ static void test_CreateNamedPipe(int pipemode)
             ok(leftmsg == sizeof(obuf) - 8, "peek got %d bytes left in message 9\n", leftmsg);
             ret = RpcReadFile(hFile, ibuf + 8, sizeof(ibuf), &readden, NULL);
             ok(ret, "RpcReadFile 9\n");
-            todo_wine
             ok(readden == sizeof(obuf) - 8, "read got %d bytes 9\n", readden);
             ok(memcmp(obuf, ibuf, sizeof(obuf)) == 0, "content check 9\n");
             if (readden <= sizeof(obuf) - 8) /* blocks forever if second part was already received */
@@ -554,13 +531,10 @@ static void test_CreateNamedPipe(int pipemode)
                 SetLastError(0xdeadbeef);
                 ret = RpcReadFile(hFile, ibuf, 4, &readden, NULL);
                 ok(!ret, "RpcReadFile 9\n");
-                todo_wine
                 ok(GetLastError() == ERROR_MORE_DATA, "wrong error 9\n");
                 ok(readden == 4, "read got %d bytes 9\n", readden);
                 SetLastError(0xdeadbeef);
-                todo_wine
                 ok(!ReadFile(hFile, ibuf + 4, 4, &readden, NULL), "ReadFile 9\n");
-                todo_wine
                 ok(GetLastError() == ERROR_MORE_DATA, "wrong error 9\n");
                 ok(readden == 4, "read got %d bytes 9\n", readden);
                 readden = leftmsg = -1;
@@ -600,16 +574,12 @@ static void test_CreateNamedPipe(int pipemode)
             ok(readden == sizeof(obuf) + sizeof(obuf2), "peek got %d bytes total 10\n", readden);
             ok(leftmsg == sizeof(obuf2), "peek got %d bytes left in message 10\n", leftmsg);
             SetLastError(0xdeadbeef);
-            todo_wine
             ok(!ReadFile(hnp, ibuf, 4, &readden, NULL), "ReadFile 10\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error 10\n");
             ok(readden == 4, "read got %d bytes 10\n", readden);
             SetLastError(0xdeadbeef);
             ret = RpcReadFile(hnp, ibuf + 4, 4, &readden, NULL);
-            todo_wine
             ok(!ret, "RpcReadFile 10\n");
-            todo_wine
             ok(GetLastError() == ERROR_MORE_DATA, "wrong error 10\n");
             ok(readden == 4, "read got %d bytes 10\n", readden);
             readden = leftmsg = -1;
@@ -622,7 +592,6 @@ static void test_CreateNamedPipe(int pipemode)
             ok(leftmsg == sizeof(obuf2) - 8, "peek got %d bytes left in message 10\n", leftmsg);
             ret = RpcReadFile(hnp, ibuf + 8, sizeof(ibuf), &readden, NULL);
             ok(ret, "RpcReadFile 10\n");
-            todo_wine
             ok(readden == sizeof(obuf2) - 8, "read got %d bytes 10\n", readden);
             ok(memcmp(obuf2, ibuf, sizeof(obuf2)) == 0, "content check 10\n");
             if (readden <= sizeof(obuf2) - 8) /* blocks forever if second part was already received */
@@ -639,13 +608,10 @@ static void test_CreateNamedPipe(int pipemode)
                 SetLastError(0xdeadbeef);
                 ret = RpcReadFile(hnp, ibuf, 4, &readden, NULL);
                 ok(!ret, "RpcReadFile 10\n");
-                todo_wine
                 ok(GetLastError() == ERROR_MORE_DATA, "wrong error 10\n");
                 ok(readden == 4, "read got %d bytes 10\n", readden);
                 SetLastError(0xdeadbeef);
-                todo_wine
                 ok(!ReadFile(hnp, ibuf + 4, 4, &readden, NULL), "ReadFile 10\n");
-                todo_wine
                 ok(GetLastError() == ERROR_MORE_DATA, "wrong error 10\n");
                 ok(readden == 4, "read got %d bytes 10\n", readden);
                 readden = leftmsg = -1;
@@ -751,15 +717,11 @@ static void test_CreateNamedPipe(int pipemode)
             else
             {
                 SetLastError(0xdeadbeef);
-                todo_wine
                 ok(!ReadFile(hFile, big_ibuf, 32, &readden, NULL), "ReadFile\n");
-                todo_wine
                 ok(GetLastError() == ERROR_MORE_DATA, "wrong error\n");
                 ok(readden == 32, "read got %d bytes\n", readden);
                 SetLastError(0xdeadbeef);
-                todo_wine
                 ok(!ReadFile(hFile, big_ibuf + 32, 32, &readden, NULL), "ReadFile\n");
-                todo_wine
                 ok(GetLastError() == ERROR_MORE_DATA, "wrong error\n");
             }
             ok(readden == 32, "read got %d bytes\n", readden);
@@ -949,7 +911,6 @@ static void test_CloseNamedPipe(void)
         /* close server end without disconnecting */
         ok(CloseHandle(hnp), "CloseHandle() failed: %08x\n", GetLastError());
 
-        todo_wine
         ok(ReadFile(hFile, ibuf, 0, &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
         ok(readden == 0, "got %d bytes\n", readden);
 
@@ -991,7 +952,6 @@ static void test_CloseNamedPipe(void)
         ok(CloseHandle(hFile), "CloseHandle() failed: %08x\n", GetLastError());
 
         /* you'd think ERROR_MORE_DATA, but no */
-        todo_wine
         ok(ReadFile(hnp, ibuf, 0, &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
         ok(readden == 0, "got %d bytes\n", readden);
 
@@ -2459,7 +2419,6 @@ static void test_readfileex_pending(void)
     SetLastError(0xdeadbeef);
     ret = ReadFile(server, read_buf, 0, &num_bytes, &overlapped);
     ok(!ret, "ReadFile should fail\n");
-todo_wine
     ok(GetLastError() == ERROR_IO_PENDING, "expected ERROR_IO_PENDING, got %d\n", GetLastError());
     ok(num_bytes == 0, "bytes %u\n", num_bytes);
     ok((NTSTATUS)overlapped.Internal == STATUS_PENDING, "expected STATUS_PENDING, got %#lx\n", overlapped.Internal);
@@ -2475,11 +2434,9 @@ todo_wine
     ok(num_bytes == 1, "bytes %u\n", num_bytes);
 
     wait = WaitForSingleObject(event, 100);
-todo_wine
     ok(wait == WAIT_OBJECT_0, "WaitForSingleObject returned %x\n", wait);
 
     ok(num_bytes == 1, "bytes %u\n", num_bytes);
-todo_wine
     ok((NTSTATUS)overlapped.Internal == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %#lx\n", overlapped.Internal);
     ok(overlapped.InternalHigh == 0, "expected 0, got %lu\n", overlapped.InternalHigh);
 
