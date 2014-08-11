@@ -2641,7 +2641,7 @@ static void test_overlapped_error(void)
     CloseHandle(event);
 }
 
-static void test_nowait(void)
+static void test_nowait(int pipemode)
 {
     HANDLE hnp;
     HANDLE hFile;
@@ -2652,7 +2652,7 @@ static void test_nowait(void)
     DWORD lpmode;
 
     hnp = CreateNamedPipeA(PIPENAME, PIPE_ACCESS_DUPLEX,
-                           PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_NOWAIT,
+                           pipemode | PIPE_NOWAIT,
                            /* nMaxInstances */ 1,
                            /* nOutBufSize */ 1024,
                            /* nInBufSize */ 1024,
@@ -2683,7 +2683,7 @@ static void test_nowait(void)
         ok(readden == 0, "got %d bytes\n", readden);
         ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
 
-        lpmode = PIPE_READMODE_MESSAGE | PIPE_NOWAIT;
+        lpmode = (pipemode & PIPE_READMODE_MESSAGE) | PIPE_NOWAIT;
         ok(SetNamedPipeHandleState(hFile, &lpmode, NULL, NULL), "Change mode\n");
 
         /* send message from server to client */
@@ -2707,8 +2707,18 @@ static void test_nowait(void)
         ok(WriteFile(hFile, obuf, 0, &written, NULL), "WriteFile\n");
         ok(written == 0, "write file len\n");
 
-        ok(ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
-        ok(readden == 0, "got %d bytes\n", readden);
+        if (pipemode != PIPE_TYPE_BYTE)
+        {
+            ok(ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
+            ok(readden == 0, "got %d bytes\n", readden);
+        }
+        else
+        {
+            SetLastError(0xdeadbeef);
+            ok(!ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() succeeded\n");
+            ok(readden == 0, "got %d bytes\n", readden);
+            ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
+        }
 
         readden = 0xdeadbeef;
         SetLastError(0xdeadbeef);
@@ -2720,8 +2730,18 @@ static void test_nowait(void)
         ok(WriteFile(hnp, obuf, 0, &written, NULL), "WriteFile\n");
         ok(written == 0, "write file len\n");
 
-        ok(ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
-        ok(readden == 0, "got %d bytes\n", readden);
+        if (pipemode != PIPE_TYPE_BYTE)
+        {
+            ok(ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
+            ok(readden == 0, "got %d bytes\n", readden);
+        }
+        else
+        {
+            SetLastError(0xdeadbeef);
+            ok(!ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() succeeded\n");
+            ok(readden == 0, "got %d bytes\n", readden);
+            ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
+        }
 
         readden = 0xdeadbeef;
         SetLastError(0xdeadbeef);
@@ -3231,7 +3251,8 @@ START_TEST(pipe)
     test_impersonation();
     test_overlapped();
     test_overlapped_error();
-    test_nowait();
+    test_nowait(PIPE_TYPE_BYTE);
+    test_nowait(PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE);
     test_NamedPipeHandleState();
     test_GetNamedPipeInfo();
     test_readfileex_pending();
