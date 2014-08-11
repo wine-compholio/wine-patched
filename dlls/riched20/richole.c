@@ -635,8 +635,11 @@ static HRESULT WINAPI ITextRange_fnGetStart(ITextRange *me, LONG *pcpFirst)
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    if (!pcpFirst)
+        return E_INVALIDARG;
+    *pcpFirst = This->start;
+    TRACE("%d\n", *pcpFirst);
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextRange_fnSetStart(ITextRange *me, LONG cpFirst)
@@ -655,8 +658,11 @@ static HRESULT WINAPI ITextRange_fnGetEnd(ITextRange *me, LONG *pcpLim)
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    if (!pcpLim)
+        return E_INVALIDARG;
+    *pcpLim = This->end;
+    TRACE("%d\n", *pcpLim);
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextRange_fnSetEnd(ITextRange *me, LONG cpLim)
@@ -1621,11 +1627,15 @@ static HRESULT WINAPI ITextSelection_fnSetFormattedText(ITextSelection *me, ITex
 static HRESULT WINAPI ITextSelection_fnGetStart(ITextSelection *me, LONG *pcpFirst)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    int lim;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    if (!pcpFirst)
+        return E_INVALIDARG;
+    ME_GetSelectionOfs(This->reOle->editor, pcpFirst, &lim);
+    TRACE("%d\n", *pcpFirst);
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextSelection_fnSetStart(ITextSelection *me, LONG cpFirst)
@@ -1641,11 +1651,15 @@ static HRESULT WINAPI ITextSelection_fnSetStart(ITextSelection *me, LONG cpFirst
 static HRESULT WINAPI ITextSelection_fnGetEnd(ITextSelection *me, LONG *pcpLim)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    int first;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    if (!pcpLim)
+        return E_INVALIDARG;
+    ME_GetSelectionOfs(This->reOle->editor, &first, pcpLim);
+    TRACE("%d\n", *pcpLim);
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextSelection_fnSetEnd(ITextSelection *me, LONG cpLim)
