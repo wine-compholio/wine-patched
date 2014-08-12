@@ -34,6 +34,14 @@ typedef struct _CREATEFILE2_EXTENDED_PARAMETERS {
 
 WINBASEAPI HANDLE WINAPI CreateFile2(LPCWSTR,DWORD,DWORD,DWORD,LPCREATEFILE2_EXTENDED_PARAMETERS);
 
+#define FILE_NAME_NORMALIZED    0x0
+#define FILE_NAME_OPENED        0x8
+
+#define VOLUME_NAME_DOS         0x0
+#define VOLUME_NAME_GUID        0x1
+#define VOLUME_NAME_NT          0x2
+#define VOLUME_NAME_NONE        0x4
+
 #ifdef __cplusplus
 }
 #endif
