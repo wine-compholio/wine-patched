@@ -1987,14 +1987,40 @@ static HRESULT WINAPI ITextRange_fnInvoke(ITextRange *me, DISPID dispIdMember, R
     return E_NOTIMPL;
 }
 
+static HRESULT range_GetText(ME_TextEditor *editor, ME_Cursor *start, ME_Cursor *end, BSTR *pbstr)
+{
+    int nChars, endOfs;
+    BOOL bEOP;
+
+    endOfs = ME_GetCursorOfs(end);
+    nChars = endOfs - ME_GetCursorOfs(start);
+    if (!nChars)
+    {
+        *pbstr = NULL;
+        return S_OK;
+    }
+
+    *pbstr = SysAllocStringLen(NULL, nChars);
+    if (!*pbstr)
+        return E_OUTOFMEMORY;
+
+    bEOP = (end->pRun->next->type == diTextEnd && endOfs > ME_GetTextLength(editor));
+    ME_GetTextW(editor, *pbstr, nChars, start, nChars, FALSE, bEOP);
+    TRACE("%s\n", wine_dbgstr_w(*pbstr));
+
+    return S_OK;
+}
+
 static HRESULT WINAPI ITextRange_fnGetText(ITextRange *me, BSTR *pbstr)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
+    ME_Cursor start, end;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    ME_CursorFromCharOfs(This->reOle->editor, This->start, &start);
+    ME_CursorFromCharOfs(This->reOle->editor, This->end, &end);
+    return range_GetText(This->reOle->editor, &start, &end, pbstr);
 }
 
 static HRESULT WINAPI ITextRange_fnSetText(ITextRange *me, BSTR bstr)
@@ -3071,8 +3097,6 @@ static HRESULT WINAPI ITextSelection_fnGetText(ITextSelection *me, BSTR *pbstr)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
     ME_Cursor *start = NULL, *end = NULL;
-    int nChars, endOfs;
-    BOOL bEOP;
 
     if (!This->reOle)
         return CO_E_RELEASED;
@@ -3081,23 +3105,7 @@ static HRESULT WINAPI ITextSelection_fnGetText(ITextSelection *me, BSTR *pbstr)
         return E_INVALIDARG;
 
     ME_GetSelection(This->reOle->editor, &start, &end);
-    endOfs = ME_GetCursorOfs(end);
-    nChars = endOfs - ME_GetCursorOfs(start);
-    if (!nChars)
-    {
-        *pbstr = NULL;
-        return S_OK;
-    }
-
-    *pbstr = SysAllocStringLen(NULL, nChars);
-    if (!*pbstr)
-        return E_OUTOFMEMORY;
-
-    bEOP = (end->pRun->next->type == diTextEnd && endOfs > ME_GetTextLength(This->reOle->editor));
-    ME_GetTextW(This->reOle->editor, *pbstr, nChars, start, nChars, FALSE, bEOP);
-    TRACE("%s\n", wine_dbgstr_w(*pbstr));
-
-    return S_OK;
+    return range_GetText(This->reOle->editor, start, end, pbstr);
 }
 
 static HRESULT WINAPI ITextSelection_fnSetText(ITextSelection *me, BSTR bstr)
