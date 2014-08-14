@@ -269,6 +269,7 @@ void shutdown_master_socket(void)
 /* final cleanup once we are sure a process is really dead */
 static void process_died( struct process *process )
 {
+    process->is_terminated = 1;
     if (debug_level) fprintf( stderr, "%04x: *process killed*\n", process->id );
     if (!process->is_system)
     {
@@ -325,6 +326,7 @@ struct thread *create_process( int fd, struct thread *parent_thread, int inherit
     process->is_system       = 0;
     process->debug_children  = 0;
     process->is_terminating  = 0;
+    process->is_terminated   = 0;
     process->console         = NULL;
     process->startup_state   = STARTUP_IN_PROGRESS;
     process->startup_info    = NULL;
@@ -1193,7 +1195,10 @@ DECL_HANDLER(open_process)
     reply->handle = 0;
     if (process)
     {
-        reply->handle = alloc_handle( current->process, process, req->access, req->attributes );
+        if (!process->is_terminated)
+            reply->handle = alloc_handle( current->process, process, req->access, req->attributes );
+        else
+            set_error( STATUS_INVALID_PARAMETER );
         release_object( process );
     }
 }
