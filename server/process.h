@@ -76,6 +76,7 @@ struct process
     unsigned int         is_system:1;     /* is it a system process? */
     unsigned int         debug_children:1;/* also debug all child processes */
     unsigned int         is_terminating:1;/* is process terminating? */
+    unsigned int         is_terminated:1; /* is process terminated? */
     struct job          *job;             /* job object ascoicated with this process */
     struct list          job_entry;       /* list entry for job object */
     struct list          locks;           /* list of file locks owned by the process */
