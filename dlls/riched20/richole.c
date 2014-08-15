@@ -2395,14 +2395,29 @@ static HRESULT WINAPI ITextRange_fnInStory(ITextRange *me, ITextRange *pRange, L
     return E_NOTIMPL;
 }
 
+static HRESULT range_IsEqual(LONG start, LONG end, ITextRange *pRange, LONG *pb)
+{
+    ITextRangeImpl *pRangeImpl = impl_from_ITextRange(pRange);
+    if (start == pRangeImpl->start && end == pRangeImpl->end)
+    {
+        if (pb)
+            *pb = tomTrue;
+        return S_OK;
+    }
+    if (pb)
+        *pb = tomFalse;
+    return S_FALSE;
+}
+
 static HRESULT WINAPI ITextRange_fnIsEqual(ITextRange *me, ITextRange *pRange, LONG *pb)
 {
     ITextRangeImpl *This = impl_from_ITextRange(me);
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    if (!pRange)
+        return S_FALSE;
+    return range_IsEqual(This->start, This->end, pRange, pb);
 }
 
 static HRESULT WINAPI ITextRange_fnSelect(ITextRange *me)
