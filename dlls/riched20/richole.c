@@ -3315,8 +3315,10 @@ static HRESULT WINAPI ITextSelection_fnGetStoryLength(ITextSelection *me, LONG *
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    if (!pcch)
+        return E_INVALIDARG;
+    *pcch = ME_GetTextLength(This->reOle->editor) + 1;
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextSelection_fnGetStoryType(ITextSelection *me, LONG *pValue)
