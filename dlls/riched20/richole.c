@@ -2277,8 +2277,10 @@ static HRESULT WINAPI ITextRange_fnGetStoryLength(ITextRange *me, LONG *pcch)
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented %p\n", This);
-    return E_NOTIMPL;
+    if (!pcch)
+        return E_INVALIDARG;
+    *pcch = ME_GetTextLength(This->reOle->editor) + 1;
+    return S_OK;
 }
 
 static HRESULT WINAPI ITextRange_fnGetStoryType(ITextRange *me, LONG *pValue)
