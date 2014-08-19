@@ -98,6 +98,7 @@ struct dxgi_factory
     IDXGIAdapter1 **adapters;
     BOOL extended;
     HWND device_window;
+    HWND assoc_window;
 };
 
 HRESULT dxgi_factory_create(REFIID riid, void **factory, BOOL extended) DECLSPEC_HIDDEN;
