@@ -23,4 +23,5 @@ C_SRCS = \
 	strerror.c \
 	strncasecmp.c \
 	symlink.c \
-	usleep.c
+	usleep.c \
+	xattr.c
