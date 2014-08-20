@@ -161,7 +161,8 @@ int fd_get_file_info( int fd, struct stat *st, ULONG *attr )
 /* get the stat info and file attributes for a file (by name) */
 int get_file_info( const char *path, struct stat *st, ULONG *attr )
 {
-    int ret;
+    char hexattr[10];
+    int len, ret;
 
     *attr = 0;
     /* stat the file and don't follow symbol links */
@@ -177,6 +178,10 @@ int get_file_info( const char *path, struct stat *st, ULONG *attr )
     }
     /* convert the Unix stat info into file attributes */
     *attr |= get_file_attributes( st );
+    /* retrieve any stored DOS attributes */
+    len = xattr_get( path, SAMBA_XATTR_DOS_ATTRIB, hexattr, sizeof(hexattr)-1 );
+    if (len == -1) return ret;
+    *attr |= get_file_xattr( hexattr, len );
     return ret;
 }
 
