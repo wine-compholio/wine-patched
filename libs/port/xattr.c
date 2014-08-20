@@ -59,3 +59,19 @@ int xattr_fget( int filedes, const char *name, void *value, size_t size )
     return -1;
 #endif
 }
+
+int xattr_get( const char *path, const char *name, void *value, size_t size )
+{
+    if (!xattr_valid_namespace( name )) return -1;
+#if defined(HAVE_ATTR_XATTR_H)
+    return getxattr( path, name, value, size );
+#elif defined(HAVE_SYS_XATTR_H)
+    return getxattr( path, name, value, size, 0, 0 );
+#elif defined(HAVE_SYS_EXTATTR_H)
+    return extattr_get_file( path, EXTATTR_NAMESPACE_USER, &name[XATTR_USER_PREFIX_LEN],
+                             value, size );
+#else
+    errno = ENOTSUP;
+    return -1;
+#endif
+}
