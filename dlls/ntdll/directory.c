@@ -1201,17 +1201,17 @@ static DWORD WINAPI init_options( RTL_RUN_ONCE *once, void *param, void **contex
  *
  * Check if the specified file should be hidden based on its name and the show dot files option.
  */
-BOOL DIR_is_hidden_file( const UNICODE_STRING *name )
+BOOL DIR_is_hidden_file( const char *name )
 {
-    WCHAR *p, *end;
+    char *p, *end;
 
     RtlRunOnceExecuteOnce( &init_once, init_options, NULL, NULL );
 
     if (show_dot_files) return FALSE;
 
-    end = p = name->Buffer + name->Length/sizeof(WCHAR);
-    while (p > name->Buffer && IS_SEPARATOR(p[-1])) p--;
-    while (p > name->Buffer && !IS_SEPARATOR(p[-1])) p--;
+    end = p = (char *)name + strlen(name);
+    while (p > name && IS_SEPARATOR(p[-1])) p--;
+    while (p > name && !IS_SEPARATOR(p[-1])) p--;
     if (p == end || *p != '.') return FALSE;
     /* make sure it isn't '.' or '..' */
     if (p + 1 == end) return FALSE;
@@ -1426,9 +1426,6 @@ static union file_directory_info *append_entry( void *info_ptr, IO_STATUS_BLOCK 
         TRACE( "ignoring file %s\n", long_name );
         return NULL;
     }
-    if (!show_dot_files && long_name[0] == '.' && long_name[1] && (long_name[1] != '.' || long_name[2]))
-        attributes |= FILE_ATTRIBUTE_HIDDEN;
-
     total_len = dir_info_size( class, long_len );
     if (io->Information + total_len > max_length)
     {
