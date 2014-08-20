@@ -1394,7 +1394,7 @@ static BOOL surface_check_block_align(struct wined3d_surface *surface, const str
     return wined3d_resource_check_block_align(&surface->resource, box);
 }
 
-static BOOL surface_check_block_align_rect(struct wined3d_surface *surface, const RECT *rect)
+BOOL surface_check_block_align_rect(struct wined3d_surface *surface, const RECT *rect)
 {
     struct wined3d_box box = {rect->left, rect->top, rect->right, rect->bottom, 0, 1};
 
