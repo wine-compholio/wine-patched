@@ -103,6 +103,29 @@ mode_t FILE_umask = 0;
 
 static const WCHAR ntfsW[] = {'N','T','F','S'};
 
+/* Match the conventions as Samba 3 for storing DOS file attributes;
+ * see {get,set}_ea_dos_attribute() in http://gitweb.samba.org/?p=samba.git;a=blob;f=source3/smbd/dosmode.c
+ * In particular, encode FILE_ATTRIBUTE_* as the string 0x followed by one or two hexadecimal digits.
+ * Differences from Samba 3:
+ * Wine currently only stores hidden and system in xattrs;
+ * Samba 3 also seems to store the readonly and directory bits.
+ * Samba 4 additionally supports NT security descriptors with a different xattr
+ */
+#define SAMBA_XATTR_DOS_ATTRIB XATTR_USER_PREFIX "DOSATTRIB"
+/* We are only interested in some attributes, the others have corresponding Unix attributes */
+#define XATTR_ATTRIBS_MASK     (FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)
+
+/* decode the xattr-stored DOS attributes */
+static inline int get_file_xattr( char *hexattr, int attrlen )
+{
+    if (attrlen > 2 && hexattr[0] == '0' && hexattr[1] == 'x')
+    {
+        hexattr[attrlen] = 0;
+        return strtol( hexattr+2, NULL, 16 ) & XATTR_ATTRIBS_MASK;
+    }
+    return 0;
+}
+
 /* fetch the attributes of a file */
 static inline ULONG get_file_attributes( const struct stat *st )
 {
@@ -120,13 +143,18 @@ static inline ULONG get_file_attributes( const struct stat *st )
 /* get the stat info and file attributes for a file (by file descriptor) */
 int fd_get_file_info( int fd, struct stat *st, ULONG *attr )
 {
-    int ret;
+    char hexattr[10];
+    int len, ret;
 
     *attr = 0;
     ret = fstat( fd, st );
     if (ret == -1) return ret;
     /* convert the Unix stat info into file attributes */
     *attr |= get_file_attributes( st );
+    /* retrieve any stored DOS attributes */
+    len = xattr_fget( fd, SAMBA_XATTR_DOS_ATTRIB, hexattr, sizeof(hexattr)-1 );
+    if (len == -1) return ret;
+    *attr |= get_file_xattr( hexattr, len );
     return ret;
 }
 
