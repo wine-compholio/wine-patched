@@ -203,6 +203,9 @@ int get_file_info( const char *path, struct stat *st, ULONG *attr )
     }
     /* convert the Unix stat info into file attributes */
     *attr |= get_file_attributes( st );
+    /* convert Unix-style hidden files to a DOS hidden file attribute */
+    if (DIR_is_hidden_file( path ))
+        *attr |= FILE_ATTRIBUTE_HIDDEN;
     /* retrieve any stored DOS attributes */
     len = xattr_get( path, SAMBA_XATTR_DOS_ATTRIB, hexattr, sizeof(hexattr)-1 );
     if (len == -1) return ret;
@@ -2572,8 +2575,6 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
             info->AllocationSize = std.AllocationSize;
             info->EndOfFile      = std.EndOfFile;
             info->FileAttributes = basic.FileAttributes;
-            if (DIR_is_hidden_file( attr->ObjectName ))
-                info->FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
         }
         RtlFreeAnsiString( &unix_name );
     }
@@ -2601,11 +2602,7 @@ NTSTATUS WINAPI NtQueryAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_BASIC
         else if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))
             status = STATUS_INVALID_INFO_CLASS;
         else
-        {
             status = fill_file_info( &st, attributes, info, FileBasicInformation );
-            if (DIR_is_hidden_file( attr->ObjectName ))
-                info->FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
-        }
         RtlFreeAnsiString( &unix_name );
     }
     else WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), status );
