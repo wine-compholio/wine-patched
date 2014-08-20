@@ -208,6 +208,21 @@ int get_file_info( const char *path, struct stat *st, ULONG *attr )
     return ret;
 }
 
+NTSTATUS set_file_info( const char *path, ULONG attr )
+{
+    char hexattr[11];
+    int len;
+
+    /* Note: unix mode already set when called this way */
+    attr &= ~FILE_ATTRIBUTE_NORMAL; /* do not store everything, but keep everything Samba can use */
+    len = sprintf( hexattr, "0x%x", attr );
+    if (attr != 0)
+        xattr_set( path, SAMBA_XATTR_DOS_ATTRIB, hexattr, len );
+    else
+        xattr_remove( path, SAMBA_XATTR_DOS_ATTRIB );
+    return STATUS_SUCCESS;
+}
+
 /**************************************************************************
  *                 FILE_CreateFile                    (internal)
  * Open a file.
@@ -219,6 +234,8 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
                                  ULONG attributes, ULONG sharing, ULONG disposition,
                                  ULONG options, PVOID ea_buffer, ULONG ea_length )
 {
+    struct object_attributes objattr;
+    struct security_descriptor *sd;
     ANSI_STRING unix_name;
     BOOL created = FALSE;
 
@@ -272,39 +289,37 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
         io->u.Status = STATUS_SUCCESS;
     }
 
-    if (io->u.Status == STATUS_SUCCESS)
+    if (io->u.Status != STATUS_SUCCESS)
     {
-        struct security_descriptor *sd;
-        struct object_attributes objattr;
-
-        objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
-        objattr.name_len = 0;
-        io->u.Status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
-        if (io->u.Status != STATUS_SUCCESS)
-        {
-            RtlFreeAnsiString( &unix_name );
-            return io->u.Status;
-        }
-
-        SERVER_START_REQ( create_file )
-        {
-            req->access     = access;
-            req->attributes = attr->Attributes;
-            req->sharing    = sharing;
-            req->create     = disposition;
-            req->options    = options;
-            req->attrs      = attributes;
-            wine_server_add_data( req, &objattr, sizeof(objattr) );
-            if (objattr.sd_len) wine_server_add_data( req, sd, objattr.sd_len );
-            wine_server_add_data( req, unix_name.Buffer, unix_name.Length );
-            io->u.Status = wine_server_call( req );
-            *handle = wine_server_ptr_handle( reply->handle );
-        }
-        SERVER_END_REQ;
-        NTDLL_free_struct_sd( sd );
-        RtlFreeAnsiString( &unix_name );
+        WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), io->u.Status );
+        return io->u.Status;
     }
-    else WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), io->u.Status );
+
+    objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
+    objattr.name_len = 0;
+    io->u.Status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
+    if (io->u.Status != STATUS_SUCCESS)
+    {
+        RtlFreeAnsiString( &unix_name );
+        return io->u.Status;
+    }
+
+    SERVER_START_REQ( create_file )
+    {
+        req->access     = access;
+        req->attributes = attr->Attributes;
+        req->sharing    = sharing;
+        req->create     = disposition;
+        req->options    = options;
+        req->attrs      = attributes;
+        wine_server_add_data( req, &objattr, sizeof(objattr) );
+        if (objattr.sd_len) wine_server_add_data( req, sd, objattr.sd_len );
+        wine_server_add_data( req, unix_name.Buffer, unix_name.Length );
+        io->u.Status = wine_server_call( req );
+        *handle = wine_server_ptr_handle( reply->handle );
+    }
+    SERVER_END_REQ;
+    NTDLL_free_struct_sd( sd );
 
     if (io->u.Status == STATUS_SUCCESS)
     {
@@ -326,6 +341,11 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
             io->Information = FILE_OVERWRITTEN;
             break;
         }
+        if (io->Information == FILE_CREATED)
+        {
+            /* set any DOS extended attributes */
+            set_file_info( unix_name.Buffer, attributes );
+        }
     }
     else if (io->u.Status == STATUS_TOO_MANY_OPENED_FILES)
     {
@@ -333,6 +353,7 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
         if (!once++) ERR_(winediag)( "Too many open files, ulimit -n probably needs to be increased\n" );
     }
 
+    RtlFreeAnsiString( &unix_name );
     return io->u.Status;
 }
 
