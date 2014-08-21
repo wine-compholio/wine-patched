@@ -3060,6 +3060,7 @@ void wined3d_cs_emit_buffer_swap_mem(struct wined3d_cs *cs, struct wined3d_buffe
 void wined3d_cs_emit_buffer_invalidate_bo_range(struct wined3d_cs *cs,
         struct wined3d_buffer *buffer, unsigned int offset, unsigned int size) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_buffer_preload(struct wined3d_cs *cs, struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_view_destroy(struct wined3d_cs *cs, struct wined3d_rendertarget_view *view) DECLSPEC_HIDDEN;
 
 /* Direct3D terminology with little modifications. We do not have an issued state
  * because only the driver knows about it, but we have a created state because d3d
@@ -3183,6 +3184,8 @@ static inline struct wined3d_surface *wined3d_rendertarget_view_get_surface(
 
     return texture->sub_resources[view->sub_resource_idx].u.surface;
 }
+
+void wined3d_rendertarget_view_destroy(struct wined3d_rendertarget_view *view) DECLSPEC_HIDDEN;
 
 struct wined3d_shader_resource_view
 {
