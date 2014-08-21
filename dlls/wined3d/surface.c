@@ -939,7 +939,7 @@ static HRESULT wined3d_surface_depth_fill(struct wined3d_surface *surface, const
     }
 
     hr = blitter->depth_fill(device, view, rect, depth);
-    wined3d_rendertarget_view_decref(view);
+    wined3d_rendertarget_view_decref_worker(view);
 
     return hr;
 }
@@ -3207,7 +3207,7 @@ HRESULT surface_color_fill(struct wined3d_surface *s, const RECT *rect, const st
     }
 
     hr = blitter->color_fill(device, view, rect, color);
-    wined3d_rendertarget_view_decref(view);
+    wined3d_rendertarget_view_decref_worker(view);
 
     return hr;
 }
