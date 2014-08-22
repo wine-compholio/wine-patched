@@ -114,6 +114,8 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
                                  ULONG attributes, ULONG sharing, ULONG disposition,
                                  ULONG options, PVOID ea_buffer, ULONG ea_length )
 {
+    struct object_attributes objattr;
+    struct security_descriptor *sd;
     ANSI_STRING unix_name;
     BOOL created = FALSE;
 
@@ -157,39 +159,39 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
         io->u.Status = STATUS_SUCCESS;
     }
 
-    if (io->u.Status == STATUS_SUCCESS)
+    if (io->u.Status != STATUS_SUCCESS)
     {
-        struct security_descriptor *sd;
-        struct object_attributes objattr;
-
-        objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
-        objattr.name_len = 0;
-        io->u.Status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
-        if (io->u.Status != STATUS_SUCCESS)
-        {
-            RtlFreeAnsiString( &unix_name );
-            return io->u.Status;
-        }
-
-        SERVER_START_REQ( create_file )
-        {
-            req->access     = access;
-            req->attributes = attr->Attributes;
-            req->sharing    = sharing;
-            req->create     = disposition;
-            req->options    = options;
-            req->attrs      = attributes;
-            wine_server_add_data( req, &objattr, sizeof(objattr) );
-            if (objattr.sd_len) wine_server_add_data( req, sd, objattr.sd_len );
-            wine_server_add_data( req, unix_name.Buffer, unix_name.Length );
-            io->u.Status = wine_server_call( req );
-            *handle = wine_server_ptr_handle( reply->handle );
-        }
-        SERVER_END_REQ;
-        NTDLL_free_struct_sd( sd );
+        WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), io->u.Status );
         RtlFreeAnsiString( &unix_name );
+        return io->u.Status;
     }
-    else WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), io->u.Status );
+
+    objattr.rootdir = wine_server_obj_handle( attr->RootDirectory );
+    objattr.name_len = 0;
+    io->u.Status = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
+    if (io->u.Status != STATUS_SUCCESS)
+    {
+        RtlFreeAnsiString( &unix_name );
+        return io->u.Status;
+    }
+
+    SERVER_START_REQ( create_file )
+    {
+        req->access     = access;
+        req->attributes = attr->Attributes;
+        req->sharing    = sharing;
+        req->create     = disposition;
+        req->options    = options;
+        req->attrs      = attributes;
+        wine_server_add_data( req, &objattr, sizeof(objattr) );
+        if (objattr.sd_len) wine_server_add_data( req, sd, objattr.sd_len );
+        wine_server_add_data( req, unix_name.Buffer, unix_name.Length );
+        io->u.Status = wine_server_call( req );
+        *handle = wine_server_ptr_handle( reply->handle );
+    }
+    SERVER_END_REQ;
+    NTDLL_free_struct_sd( sd );
+    RtlFreeAnsiString( &unix_name );
 
     if (io->u.Status == STATUS_SUCCESS)
     {
