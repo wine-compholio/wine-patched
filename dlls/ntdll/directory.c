@@ -3027,6 +3027,7 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
 
     name     = nameW->Buffer;
     name_len = nameW->Length / sizeof(WCHAR);
+    unix_name_ret->Buffer = NULL;
 
     if (!name_len || !IS_SEPARATOR(name[0])) return STATUS_OBJECT_PATH_SYNTAX_BAD;
 
