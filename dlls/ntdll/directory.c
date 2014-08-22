@@ -2745,6 +2745,7 @@ NTSTATUS file_id_to_unix_file_name( const OBJECT_ATTRIBUTES *attr, ANSI_STRING *
     ULONGLONG file_id;
     struct stat st, root_st;
 
+    unix_name->Buffer = NULL;
     if (attr->ObjectName->Length != sizeof(ULONGLONG)) return STATUS_OBJECT_PATH_SYNTAX_BAD;
     if (!attr->RootDirectory) return STATUS_INVALID_PARAMETER;
     memcpy( &file_id, attr->ObjectName->Buffer, sizeof(file_id) );
@@ -2803,7 +2804,7 @@ done:
     else
     {
         TRACE( "%s not found in dir %p\n", wine_dbgstr_longlong(file_id), attr->RootDirectory );
-        RtlFreeHeap( GetProcessHeap(), 0, unix_name->Buffer );
+        RtlFreeAnsiString( unix_name );
     }
     if (needs_close) close( root_fd );
     return status;
