@@ -864,6 +864,11 @@ if (0) { /* crashes */
     ok(hr == S_OK, "expected S_OK, got 0x%08x\n", hr);
     ok(path != NULL, "expected path != NULL\n");
 
+    path = NULL;
+    hr = pSHGetKnownFolderPath(&FOLDERID_Desktop, KF_FLAG_DEFAULT_PATH, NULL, &path);
+    ok(hr == S_OK, "expected S_OK, got 0x%08x\n", hr);
+    ok(path != NULL, "expected path != NULL\n");
+
     hr = pSHGetFolderPathEx(&FOLDERID_Desktop, 0, NULL, buffer, MAX_PATH);
     ok(hr == S_OK, "expected S_OK, got 0x%08x\n", hr);
     ok(!lstrcmpiW(path, buffer), "expected equal paths\n");
