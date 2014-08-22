@@ -1354,10 +1354,8 @@ DWORD WINAPI QueryDosDeviceW( LPCWSTR devname, LPWSTR target, DWORD bufsize )
             status = wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN, TRUE );
             if (status) SetLastError( RtlNtStatusToDosError(status) );
             else
-            {
                 ret = MultiByteToWideChar( CP_UNIXCP, 0, unix_name.Buffer, -1, target, bufsize );
-                RtlFreeAnsiString( &unix_name );
-            }
+            RtlFreeAnsiString( &unix_name );
         }
     done:
         if (ret)
@@ -1398,9 +1396,9 @@ DWORD WINAPI QueryDosDeviceW( LPCWSTR devname, LPWSTR target, DWORD bufsize )
             nt_buffer[7] = '0' + i;
             if (!wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN, TRUE ))
             {
-                RtlFreeAnsiString( &unix_name );
                 if (p + 5 >= target + bufsize)
                 {
+                    RtlFreeAnsiString( &unix_name );
                     SetLastError( ERROR_INSUFFICIENT_BUFFER );
                     return 0;
                 }
@@ -1409,6 +1407,7 @@ DWORD WINAPI QueryDosDeviceW( LPCWSTR devname, LPWSTR target, DWORD bufsize )
                 p[4] = 0;
                 p += 5;
             }
+            RtlFreeAnsiString( &unix_name );
         }
         strcpyW( nt_buffer + 4, lptW );
         for (i = 1; i <= 9; i++)
@@ -1416,9 +1415,9 @@ DWORD WINAPI QueryDosDeviceW( LPCWSTR devname, LPWSTR target, DWORD bufsize )
             nt_buffer[7] = '0' + i;
             if (!wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN, TRUE ))
             {
-                RtlFreeAnsiString( &unix_name );
                 if (p + 5 >= target + bufsize)
                 {
+                    RtlFreeAnsiString( &unix_name );
                     SetLastError( ERROR_INSUFFICIENT_BUFFER );
                     return 0;
                 }
@@ -1427,6 +1426,7 @@ DWORD WINAPI QueryDosDeviceW( LPCWSTR devname, LPWSTR target, DWORD bufsize )
                 p[4] = 0;
                 p += 5;
             }
+            RtlFreeAnsiString( &unix_name );
         }
 
         RtlInitUnicodeString( &nt_name, dosdevW );
