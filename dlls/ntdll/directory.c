@@ -2467,6 +2467,7 @@ static void init_redirects(void)
     if (status)
     {
         ERR( "cannot open %s (%x)\n", debugstr_w(user_shared_data->NtSystemRoot), status );
+        RtlFreeAnsiString( &unix_name );
         return;
     }
     if (!stat( unix_name.Buffer, &st ))
