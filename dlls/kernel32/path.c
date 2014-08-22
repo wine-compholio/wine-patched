@@ -1602,6 +1602,7 @@ BOOL WINAPI RemoveDirectoryW( LPCWSTR path )
         SetLastError( ERROR_PATH_NOT_FOUND );
         return FALSE;
     }
+    unix_name.Buffer = NULL;
     attr.Length = sizeof(attr);
     attr.RootDirectory = 0;
     attr.Attributes = OBJ_CASE_INSENSITIVE;
@@ -1619,6 +1620,7 @@ BOOL WINAPI RemoveDirectoryW( LPCWSTR path )
     if (status != STATUS_SUCCESS)
     {
         SetLastError( RtlNtStatusToDosError(status) );
+        RtlFreeAnsiString( &unix_name );
         return FALSE;
     }
 
