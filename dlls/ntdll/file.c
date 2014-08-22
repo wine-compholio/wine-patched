@@ -2469,9 +2469,9 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
             if (DIR_is_hidden_file( attr->ObjectName ))
                 info->FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
         }
-        RtlFreeAnsiString( &unix_name );
     }
     else WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), status );
+    RtlFreeAnsiString( &unix_name );
     return status;
 }
 
