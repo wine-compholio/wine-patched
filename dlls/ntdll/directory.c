@@ -2942,6 +2942,7 @@ NTSTATUS nt_to_unix_file_name_attr( const OBJECT_ATTRIBUTES *attr, ANSI_STRING *
     NTSTATUS status;
     BOOLEAN check_case = !(attr->Attributes & OBJ_CASE_INSENSITIVE);
 
+    unix_name_ret->Buffer = NULL;
     if (!attr->RootDirectory)  /* without root dir fall back to normal lookup */
         return wine_nt_to_unix_file_name( attr->ObjectName, unix_name_ret, disposition, check_case );
 
