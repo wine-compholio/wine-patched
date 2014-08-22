@@ -1725,6 +1725,7 @@ static NTSTATUS load_builtin_dll( LPCWSTR load_path, LPCWSTR path, HANDLE file,
         if (wine_nt_to_unix_file_name( &nt_name, &unix_name, FILE_OPEN, FALSE ))
         {
             RtlFreeUnicodeString( &nt_name );
+            RtlFreeAnsiString( &unix_name );
             return STATUS_DLL_NOT_FOUND;
         }
         prev_info = builtin_load_info;
@@ -1733,7 +1734,7 @@ static NTSTATUS load_builtin_dll( LPCWSTR load_path, LPCWSTR path, HANDLE file,
         handle = wine_dlopen( unix_name.Buffer, RTLD_NOW, error, sizeof(error) );
         builtin_load_info = prev_info;
         RtlFreeUnicodeString( &nt_name );
-        RtlFreeHeap( GetProcessHeap(), 0, unix_name.Buffer );
+        RtlFreeAnsiString( &unix_name );
         if (!handle)
         {
             WARN( "failed to load .so lib for builtin %s: %s\n", debugstr_w(path), error );
