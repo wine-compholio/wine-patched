@@ -155,7 +155,6 @@ typedef nsISupports nsIContentViewer;
 typedef nsISupports nsIDocumentCharsetInfo;
 typedef nsISupports nsILayoutHistoryState;
 typedef nsISupports nsISecureBrowserUI;
-typedef nsISupports nsIDOMStorage;
 typedef nsISupports nsIDOMDOMTokenList;
 typedef nsISupports nsITransferable;
 typedef nsISupports nsIDOMFileList;
@@ -1357,6 +1356,21 @@ interface nsIDOMWindowCollection : nsISupports
     nsresult Item(uint32_t index, nsIDOMWindow **_retval);
     nsresult NamedItem(const nsAString *name, nsIDOMWindow **_retval);
 }
+
+[
+    object,
+    uuid(43e5edad-1e02-42c4-9d99-c3d9dee22a20),
+    local
+]
+interface nsIDOMStorage : nsISupports
+{
+  nsresult GetLength(uint32_t *aLength);
+  nsresult Key(uint32_t index, nsAString *_retval);
+  nsresult GetItem(const nsAString *key, nsAString *_retval);
+  nsresult SetItem(const nsAString *key, const nsAString *data);
+  nsresult RemoveItem(const nsAString *key);
+  nsresult Clear();
+};
 
 [
     object,
