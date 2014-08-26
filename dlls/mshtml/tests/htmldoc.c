@@ -262,6 +262,35 @@ static const WCHAR wszTimesNewRoman[] =
 static const WCHAR wszArial[] =
     {'A','r','i','a','l',0};
 
+/* Based on debugstr_variant in dlls/jscript/jsutils.c. */
+static const char *debugstr_variant(const VARIANT *var)
+{
+    static char buf[400];
+
+    if (!var)
+        return "(null)";
+
+    switch (V_VT(var))
+    {
+    case VT_EMPTY:
+        return "{VT_EMPTY}";
+    case VT_BSTR:
+        sprintf(buf, "{VT_BSTR: %s}", wine_dbgstr_w(V_BSTR(var)));
+        break;
+    case VT_BOOL:
+        sprintf(buf, "{VT_BOOL: %x}", V_BOOL(var));
+        break;
+    case VT_UI4:
+        sprintf(buf, "{VT_UI4: %u}", V_UI4(var));
+        break;
+    default:
+        sprintf(buf, "{vt %d}", V_VT(var));
+        break;
+    }
+
+    return buf;
+}
+
 static int strcmp_wa(LPCWSTR strw, const char *stra)
 {
     CHAR buf[512];
@@ -979,6 +1008,7 @@ static HRESULT WINAPI PropertyNotifySink_OnChanged(IPropertyNotifySink *iface, D
     case 3000030:
     case 3000031:
     case 3000032:
+    case 3000033:
         /* TODO */
         return S_OK;
     }
@@ -3272,6 +3302,7 @@ static HRESULT WINAPI EventDispatch_Invoke(IDispatch *iface, DISPID dispIdMember
     case 1044:
     case 1048:
     case 1049:
+    case 1057:
         break; /* FIXME: Handle these events. */
     default:
         ok(0, "Unexpected DISPID: %d\n", dispIdMember);
@@ -7431,6 +7462,38 @@ static void test_QueryInterface(IHTMLDocument2 *htmldoc)
     IUnknown_Release(qi);
 }
 
+#define test_storage_set(s,k,v)  _test_storage_set(__LINE__,s,k,v)
+static void _test_storage_set(unsigned line, IHTMLStorage *storage, const char *key, const char *value)
+{
+    BSTR bstrKey, bstrValue;
+    HRESULT hres;
+
+    bstrKey = a2bstr(key);
+    bstrValue = a2bstr(value);
+    hres = IHTMLStorage_setItem(storage, bstrKey, bstrValue);
+    SysFreeString(bstrKey);
+    SysFreeString(bstrValue);
+
+    ok_(__FILE__,line) (hres == S_OK, "setItem (\"%s\": \"%s\") failed: %08x\n", key, value, hres);
+}
+
+#define test_storage_get(s,k,e) _test_storage_get(__LINE__,s,k,e)
+static void _test_storage_get(unsigned line, IHTMLStorage *storage, const char *key, const char *exval)
+{
+    BSTR bstrKey;
+    VARIANT var;
+    HRESULT hres;
+
+    bstrKey = a2bstr(key);
+    hres = IHTMLStorage_getItem(storage, bstrKey, &var);
+
+    ok_(__FILE__,line) (hres == S_OK, "getItem (\"%s\") failed: %08x\n", key, hres);
+    ok_(__FILE__,line) (!strcmp_wa(V_BSTR(&var), exval), "expect %s, got %s\n", exval, debugstr_variant(&var));
+
+    SysFreeString(bstrKey);
+    VariantClear(&var);
+}
+
 static void test_sessionStorage(IHTMLWindow6 *window)
 {
     HRESULT hres;
@@ -7441,6 +7504,10 @@ static void test_sessionStorage(IHTMLWindow6 *window)
     ok(storage != NULL, "storage == NULL\n");
     if(hres != S_OK || storage == NULL)
         return;
+
+    test_storage_set(storage, "test key", "test value");
+    test_storage_get(storage, "test key", "test value");
+
 
     IHTMLStorage_Release(storage);
 }
