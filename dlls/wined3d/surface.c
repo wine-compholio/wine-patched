@@ -911,8 +911,8 @@ static HRESULT wined3d_surface_depth_fill(struct wined3d_surface *surface, const
 {
     struct wined3d_resource *resource = &surface->container->resource;
     struct wined3d_device *device = resource->device;
-    struct wined3d_rendertarget_view_desc view_desc;
-    struct wined3d_rendertarget_view *view;
+    struct wined3d_rendertarget_view view;
+    struct wined3d_texture *texture = surface->container;
     const struct blit_shader *blitter;
     HRESULT hr;
 
@@ -923,19 +923,17 @@ static HRESULT wined3d_surface_depth_fill(struct wined3d_surface *surface, const
         return WINED3DERR_INVALIDCALL;
     }
 
-    view_desc.format_id = resource->format->id;
-    view_desc.u.texture.level_idx = surface->texture_level;
-    view_desc.u.texture.layer_idx = surface->texture_layer;
-    view_desc.u.texture.layer_count = 1;
-    if (FAILED(hr = wined3d_rendertarget_view_create(&view_desc,
-            resource, NULL, &wined3d_null_parent_ops, &view)))
-    {
-        ERR("Failed to create rendertarget view, hr %#x.\n", hr);
-        return hr;
-    }
+    view.resource = &surface->container->resource;
+    view.parent = NULL;
+    view.parent_ops = &wined3d_null_parent_ops;
+    view.format = surface->resource.format;
+    view.buffer_offset = 0;
+    view.width = surface->resource.width;
+    view.height = surface->resource.height;
+    view.depth = 1;
+    view.sub_resource_idx = surface->texture_layer * texture->level_count + surface->texture_level;
 
-    hr = blitter->depth_fill(device, view, rect, depth);
-    wined3d_rendertarget_view_decref_worker(view);
+    hr = blitter->depth_fill(device, &view, rect, depth);
 
     return hr;
 }
@@ -3235,8 +3233,8 @@ HRESULT surface_color_fill(struct wined3d_surface *s, const RECT *rect, const st
 {
     struct wined3d_resource *resource = &s->container->resource;
     struct wined3d_device *device = resource->device;
-    struct wined3d_rendertarget_view_desc view_desc;
-    struct wined3d_rendertarget_view *view;
+    struct wined3d_rendertarget_view view;
+    struct wined3d_texture *texture = s->container;
     const struct blit_shader *blitter;
     HRESULT hr;
 
@@ -3247,19 +3245,22 @@ HRESULT surface_color_fill(struct wined3d_surface *s, const RECT *rect, const st
         return WINED3DERR_INVALIDCALL;
     }
 
-    view_desc.format_id = resource->format->id;
-    view_desc.u.texture.level_idx = s->texture_level;
-    view_desc.u.texture.layer_idx = s->texture_layer;
-    view_desc.u.texture.layer_count = 1;
-    if (FAILED(hr = wined3d_rendertarget_view_create(&view_desc,
-            resource, NULL, &wined3d_null_parent_ops, &view)))
-    {
-        ERR("Failed to create rendertarget view, hr %#x.\n", hr);
-        return hr;
-    }
+    /* Can't incref / decref the resource here. This is executed inside the worker
+     * thread. Playing with the refcount here makes the worker thread visible to
+     * the client lib. Problems occur when the worker thread happens to hold the
+     * last reference and the resource destruction callbacks are called from the
+     * wrong thread. */
+    view.resource = &texture->resource;
+    view.parent = NULL;
+    view.parent_ops = &wined3d_null_parent_ops;
+    view.format = s->resource.format;
+    view.buffer_offset = 0;
+    view.width = s->resource.width;
+    view.height = s->resource.height;
+    view.depth = 1;
+    view.sub_resource_idx = s->texture_layer * texture->level_count + s->texture_level;
 
-    hr = blitter->color_fill(device, view, rect, color);
-    wined3d_rendertarget_view_decref_worker(view);
+    hr = blitter->color_fill(device, &view, rect, color);
 
     return hr;
 }
@@ -4056,7 +4057,7 @@ static HRESULT ffp_blit_color_fill(struct wined3d_device *device, struct wined3d
         const RECT *rect, const struct wined3d_color *color)
 {
     const RECT draw_rect = {0, 0, view->width, view->height};
-    struct wined3d_fb_state fb = {&view, NULL};
+    struct wined3d_fb_state fb = {&view, NULL, 1};
 
     device_clear_render_targets(device, 1, &fb, 1, rect, &draw_rect, WINED3DCLEAR_TARGET, color, 0.0f, 0);
 
