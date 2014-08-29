@@ -2005,6 +2005,7 @@ static void wglFinish(void)
     escape.code = X11DRV_FLUSH_GL_DRAWABLE;
     escape.gl_drawable = 0;
 
+    ERR("glFinish\n");
     if ((gl = get_gl_drawable( WindowFromDC( ctx->hdc ), 0 )))
     {
         switch (gl->type)
@@ -2030,6 +2031,7 @@ static void wglFlush(void)
     escape.code = X11DRV_FLUSH_GL_DRAWABLE;
     escape.gl_drawable = 0;
 
+    ERR("glFlush\n");
     if ((gl = get_gl_drawable( WindowFromDC( ctx->hdc ), 0 )))
     {
         switch (gl->type)
