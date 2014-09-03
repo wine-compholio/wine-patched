@@ -821,6 +821,12 @@ static void wined3d_texture_cleanup_main(struct wined3d_texture *texture)
             sub_resource->parent_ops->wined3d_object_destroyed(sub_resource->parent);
     }
 
+    /* Wait for the CS to finish operations on this texture when user memory was in use.
+     * The application is allowed to free the memory after texture / surface destruction
+     * returns. */
+    if (texture->resource.map_binding == WINED3D_LOCATION_USER_MEMORY)
+        wined3d_resource_wait_fence(&texture->resource);
+
     resource_cleanup(&texture->resource);
     wined3d_cs_emit_texture_cleanup(device->cs, texture);
 }
