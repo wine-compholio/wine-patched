@@ -828,6 +828,10 @@ ULONG CDECL wined3d_texture_incref(struct wined3d_texture *texture)
 static void wined3d_texture_cleanup_sync(struct wined3d_texture *texture)
 {
     wined3d_texture_sub_resources_destroyed(texture);
+
+    if (texture->resource.map_binding == WINED3D_LOCATION_USER_MEMORY)
+        wined3d_resource_wait_idle(&texture->resource);
+
     resource_cleanup(&texture->resource);
     wined3d_resource_wait_idle(&texture->resource);
     wined3d_texture_cleanup(texture);
@@ -855,6 +859,13 @@ ULONG CDECL wined3d_texture_decref(struct wined3d_texture *texture)
     {
         wined3d_texture_sub_resources_destroyed(texture);
         texture->resource.parent_ops->wined3d_object_destroyed(texture->resource.parent);
+
+        /* Wait for the CS to finish operations on this texture when user memory was in use.
+         * The application is allowed to free the memory after texture / surface destruction
+         * returns. */
+        if (texture->resource.map_binding == WINED3D_LOCATION_USER_MEMORY)
+            wined3d_resource_wait_idle(&texture->resource);
+
         resource_cleanup(&texture->resource);
         wined3d_cs_emit_destroy_object(texture->resource.device->cs, wined3d_texture_destroy_object, texture);
     }
