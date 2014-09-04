@@ -34,6 +34,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(mshtml);
 typedef struct {
     DispatchEx dispex;
     IHTMLStorage IHTMLStorage_iface;
+    nsIDOMStorage *nsstorage;
     LONG ref;
 } HTMLStorage;
 
@@ -82,6 +83,8 @@ static ULONG WINAPI HTMLStorage_Release(IHTMLStorage *iface)
     TRACE("(%p) ref=%d\n", This, ref);
 
     if(!ref) {
+        if (This->nsstorage)
+            nsIDOMStorage_Release(This->nsstorage);
         release_dispex(&This->dispex);
         heap_free(This);
     }
@@ -198,7 +201,7 @@ static dispex_static_data_t HTMLStorage_dispex = {
     HTMLStorage_iface_tids
 };
 
-HRESULT create_storage(IHTMLStorage **p)
+HRESULT create_storage(nsIDOMStorage *nsstorage, IHTMLStorage **p)
 {
     HTMLStorage *storage;
 
@@ -211,5 +214,7 @@ HRESULT create_storage(IHTMLStorage **p)
     init_dispex(&storage->dispex, (IUnknown*)&storage->IHTMLStorage_iface, &HTMLStorage_dispex);
 
     *p = &storage->IHTMLStorage_iface;
+    storage->nsstorage = nsstorage;
+    nsIDOMStorage_AddRef(nsstorage);
     return S_OK;
 }

@@ -2018,12 +2018,20 @@ static HRESULT WINAPI HTMLWindow6_get_sessionStorage(IHTMLWindow6 *iface, IHTMLS
 {
     HTMLWindow *This = impl_from_IHTMLWindow6(iface);
 
-    FIXME("(%p)->(%p)\n", This, p);
+    TRACE("(%p)->(%p)\n", This, p);
 
     if(!This->inner_window->session_storage) {
         HRESULT hres;
+        nsresult nsres;
+        nsIDOMStorage *nsstorage;
 
-        hres = create_storage(&This->inner_window->session_storage);
+        nsres = nsIDOMWindow_GetSessionStorage(This->outer_window->nswindow, &nsstorage);
+        if (NS_FAILED(nsres)) {
+            ERR("GetSessionStorage failed: %08x\n", nsres);
+            return E_FAIL;
+        }
+        hres = create_storage(nsstorage, &This->inner_window->session_storage);
+        nsIDOMStorage_Release(nsstorage);
         if(FAILED(hres))
             return hres;
     }

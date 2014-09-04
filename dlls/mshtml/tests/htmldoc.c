@@ -7431,6 +7431,42 @@ static void test_QueryInterface(IHTMLDocument2 *htmldoc)
     IUnknown_Release(qi);
 }
 
+static void test_sessionStorage(IHTMLWindow6 *window)
+{
+    HRESULT hres;
+    IHTMLStorage *storage;
+
+    hres = IHTMLWindow6_get_sessionStorage(window, &storage);
+    ok(hres == S_OK, "get_sessionStorage failed: %08x\n", hres);
+    ok(storage != NULL, "storage == NULL\n");
+    if(hres != S_OK || storage == NULL)
+        return;
+
+    IHTMLStorage_Release(storage);
+}
+
+static void test_Storage(IHTMLDocument2 *doc)
+{
+    IHTMLWindow2 *win2;
+    IHTMLWindow6 *win6;
+    HRESULT hres;
+
+    trace("Testing HTMLStorage\n");
+
+    hres = IHTMLDocument2_get_parentWindow(doc, &win2);
+    ok(hres == S_OK, "get_parentWindow failed: %08x\n", hres);
+
+    hres = IHTMLWindow2_QueryInterface(win2, &IID_IHTMLWindow6, (void**)&win6);
+    if(hres == S_OK) {
+        test_sessionStorage(win6);
+        IHTMLWindow6_Release(win6);
+    }else {
+        win_skip("IHTMLWindow6 not support: %08x\n", hres);
+    }
+
+    IHTMLWindow2_Release(win2);
+}
+
 static void init_test(enum load_state_t ls) {
     doc_unk = NULL;
     doc_hwnd = last_hwnd = NULL;
@@ -7687,6 +7723,7 @@ static void test_HTMLDocument_http(BOOL with_wbapp)
     nav_url = nav_serv_url = "http://test.winehq.org/tests/winehq_snapshot/"; /* for valid prev nav_url */
     if(support_wbapp) {
         test_put_href(doc, FALSE, "#test", "http://test.winehq.org/tests/winehq_snapshot/#test", FALSE, TRUE, 0);
+        test_Storage(doc);
         test_travellog(doc);
         test_refresh(doc);
     }
