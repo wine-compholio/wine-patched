@@ -767,7 +767,7 @@ HRESULT HTMLScreen_Create(IHTMLScreen**) DECLSPEC_HIDDEN;
 HRESULT create_history(HTMLInnerWindow*,OmHistory**) DECLSPEC_HIDDEN;
 HRESULT create_dom_implementation(IHTMLDOMImplementation**) DECLSPEC_HIDDEN;
 
-HRESULT create_storage(IHTMLStorage**) DECLSPEC_HIDDEN;
+HRESULT create_storage(nsIDOMStorage*,IHTMLStorage**) DECLSPEC_HIDDEN;
 
 void HTMLDocument_Persist_Init(HTMLDocument*) DECLSPEC_HIDDEN;
 void HTMLDocument_OleCmd_Init(HTMLDocument*) DECLSPEC_HIDDEN;
