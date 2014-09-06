@@ -1215,7 +1215,7 @@ streamsize __thiscall basic_streambuf_char__Xsgetn_s(basic_streambuf_char *this,
             chunk = count-copied;
 
         if(chunk > 0) {
-            memcpy_s(ptr+copied, size, *this->prpos, chunk);
+            (void)memcpy_s(ptr+copied, size, *this->prpos, chunk);
             *this->prpos += chunk;
             *this->prsize -= chunk;
             copied += chunk;
@@ -2083,7 +2083,7 @@ streamsize __thiscall basic_streambuf_wchar__Xsgetn_s(basic_streambuf_wchar *thi
             chunk = count-copied;
 
         if(chunk > 0) {
-            memcpy_s(ptr+copied, size, *this->prpos, chunk*sizeof(wchar_t));
+            (void)memcpy_s(ptr+copied, size, *this->prpos, chunk*sizeof(wchar_t));
             *this->prpos += chunk;
             *this->prsize -= chunk;
             copied += chunk;
