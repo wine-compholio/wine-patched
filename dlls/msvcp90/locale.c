@@ -1595,7 +1595,7 @@ const char* __thiscall ctype_char__Do_narrow_s(const ctype_char *this, const cha
         const char *last, char unused, char *dest, MSVCP_size_t size)
 {
     TRACE("(%p %p %p %p %lu)\n", this, first, last, dest, size);
-    memcpy_s(dest, size, first, last-first);
+    (void)memcpy_s(dest, size, first, last-first);
     return last;
 }
 
@@ -1674,7 +1674,7 @@ const char* __thiscall ctype_char__Do_widen_s(const ctype_char *this,
         const char *first, const char *last, char *dest, MSVCP_size_t size)
 {
     TRACE("(%p %p %p %p %lu)\n", this, first, last, dest, size);
-    memcpy_s(dest, size, first, last-first);
+    (void)memcpy_s(dest, size, first, last-first);
     return last;
 }
 
@@ -3674,7 +3674,7 @@ int __thiscall codecvt_wchar_do_out(const codecvt_wchar *this, int *state,
             }
 
             (*from_next)++;
-            memcpy_s(*to_next, to_end-*to_next, buf, size);
+            (void)memcpy_s(*to_next, to_end-*to_next, buf, size);
             (*to_next) += size;
         }
     }
