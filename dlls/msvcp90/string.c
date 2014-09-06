@@ -82,7 +82,7 @@ MSVCP_size_t CDECL MSVCP_char_traits_char_length(const char *str)
 char* CDECL MSVCP_char_traits_char__Copy_s(char *dest,
         MSVCP_size_t size, const char *src, MSVCP_size_t count)
 {
-    memcpy_s(dest, size, src, count);
+    (void)memcpy_s(dest, size, src, count);
     return dest;
 }
 
@@ -107,7 +107,7 @@ const char * CDECL MSVCP_char_traits_char_find(
 char* CDECL MSVCP_char_traits_char__Move_s(char *dest,
         MSVCP_size_t size, const char *src, MSVCP_size_t count)
 {
-    memmove_s(dest, size, src, count);
+    (void)memmove_s(dest, size, src, count);
     return dest;
 }
 
@@ -206,7 +206,7 @@ MSVCP_size_t CDECL MSVCP_char_traits_wchar_length(const wchar_t *str)
 wchar_t* CDECL MSVCP_char_traits_wchar__Copy_s(wchar_t *dest,
         MSVCP_size_t size, const wchar_t *src, MSVCP_size_t count)
 {
-    memcpy_s(dest, size * sizeof(wchar_t), src, count * sizeof(wchar_t));
+    (void)memcpy_s(dest, size * sizeof(wchar_t), src, count * sizeof(wchar_t));
     return dest;
 }
 
@@ -237,7 +237,7 @@ const wchar_t* CDECL MSVCP_char_traits_wchar_find(
 wchar_t* CDECL MSVCP_char_traits_wchar__Move_s(wchar_t *dest,
         MSVCP_size_t size, const wchar_t *src, MSVCP_size_t count)
 {
-    memmove_s(dest, size * sizeof(wchar_t), src, count * sizeof(wchar_t));
+    (void)memmove_s(dest, size * sizeof(wchar_t), src, count * sizeof(wchar_t));
     return dest;
 }
 
@@ -353,7 +353,7 @@ MSVCP_size_t CDECL MSVCP_char_traits_short_length(const unsigned short *str)
 unsigned short * CDECL MSVCP_char_traits_short__Copy_s(unsigned short *dest,
         MSVCP_size_t size, const unsigned short *src, MSVCP_size_t count)
 {
-    memcpy_s(dest, size * sizeof(unsigned short), src, count * sizeof(unsigned short));
+    (void)memcpy_s(dest, size * sizeof(unsigned short), src, count * sizeof(unsigned short));
     return dest;
 }
 
@@ -384,7 +384,7 @@ const unsigned short* CDECL MSVCP_char_traits_short_find(
 unsigned short* CDECL MSVCP_char_traits_short__Move_s(unsigned short *dest,
         MSVCP_size_t size, const unsigned short *src, MSVCP_size_t count)
 {
-    memmove_s(dest, size * sizeof(unsigned short), src, count * sizeof(unsigned short));
+    (void)memmove_s(dest, size * sizeof(unsigned short), src, count * sizeof(unsigned short));
     return dest;
 }
 
