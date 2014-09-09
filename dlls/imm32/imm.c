@@ -2265,6 +2265,9 @@ BOOL WINAPI ImmSetCandidateWindow(
     if (!data || !lpCandidate)
         return FALSE;
 
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
+
     TRACE("\t%x, %x, (%i,%i), (%i,%i - %i,%i)\n",
             lpCandidate->dwIndex, lpCandidate->dwStyle,
             lpCandidate->ptCurrentPos.x, lpCandidate->ptCurrentPos.y,
@@ -2295,6 +2298,9 @@ BOOL WINAPI ImmSetCompositionFontA(HIMC hIMC, LPLOGFONTA lplf)
         return FALSE;
     }
 
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
+
     memcpy(&data->IMC.lfFont.W,lplf,sizeof(LOGFONTA));
     MultiByteToWideChar(CP_ACP, 0, lplf->lfFaceName, -1, data->IMC.lfFont.W.lfFaceName,
                         LF_FACESIZE);
@@ -2317,6 +2323,9 @@ BOOL WINAPI ImmSetCompositionFontW(HIMC hIMC, LPLOGFONTW lplf)
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
+
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
 
     data->IMC.lfFont.W = *lplf;
     ImmNotifyIME(hIMC, NI_CONTEXTUPDATED, 0, IMC_SETCOMPOSITIONFONT);
@@ -2459,6 +2468,9 @@ BOOL WINAPI ImmSetCompositionWindow(
         return FALSE;
     }
 
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
+
     data->IMC.cfCompForm = *lpCompForm;
 
     if (IsWindowVisible(data->immKbd->UIWnd))
@@ -2493,6 +2505,9 @@ BOOL WINAPI ImmSetConversionStatus(
         return FALSE;
     }
 
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
+
     if ( fdwConversion != data->IMC.fdwConversion )
     {
         oldConversion = data->IMC.fdwConversion;
@@ -2525,6 +2540,9 @@ BOOL WINAPI ImmSetOpenStatus(HIMC hIMC, BOOL fOpen)
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
+
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
 
     if (data->immKbd->UIWnd == NULL)
     {
@@ -2561,6 +2579,9 @@ BOOL WINAPI ImmSetStatusWindowPos(HIMC hIMC, LPPOINT lpptPos)
         SetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
+
+    if (IMM_IsCrossThreadAccess(NULL, hIMC))
+        return FALSE;
 
     TRACE("\t(%i,%i)\n", lpptPos->x, lpptPos->y);
 
