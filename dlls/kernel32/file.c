@@ -1865,6 +1865,9 @@ HANDLE WINAPI FindFirstFileExW( LPCWSTR filename, FINDEX_INFO_LEVELS level,
 
     TRACE("%s %d %p %d %p %x\n", debugstr_w(filename), level, data, search_op, filter, flags);
 
+    /* ignore FIND_FIRST_EX_LARGE_FETCH, only a hint for performance optimization */
+    flags &= ~FIND_FIRST_EX_LARGE_FETCH;
+
     if ((search_op != FindExSearchNameMatch && search_op != FindExSearchLimitToDirectories)
 	|| flags != 0)
     {
