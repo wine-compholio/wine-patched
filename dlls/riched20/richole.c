@@ -528,10 +528,13 @@ static ULONG WINAPI ITextPara_fnRelease(ITextPara *me)
             ITextRange_Release(&This->txtRge->ITextRange_iface);
         else
             ITextSelection_Release(&This->txtSel->ITextSelection_iface);
-        This->reOle = NULL;
         This->txtRge = NULL;
         This->txtSel = NULL;
-        list_remove(&This->entry);
+        if (This->reOle)
+        {
+            list_remove(&This->entry);
+            This->reOle = NULL;
+        }
         heap_free(This);
     }
     return ref;
@@ -1163,10 +1166,13 @@ static ULONG WINAPI ITextFont_fnRelease(ITextFont *me)
             ITextRange_Release(&This->txtRge->ITextRange_iface);
         else
             ITextSelection_Release(&This->txtSel->ITextSelection_iface);
-        This->reOle = NULL;
         This->txtRge = NULL;
         This->txtSel = NULL;
-        list_remove(&This->entry);
+        if (This->reOle)
+        {
+            list_remove(&This->entry);
+            This->reOle = NULL;
+        }
         heap_free(This);
     }
     return ref;
