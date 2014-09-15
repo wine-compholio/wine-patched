@@ -1181,9 +1181,8 @@ struct wined3d_context
     DWORD rebind_fbo : 1;
     DWORD needs_set : 1;
     DWORD hdc_is_private : 1;
-    DWORD hdc_has_format : 1;           /* only meaningful if hdc_is_private */
     DWORD update_shader_resource_bindings : 1;
-    DWORD padding : 15;
+    DWORD padding : 16;
     DWORD shader_update_mask;
     DWORD constant_update_mask;
     DWORD                   numbered_array_mask;
