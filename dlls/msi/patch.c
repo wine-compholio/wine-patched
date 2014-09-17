@@ -118,7 +118,7 @@ error:
     return NULL;
 }
 
-static UINT check_transform_applicable( MSIPACKAGE *package, IStorage *transform )
+static UINT check_transform_applicable( MSIPACKAGE *package, IStorage *transform, WCHAR **version_to )
 {
     static const UINT supported_flags =
         MSITRANSFORM_VALIDATE_PRODUCT  | MSITRANSFORM_VALIDATE_LANGUAGE |
@@ -255,9 +255,16 @@ static UINT check_transform_applicable( MSIPACKAGE *package, IStorage *transform
         msi_free( upgrade_code_installed );
     }
 
+    if ((valid_flags & wanted_flags) != wanted_flags)
+    {
+        free_transform_desc( desc );
+        msiobj_release( &si->hdr );
+        return ERROR_FUNCTION_FAILED;
+    }
+
+    *version_to = strdupW( desc->version_to );
     free_transform_desc( desc );
     msiobj_release( &si->hdr );
-    if ((valid_flags & wanted_flags) != wanted_flags) return ERROR_FUNCTION_FAILED;
     TRACE("applicable transform\n");
     return ERROR_SUCCESS;
 }
@@ -266,6 +273,7 @@ static UINT apply_substorage_transform( MSIPACKAGE *package, MSIDATABASE *patch_
 {
     UINT ret = ERROR_FUNCTION_FAILED;
     IStorage *stg = NULL;
+    WCHAR *version_to;
     HRESULT r;
 
     TRACE("%p %s\n", package, debugstr_w(name));
@@ -278,9 +286,16 @@ static UINT apply_substorage_transform( MSIPACKAGE *package, MSIDATABASE *patch_
     r = IStorage_OpenStorage( patch_db->storage, name, NULL, STGM_SHARE_EXCLUSIVE, NULL, 0, &stg );
     if (SUCCEEDED(r))
     {
-        ret = check_transform_applicable( package, stg );
+        ret = check_transform_applicable( package, stg, &version_to );
         if (ret == ERROR_SUCCESS)
+        {
             msi_table_apply_transform( package->db, stg );
+            if (version_to)
+            {
+                msi_set_property( package->db, szProductVersion, version_to, -1 );
+                msi_free( version_to );
+            }
+        }
         else
             TRACE("substorage transform %s wasn't applicable\n", debugstr_w(name));
         IStorage_Release( stg );
