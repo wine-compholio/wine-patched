@@ -75,6 +75,7 @@ AC_ARG_WITH(pthread,   AS_HELP_STRING([--without-pthread],[do not use the pthrea
             [if test "x$withval" = "xno"; then ac_cv_header_pthread_h=no; fi])
 AC_ARG_WITH(sane,      AS_HELP_STRING([--without-sane],[do not use SANE (scanner support)]))
 AC_ARG_WITH(tiff,      AS_HELP_STRING([--without-tiff],[do not use TIFF]))
+AC_ARG_WITH(txc_dxtn,  AS_HELP_STRING([--without-txc_dxtn],[do not use txc_dxtn lib (DXTn software support)]))
 AC_ARG_WITH(v4l,       AS_HELP_STRING([--without-v4l],[do not use v4l1 (v4l support)]))
 AC_ARG_WITH(xcomposite,AS_HELP_STRING([--without-xcomposite],[do not use the Xcomposite extension]),
             [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xcomposite_h=no; fi])
@@ -1705,6 +1706,14 @@ then
 fi
 WINE_NOTICE_WITH(tiff,[test "x$ac_cv_lib_soname_tiff" = "x"],
                  [libtiff ${notice_platform}development files not found, TIFF won't be supported.])
+
+dnl **** Check for libtxc_dxtn ****
+if test "x$with_txc_dxtn" != "xno"
+then
+   WINE_CHECK_SONAME(txc_dxtn,tx_compress_dxtn,,,,[[libtxc_dxtn\\(_s2tc\\)\\{0,1\\}]])
+fi
+WINE_NOTICE_WITH(txc_dxtn,[test "x$ac_cv_lib_soname_txc_dxtn" = "x"],
+                 [libtxc_dxtn ${notice_platform}development files not found, DXTn software (de)compression won't be supported.])
 
 dnl **** Check for mpg123 ****
 if test "x$with_mpg123" != "xno"
