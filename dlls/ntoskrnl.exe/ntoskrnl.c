@@ -197,6 +197,19 @@ static NTSTATUS process_ioctl( DEVICE_OBJECT *device, ULONG code, void *in_buff,
         DPRINTF( "%04x:Ret  driver dispatch %p (device=%p,irp=%p) retval=%08x\n",
                  GetCurrentThreadId(), dispatch, device, &irp, status );
 
+    /* Ensure returned status code is consistent */
+    if (status == STATUS_PENDING)
+    {
+        FIXME( "driver returned status=STATUS_PENDING, irp.IoStatus.u.Status=%08x\n",
+               irp.IoStatus.u.Status );
+    }
+    else if (irp.IoStatus.u.Status != status)
+    {
+        FIXME( "driver returned status=%08x != irp.IoStatus.u.Status=%08x\n",
+               status, irp.IoStatus.u.Status );
+        irp.IoStatus.u.Status = status;
+    }
+
     *out_size = (irp.IoStatus.u.Status >= 0) ? irp.IoStatus.Information : 0;
     if ((code & 3) == METHOD_BUFFERED)
     {
