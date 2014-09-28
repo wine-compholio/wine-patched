@@ -29,6 +29,7 @@
 #include "ole2.h"
 #include "oleauto.h"
 #include "richole.h"
+#include "tom.h"
 #include "imm.h"
 #include "textserv.h"
 #include "wine/debug.h"
@@ -79,7 +80,15 @@ static HRESULT WINAPI ITextServicesImpl_QueryInterface(IUnknown *iface, REFIID r
       *ppv = &This->IUnknown_inner;
    else if (IsEqualIID(riid, &IID_ITextServices))
       *ppv = &This->ITextServices_iface;
-   else {
+   else if (IsEqualIID(riid, &IID_IRichEditOle) || IsEqualIID(riid, &IID_ITextDocument))
+   {
+      if (!This->editor->reOle)
+         if (!CreateIRichEditOle(This->outer_unk, This->editor, (LPVOID *)&(This->editor->reOle)))
+            return E_OUTOFMEMORY;
+      return IRichEditOle_QueryInterface(This->editor->reOle, riid, ppv);
+   }
+   else
+   {
       *ppv = NULL;
       FIXME("Unknown interface: %s\n", debugstr_guid(riid));
       return E_NOINTERFACE;
