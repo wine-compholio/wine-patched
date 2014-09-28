@@ -1796,7 +1796,7 @@ static LONG CALLBACK outputdebugstring_vectored_handler(EXCEPTION_POINTERS *Exce
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-static void test_outputdebugstring(DWORD numexc, BOOL todo)
+static void test_outputdebugstring(DWORD numexc)
 {
     PVOID vectored_handler;
 
@@ -1811,13 +1811,8 @@ static void test_outputdebugstring(DWORD numexc, BOOL todo)
 
     outputdebugstring_exceptions = 0;
     OutputDebugStringA("Hello World");
-    if (todo)
-        todo_wine
-        ok(outputdebugstring_exceptions == numexc, "OutputDebugStringA generated %d exceptions, expected %d\n",
-           outputdebugstring_exceptions, numexc);
-    else
-        ok(outputdebugstring_exceptions == numexc, "OutputDebugStringA generated %d exceptions, expected %d\n",
-           outputdebugstring_exceptions, numexc);
+    ok(outputdebugstring_exceptions == numexc, "OutputDebugStringA generated %d exceptions, expected %d\n",
+       outputdebugstring_exceptions, numexc);
 
     pRtlRemoveVectoredExceptionHandler(vectored_handler);
 }
@@ -2031,9 +2026,9 @@ START_TEST(exception)
             run_rtlraiseexception_test(EXCEPTION_BREAKPOINT);
             run_rtlraiseexception_test(EXCEPTION_INVALID_HANDLE);
             test_stage = 3;
-            test_outputdebugstring(0, FALSE);
+            test_outputdebugstring(0);
             test_stage = 4;
-            test_outputdebugstring(2, TRUE); /* is this a Windows bug? */
+            test_outputdebugstring(2);
             test_stage = 5;
             test_ripevent(0);
             test_stage = 6;
@@ -2054,7 +2049,7 @@ START_TEST(exception)
     test_exceptions();
     test_rtlraiseexception();
     test_debug_registers();
-    test_outputdebugstring(1, FALSE);
+    test_outputdebugstring(1);
     test_ripevent(1);
     test_closehandle(0);
     test_vectored_continue_handler();
@@ -2075,7 +2070,7 @@ START_TEST(exception)
                                                                  "RtlLookupFunctionEntry" );
 
     test_debug_registers();
-    test_outputdebugstring(1, FALSE);
+    test_outputdebugstring(1);
     test_ripevent(1);
     test_closehandle(0);
     test_vectored_continue_handler();
