@@ -74,6 +74,7 @@ typedef struct tagInputContextData
 
         ImmHkl          *immKbd;
         UINT            lastVK;
+        BOOL            threadDefault;
         DWORD           magic;
 } InputContextData;
 
@@ -128,6 +129,7 @@ static LRESULT WINAPI DefIME_WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam,
 #define is_kbd_ime_unicode(p)  (p->imeInfo.fdwProperty & IME_PROP_UNICODE)
 
 static BOOL IMM_DestroyContext(HIMC hIMC);
+static InputContextData* get_imc_data(HIMC hIMC);
 
 static inline WCHAR *strdupAtoW( const char *str )
 {
@@ -251,6 +253,16 @@ static IMMThreadData* IMM_GetThreadData(DWORD tid)
     TRACE("Thread Data Created (%x)\n", tid);
 
     return data;
+}
+
+static BOOL IMM_IsDefaultContext(HIMC imc)
+{
+    InputContextData *data = get_imc_data(imc);
+
+    if (!data)
+        return FALSE;
+
+    return data->threadDefault;
 }
 
 static void IMM_FreeThreadData(void)
@@ -511,6 +523,8 @@ static IMMThreadData* IMM_GetInitializedThreadData(void)
 
         /* don't hold the CS while creating the context */
         defaultContext = ImmCreateContext();
+        if (defaultContext)
+            ((InputContextData*)defaultContext)->threadDefault = TRUE;
 
         thread_data = IMM_GetThreadData(0);
         if (!thread_data->defaultContext)
@@ -805,11 +819,7 @@ static BOOL IMM_DestroyContext(HIMC hIMC)
  */
 BOOL WINAPI ImmDestroyContext(HIMC hIMC)
 {
-    IMMThreadData* thread_data = IMM_GetThreadData(0);
-    HIMC defaultContext = thread_data->defaultContext;
-    LeaveCriticalSection(&threaddata_cs);
-
-    if (hIMC != defaultContext)
+    if (!IMM_IsDefaultContext(hIMC))
         return IMM_DestroyContext(hIMC);
     else
         return FALSE;
