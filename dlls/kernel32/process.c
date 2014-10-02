@@ -65,6 +65,7 @@
 WINE_DEFAULT_DEBUG_CHANNEL(process);
 WINE_DECLARE_DEBUG_CHANNEL(file);
 WINE_DECLARE_DEBUG_CHANNEL(relay);
+WINE_DECLARE_DEBUG_CHANNEL(winediag);
 
 #ifdef __APPLE__
 extern char **__wine_get_main_environment(void);
@@ -1098,6 +1099,16 @@ static DWORD WINAPI start_process( PEB *peb )
     if (TRACE_ON(relay))
         DPRINTF( "%04x:Starting process %s (entryproc=%p)\n", GetCurrentThreadId(),
                  debugstr_w(peb->ProcessParameters->ImagePathName.Buffer), entry );
+
+    /* Wine developers don't like it, when bug are reported with Wine versions containing our patches. */
+    if (CreateEventA(0, 0, 0, "__winecompholio_warn_event") && GetLastError() != ERROR_ALREADY_EXISTS)
+    {
+        FIXME_(winediag)("Wine-Compholio is a Wine testing version containing experimental patches.\n");
+        FIXME_(winediag)("Please don't report bugs at winehq.org and use our issue tracker instead:\n");
+        FIXME_(winediag)("https://github.com/compholio/wine-compholio/issues\n");
+    }
+    else
+        WARN_(winediag)("Wine-Compholio is a Wine testing version containing experimental patches.\n");
 
     SetLastError( 0 );  /* clear error code */
     if (peb->BeingDebugged) DbgBreakPoint();
