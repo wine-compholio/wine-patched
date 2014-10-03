@@ -2472,6 +2472,59 @@ NTSTATUS WINAPI NtOpenSection( HANDLE *handle, ACCESS_MASK access, const OBJECT_
 
 
 /***********************************************************************
+ *             NtQuerySection   (NTDLL.@)
+ */
+NTSTATUS WINAPI NtQuerySection(HANDLE handle, SECTION_INFORMATION_CLASS info_class,
+                               PVOID buffer, ULONG len, PULONG ret_len)
+{
+    SECTION_BASIC_INFORMATION *info;
+    HANDLE dup_mapping, shared_file;
+    unsigned protect;
+    LARGE_INTEGER size;
+    void *base;
+    NTSTATUS res;
+
+    if (info_class != SectionBasicInformation)
+    {
+        FIXME("%p,info_class=%d,%p,%d,%p) Unknown information class\n",
+              handle, info_class, buffer, len, ret_len);
+        return STATUS_INVALID_INFO_CLASS;
+    }
+
+    if (len < sizeof(SECTION_BASIC_INFORMATION))
+        return STATUS_INFO_LENGTH_MISMATCH;
+
+    SERVER_START_REQ( get_mapping_info )
+    {
+        req->handle = wine_server_obj_handle( handle );
+        req->access = SECTION_QUERY;
+        res = wine_server_call( req );
+        protect       = reply->protect;
+        base          = wine_server_get_ptr( reply->base );
+        size.QuadPart = reply->size;
+        dup_mapping   = wine_server_ptr_handle( reply->mapping );
+        shared_file   = wine_server_ptr_handle( reply->shared_file );
+        if ((ULONG_PTR)base != reply->base) base = NULL;
+    }
+    SERVER_END_REQ;
+    if (res) return res;
+
+    info = buffer;
+    info->BaseAddress = base;
+    info->Size        = size;
+    info->Attributes  = (protect & VPROT_COMMITTED) ? SEC_COMMIT : SEC_RESERVE;
+    if (protect & VPROT_NOCACHE) info->Attributes |= SEC_NOCACHE;
+    if (protect & VPROT_IMAGE)   info->Attributes |= SEC_IMAGE;
+    /* FIXME: SEC_FILE */
+    if (ret_len) *ret_len = sizeof(*info);
+
+    if (dup_mapping) NtClose( dup_mapping );
+    if (shared_file) NtClose( shared_file );
+    return STATUS_SUCCESS;
+}
+
+
+/***********************************************************************
  *             NtMapViewOfSection   (NTDLL.@)
  *             ZwMapViewOfSection   (NTDLL.@)
  */
