@@ -431,6 +431,7 @@ HANDLE thread_init(void)
     static struct debug_info debug_info;  /* debug info for initial thread */
 
     virtual_init();
+    signal_init_early();
 
     /* reserve space for shared user data */
 
