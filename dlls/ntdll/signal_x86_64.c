@@ -3251,6 +3251,12 @@ void signal_init_process( CONTEXT *context, LPTHREAD_START_ROUTINE entry )
     exit(1);
 }
 
+/**********************************************************************
+ *    signal_init_early
+ */
+void signal_init_early(void)
+{
+}
 
 /**********************************************************************
  *              RtlAddFunctionTable   (NTDLL.@)
