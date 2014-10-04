@@ -178,8 +178,13 @@ static int VIRTUAL_GetUnixProt( BYTE vprot )
     {
         if (vprot & VPROT_READ) prot |= PROT_READ;
         if (vprot & VPROT_WRITE) prot |= PROT_WRITE | PROT_READ;
-        if (vprot & VPROT_WRITECOPY) prot |= PROT_WRITE | PROT_READ;
         if (vprot & VPROT_EXEC) prot |= PROT_EXEC | PROT_READ;
+#if defined(__i386__)
+        if (vprot & VPROT_WRITECOPY) prot = (prot & ~PROT_WRITE) | PROT_READ;
+#else
+        /* FIXME: Architecture needs implementation of signal_init_early. */
+        if (vprot & VPROT_WRITECOPY) prot |= PROT_WRITE | PROT_READ;
+#endif
         if (vprot & VPROT_WRITEWATCH) prot &= ~PROT_WRITE;
     }
     if (!prot) prot = PROT_NONE;
@@ -1488,11 +1493,16 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
     {
         void *page = ROUND_ADDR( addr, page_mask );
         BYTE *vprot = &view->prot[((const char *)page - (const char *)view->base) >> page_shift];
-        if ((err & EXCEPTION_WRITE_FAULT) && (view->protect & VPROT_WRITEWATCH))
+        if (err & EXCEPTION_WRITE_FAULT)
         {
-            if (*vprot & VPROT_WRITEWATCH)
+            if ((view->protect & VPROT_WRITEWATCH) && (*vprot & VPROT_WRITEWATCH))
             {
                 *vprot &= ~VPROT_WRITEWATCH;
+                VIRTUAL_SetProt( view, page, page_size, *vprot );
+            }
+            if (*vprot & VPROT_WRITECOPY)
+            {
+                *vprot = (*vprot & ~VPROT_WRITECOPY) | VPROT_WRITE;
                 VIRTUAL_SetProt( view, page, page_size, *vprot );
             }
             /* ignore fault if page is writable now */
@@ -1703,12 +1713,14 @@ SIZE_T CDECL wine_uninterrupted_write_memory( void *addr, const void *buffer, SI
                  * exception. Similar to virtual_handle_fault. */
                 if (!(VIRTUAL_GetUnixProt( *p ) & PROT_WRITE))
                 {
-                    if (!(view->protect & VPROT_WRITEWATCH))
-                        break;
-
-                    if (*p & VPROT_WRITEWATCH)
+                    if ((view->protect & VPROT_WRITEWATCH) && (*p & VPROT_WRITEWATCH))
                     {
                         *p &= ~VPROT_WRITEWATCH;
+                        VIRTUAL_SetProt( view, page, page_size, *p );
+                    }
+                    if (*p & VPROT_WRITECOPY)
+                    {
+                        *p = (*p & ~VPROT_WRITECOPY) | VPROT_WRITE;
                         VIRTUAL_SetProt( view, page, page_size, *p );
                     }
                     /* ignore fault if page is writable now */
