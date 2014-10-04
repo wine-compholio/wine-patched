@@ -303,6 +303,21 @@ static const char *VIRTUAL_GetProtStr( BYTE prot )
     return buffer;
 }
 
+/* This might look like a hack, but it actually isn't - the 'experimental' version
+ * is correct, but it already has revealed a couple of additional Wine bugs, which
+ * were not triggered before, and there are probably some more.
+ * To avoid breaking Wine for everyone, the new correct implementation has to be
+ * manually enabled, until it is tested a bit more. */
+static inline BOOL experimental_WRITECOPY( void )
+{
+    static int enabled = -1;
+    if (enabled == -1)
+    {
+        const char *str = getenv("STAGING_WRITECOPY");
+        enabled = str && (atoi(str) != 0);
+    }
+    return enabled;
+}
 
 /***********************************************************************
  *           VIRTUAL_GetUnixProt
@@ -316,8 +331,19 @@ static int VIRTUAL_GetUnixProt( BYTE vprot )
     {
         if (vprot & VPROT_READ) prot |= PROT_READ;
         if (vprot & VPROT_WRITE) prot |= PROT_WRITE | PROT_READ;
-        if (vprot & VPROT_WRITECOPY) prot |= PROT_WRITE | PROT_READ;
         if (vprot & VPROT_EXEC) prot |= PROT_EXEC | PROT_READ;
+#if defined(__i386__)
+        if (vprot & VPROT_WRITECOPY)
+        {
+            if (experimental_WRITECOPY())
+                prot = (prot & ~PROT_WRITE) | PROT_READ;
+            else
+                prot |= PROT_WRITE | PROT_READ;
+        }
+#else
+        /* FIXME: Architecture needs implementation of signal_init_early. */
+        if (vprot & VPROT_WRITECOPY) prot |= PROT_WRITE | PROT_READ;
+#endif
         if (vprot & VPROT_WRITEWATCH) prot &= ~PROT_WRITE;
     }
     if (!prot) prot = PROT_NONE;
@@ -1785,11 +1811,16 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
     {
         void *page = ROUND_ADDR( addr, page_mask );
         BYTE vprot = get_page_vprot( page );
-        if ((err & EXCEPTION_WRITE_FAULT) && (view->protect & VPROT_WRITEWATCH))
+        if (err & EXCEPTION_WRITE_FAULT)
         {
-            if (vprot & VPROT_WRITEWATCH)
+            if ((view->protect & VPROT_WRITEWATCH) && (vprot & VPROT_WRITEWATCH))
             {
                 set_page_vprot_bits( page, page_size, 0, VPROT_WRITEWATCH );
+                mprotect_range( view, page, page_size, 0, 0 );
+            }
+            if (vprot & VPROT_WRITECOPY)
+            {
+                set_page_vprot_bits( page, page_size, VPROT_WRITE, VPROT_WRITECOPY );
                 mprotect_range( view, page, page_size, 0, 0 );
             }
             /* ignore fault if page is writable now */
@@ -2012,6 +2043,7 @@ NTSTATUS CDECL wine_uninterrupted_write_memory( void *addr, const void *buffer, 
     struct file_view *view;
     sigset_t sigset;
     NTSTATUS ret = STATUS_ACCESS_VIOLATION;
+    BOOL writecopy = FALSE;
 
     if (!size) return STATUS_SUCCESS;
 
@@ -2023,12 +2055,17 @@ NTSTATUS CDECL wine_uninterrupted_write_memory( void *addr, const void *buffer, 
 
         for (i = 0; i < total; i += page_size)
         {
-            int prot = VIRTUAL_GetUnixProt( get_page_vprot( page + i ) & ~VPROT_WRITEWATCH );
-            if (!(prot & PROT_WRITE)) goto done;
+            BYTE vprot = get_page_vprot( page + i ) & ~VPROT_WRITEWATCH;
+            if (vprot & VPROT_WRITECOPY)
+            {
+                vprot = (vprot & ~VPROT_WRITECOPY) | VPROT_WRITE;
+                writecopy = TRUE;
+            }
+            if (!(VIRTUAL_GetUnixProt( vprot ) & PROT_WRITE)) goto done;
         }
-        if (view->protect & VPROT_WRITEWATCH)  /* enable write access by clearing write watches */
+        if ((view->protect & VPROT_WRITEWATCH) || writecopy)  /* enable write access by clearing write watches */
         {
-            set_page_vprot_bits( addr, size, 0, VPROT_WRITEWATCH );
+            set_page_vprot_bits( addr, size, VPROT_WRITE, VPROT_WRITECOPY | VPROT_WRITEWATCH );
             mprotect_range( view, addr, size, 0, 0 );
         }
         if (buffer) memcpy( addr, buffer, size );
