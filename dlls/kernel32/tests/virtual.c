@@ -3298,9 +3298,7 @@ static void test_CreateFileMapping_protection(void)
                 SetLastError(0xdeadbeef);
                 ret = VirtualQuery(base, &info, sizeof(info));
                 ok(ret, "VirtualQuery failed %d\n", GetLastError());
-                /* FIXME: remove the condition below once Wine is fixed */
-                todo_wine_if (td[i].prot == PAGE_WRITECOPY || td[i].prot == PAGE_EXECUTE_WRITECOPY)
-                    ok(info.Protect == td[i].prot_after_write, "%d: got %#x != expected %#x\n", i, info.Protect, td[i].prot_after_write);
+                ok(info.Protect == td[i].prot_after_write, "%d: got %#x != expected %#x\n", i, info.Protect, td[i].prot_after_write);
             }
         }
         else
@@ -3314,9 +3312,7 @@ static void test_CreateFileMapping_protection(void)
         SetLastError(0xdeadbeef);
         ret = VirtualProtect(base, si.dwPageSize, PAGE_NOACCESS, &old_prot);
         ok(ret, "%d: VirtualProtect error %d\n", i, GetLastError());
-        /* FIXME: remove the condition below once Wine is fixed */
-        todo_wine_if (td[i].prot == PAGE_WRITECOPY || td[i].prot == PAGE_EXECUTE_WRITECOPY)
-            ok(old_prot == td[i].prot_after_write, "%d: got %#x != expected %#x\n", i, old_prot, td[i].prot_after_write);
+        ok(old_prot == td[i].prot_after_write, "%d: got %#x != expected %#x\n", i, old_prot, td[i].prot_after_write);
     }
 
     UnmapViewOfFile(base);
