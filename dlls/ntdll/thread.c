@@ -224,6 +224,7 @@ HANDLE thread_init(void)
 #endif
 
     virtual_init();
+    signal_init_early();
 
     /* reserve space for shared user data */
 
