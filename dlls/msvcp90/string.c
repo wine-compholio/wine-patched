@@ -2712,10 +2712,11 @@ basic_string_wchar* __thiscall MSVCP_basic_string_wchar_ctor_ptr_ptr(basic_strin
 /* ??1?$basic_string@GU?$char_traits@G@std@@V?$allocator@G@2@@std@@QAE@XZ */
 /* ??1?$basic_string@GU?$char_traits@G@std@@V?$allocator@G@2@@std@@QEAA@XZ */
 DEFINE_THISCALL_WRAPPER(MSVCP_basic_string_wchar_dtor, 4)
-void __thiscall MSVCP_basic_string_wchar_dtor(basic_string_wchar *this)
+void* __thiscall MSVCP_basic_string_wchar_dtor(basic_string_wchar *this)
 {
     TRACE("%p\n", this);
     basic_string_wchar_tidy(this, TRUE, 0);
+    return NULL;
 }
 
 /* ?size@?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@QBEIXZ */
