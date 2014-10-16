@@ -1678,6 +1678,13 @@ enum char_info_mode
     int          protect;       /* protection flags */
     int          header_size;   /* header size (for VPROT_IMAGE mapping) */
     client_ptr_t base;          /* default base addr (for VPROT_IMAGE mapping) */
+    client_ptr_t entry;         /* entry point addr (for PE image mapping) */
+    short int    subsystem;     /* subsystem (for PE image mapping) */
+    short int    major_subsystem; /* major subsystem version (for PE image mapping) */
+    short int    minor_subsystem; /* minor subsystem version (for PE image mapping) */
+    short int    characteristics; /* image characteristics (for PE image mapping) */
+    short int    dll_characteristics; /* dll characteristics (for PE image mapping) */
+    short int    machine;       /* image machine type (for PE image mapping) */
     obj_handle_t mapping;       /* duplicate mapping handle unless removable */
     obj_handle_t shared_file;   /* shared mapping file handle */
 @END
