@@ -64,6 +64,15 @@ struct mapping
     enum cpu_type   cpu;             /* client CPU (for PE image mapping) */
     int             header_size;     /* size of headers (for PE image mapping) */
     client_ptr_t    base;            /* default base addr (for PE image mapping) */
+    client_ptr_t    entry;           /* entry point addr (for PE image mapping) */
+    mem_size_t      stack_reserve;   /* stack reserve (for PE image mapping) */
+    mem_size_t      stack_commit;    /* stack commit (for PE image mapping) */
+    int             subsystem;       /* subsystem (for PE image mapping) */
+    int             major_subsystem; /* major subsystem version (for PE image mapping) */
+    int             minor_subsystem; /* minor subsystem version (for PE image mapping) */
+    int             characteristics; /* image characteristics (for PE image mapping) */
+    int             dll_characteristics; /* dll characteristics (for PE image mapping) */
+    int             machine;         /* image machine type (for PE image mapping) */
     struct ranges  *committed;       /* list of committed ranges in this mapping */
     struct file    *shared_file;     /* temp file for shared PE mapping */
     struct list     shared_entry;    /* entry in global shared PE mappings list */
@@ -432,17 +441,34 @@ static unsigned int get_image_params( struct mapping *mapping, int unix_fd, int 
         return STATUS_INVALID_IMAGE_FORMAT;
     }
 
+    mapping->characteristics = nt.FileHeader.Characteristics;
+    mapping->machine         = nt.FileHeader.Machine;
+
     switch (nt.opt.hdr32.Magic)
     {
     case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
         mapping->size        = ROUND_SIZE( nt.opt.hdr32.SizeOfImage );
         mapping->base        = nt.opt.hdr32.ImageBase;
         mapping->header_size = nt.opt.hdr32.SizeOfHeaders;
+        mapping->entry               = mapping->base + nt.opt.hdr32.AddressOfEntryPoint;
+        mapping->stack_reserve       = nt.opt.hdr32.SizeOfStackReserve;
+        mapping->stack_commit        = nt.opt.hdr32.SizeOfStackCommit;
+        mapping->subsystem           = nt.opt.hdr32.Subsystem;
+        mapping->major_subsystem     = nt.opt.hdr32.MajorSubsystemVersion;
+        mapping->minor_subsystem     = nt.opt.hdr32.MinorSubsystemVersion;
+        mapping->dll_characteristics = nt.opt.hdr32.DllCharacteristics;
         break;
     case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
         mapping->size        = ROUND_SIZE( nt.opt.hdr64.SizeOfImage );
         mapping->base        = nt.opt.hdr64.ImageBase;
         mapping->header_size = nt.opt.hdr64.SizeOfHeaders;
+        mapping->entry               = mapping->base + nt.opt.hdr64.AddressOfEntryPoint;
+        mapping->stack_reserve       = nt.opt.hdr64.SizeOfStackReserve;
+        mapping->stack_commit        = nt.opt.hdr64.SizeOfStackCommit;
+        mapping->subsystem           = nt.opt.hdr64.Subsystem;
+        mapping->major_subsystem     = nt.opt.hdr64.MajorSubsystemVersion;
+        mapping->minor_subsystem     = nt.opt.hdr64.MinorSubsystemVersion;
+        mapping->dll_characteristics = nt.opt.hdr64.DllCharacteristics;
         break;
     }
 
@@ -492,6 +518,15 @@ static struct object *create_mapping( struct directory *root, const struct unico
                                                SACL_SECURITY_INFORMATION );
     mapping->header_size = 0;
     mapping->base        = 0;
+    mapping->entry               = 0;
+    mapping->stack_reserve       = 0;
+    mapping->stack_commit        = 0;
+    mapping->subsystem           = 0;
+    mapping->major_subsystem     = 0;
+    mapping->minor_subsystem     = 0;
+    mapping->characteristics     = 0;
+    mapping->dll_characteristics = 0;
+    mapping->machine             = 0;
     mapping->fd          = NULL;
     mapping->shared_file = NULL;
     mapping->committed   = NULL;
@@ -729,6 +764,13 @@ DECL_HANDLER(get_mapping_info)
     reply->protect     = mapping->protect;
     reply->header_size = mapping->header_size;
     reply->base        = mapping->base;
+    reply->entry               = mapping->entry;
+    reply->subsystem           = mapping->subsystem;
+    reply->major_subsystem     = mapping->major_subsystem;
+    reply->minor_subsystem     = mapping->minor_subsystem;
+    reply->characteristics     = mapping->characteristics;
+    reply->dll_characteristics = mapping->dll_characteristics;
+    reply->machine             = mapping->machine;
     reply->shared_file = 0;
     if ((fd = get_obj_fd( &mapping->obj )))
     {
