@@ -1792,7 +1792,7 @@ typedef enum _SECTION_INFORMATION_CLASS
 } SECTION_INFORMATION_CLASS;
 
 typedef struct _SECTION_BASIC_INFORMATION {
-  ULONG BaseAddress;
+  PVOID BaseAddress;
   ULONG Attributes;
   LARGE_INTEGER Size;
 } SECTION_BASIC_INFORMATION, *PSECTION_BASIC_INFORMATION;
@@ -1800,14 +1800,16 @@ typedef struct _SECTION_BASIC_INFORMATION {
 typedef struct _SECTION_IMAGE_INFORMATION {
   PVOID EntryPoint;
   ULONG StackZeroBits;
-  ULONG StackReserved;
-  ULONG StackCommit;
+  SIZE_T StackReserved;
+  SIZE_T StackCommit;
   ULONG ImageSubsystem;
   WORD SubsystemVersionLow;
   WORD SubsystemVersionHigh;
   ULONG Unknown1;
-  ULONG ImageCharacteristics;
-  ULONG ImageMachineType;
+  USHORT ImageCharacteristics;
+  USHORT DllCharacteristics;
+  USHORT ImageMachineType;
+  BOOLEAN ImageContainsCode;
   ULONG Unknown2[3];
 } SECTION_IMAGE_INFORMATION, *PSECTION_IMAGE_INFORMATION;
 
