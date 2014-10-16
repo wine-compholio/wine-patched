@@ -656,26 +656,6 @@ NTSTATUS WINAPI SYSCALL(NtPrivilegeCheck)(
 }
 
 /*
- *	Section
- */
-
-/******************************************************************************
- *  NtQuerySection	[NTDLL.@]
- */
-DEFINE_SYSCALL_ENTRYPOINT( NtQuerySection, 5 );
-NTSTATUS WINAPI SYSCALL(NtQuerySection)(
-	IN HANDLE SectionHandle,
-	IN SECTION_INFORMATION_CLASS SectionInformationClass,
-	OUT PVOID SectionInformation,
-	IN ULONG Length,
-	OUT PULONG ResultLength)
-{
-	FIXME("(%p,%d,%p,0x%08x,%p) stub!\n",
-	SectionHandle,SectionInformationClass,SectionInformation,Length,ResultLength);
-	return 0;
-}
-
-/*
  *	ports
  */
 
