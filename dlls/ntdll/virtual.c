@@ -2614,6 +2614,101 @@ NTSTATUS WINAPI NtOpenSection( HANDLE *handle, ACCESS_MASK access, const OBJECT_
 
 
 /***********************************************************************
+ *             NtQuerySection   (NTDLL.@)
+ */
+NTSTATUS WINAPI NtQuerySection( HANDLE handle, SECTION_INFORMATION_CLASS info_class,
+                                PVOID buffer, ULONG len, PULONG ret_len )
+{
+    HANDLE dup_mapping, shared_file;
+    unsigned protect;
+    LARGE_INTEGER size;
+    void *entry;
+    short machine, subsystem;
+    short major_subsystem, minor_subsystem;
+    short characteristics, dll_characteristics;
+    NTSTATUS res;
+
+    if (info_class == SectionBasicInformation)
+    {
+        if (len < sizeof(SECTION_BASIC_INFORMATION))
+            return STATUS_INFO_LENGTH_MISMATCH;
+    }
+    else if (info_class == SectionImageInformation)
+    {
+        if (len < sizeof(SECTION_IMAGE_INFORMATION))
+            return STATUS_INFO_LENGTH_MISMATCH;
+    }
+    else
+    {
+        FIXME("%p,info_class=%d,%p,%u,%p) Unknown information class\n",
+              handle, info_class, buffer, len, ret_len);
+        return STATUS_INVALID_INFO_CLASS;
+    }
+
+    if (!buffer) return STATUS_ACCESS_VIOLATION;
+
+    SERVER_START_REQ( get_mapping_info )
+    {
+        req->handle = wine_server_obj_handle( handle );
+        req->access = SECTION_QUERY;
+        res = wine_server_call( req );
+        protect             = reply->protect;
+        size.QuadPart       = reply->size;
+        dup_mapping         = wine_server_ptr_handle( reply->mapping );
+        shared_file         = wine_server_ptr_handle( reply->shared_file );
+        entry               = wine_server_get_ptr( reply->entry );
+        subsystem           = reply->subsystem;
+        major_subsystem     = reply->major_subsystem;
+        minor_subsystem     = reply->minor_subsystem;
+        characteristics     = reply->characteristics;
+        dll_characteristics = reply->dll_characteristics;
+        machine             = reply->machine;
+    }
+    SERVER_END_REQ;
+    if (res) return res;
+
+    if (dup_mapping) NtClose( dup_mapping );
+    if (shared_file) NtClose( shared_file );
+
+    if (info_class == SectionBasicInformation)
+    {
+        SECTION_BASIC_INFORMATION *info = buffer;
+
+        info->BaseAddress = NULL;
+        info->Size        = size;
+        info->Attributes  = (protect & VPROT_COMMITTED) ? SEC_COMMIT : SEC_RESERVE;
+        if (protect & VPROT_NOCACHE) info->Attributes |= SEC_NOCACHE;
+        if (protect & VPROT_IMAGE)   info->Attributes |= SEC_IMAGE;
+        /* FIXME: SEC_FILE */
+        if (ret_len) *ret_len = sizeof(*info);
+    }
+    else
+    {
+        SECTION_IMAGE_INFORMATION *info = buffer;
+
+        if (!(protect & VPROT_IMAGE))
+            return STATUS_SECTION_NOT_IMAGE;
+
+        memset( info, 0, sizeof(*info) );
+        info->TransferAddress      = entry;
+        info->ZeroBits             = 0; /* FIXME */
+        info->MaximumStackSize     = 0; /* FIXME */
+        info->CommittedStackSize   = 0; /* FIXME */
+        info->SubSystemType        = subsystem;
+        info->SubsystemVersionHigh = major_subsystem;
+        info->SubsystemVersionLow  = minor_subsystem;
+        info->ImageCharacteristics = characteristics;
+        info->DllCharacteristics   = dll_characteristics;
+        info->Machine              = machine;
+        info->ImageContainsCode    = TRUE; /* FIXME */
+        if (ret_len) *ret_len = sizeof(*info);
+    }
+
+    return STATUS_SUCCESS;
+}
+
+
+/***********************************************************************
  *             NtMapViewOfSection   (NTDLL.@)
  *             ZwMapViewOfSection   (NTDLL.@)
  */
