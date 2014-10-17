@@ -412,6 +412,776 @@ static void test_string_conversion(LPBOOL bUsedDefaultChar)
     ok(GetLastError() == 0xdeadbeef, "GetLastError() is %u\n", GetLastError());
 }
 
+static void test_utf7_encoding(void)
+{
+    struct utf16_to_utf7_test
+    {
+        WCHAR utf16[1024];
+        int utf16_len;
+        char utf7[1024];
+        int utf7_len;
+    };
+
+    static const struct utf16_to_utf7_test utf16_to_utf7_tests[] = {
+        /* tests some valid UTF-16 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            4,
+            "+T2BZfVQX-",
+            11
+        },
+        /* tests some invalid UTF-16 */
+        /* (stray lead surrogate) */
+        {
+            {0xD801,0},
+            2,
+            "+2AE-",
+            6
+        },
+        /* tests some more invalid UTF-16 */
+        /* (codepoint does not exist) */
+        {
+            {0xFF00,0},
+            2,
+            "+/wA-",
+            6
+        }
+    };
+
+    struct wcstombs_test
+    {
+        /* inputs */
+        WCHAR src[1024];
+        int srclen;
+        int dstlen;
+        /* expected outputs */
+        char dst[1024];
+        int chars_written;
+        int len;
+        DWORD error;
+    };
+
+    static const struct wcstombs_test wcstombs_tests[] = {
+        /* tests srclen > strlenW(src) */
+        {
+            {'a',0,'b',0},
+            4,
+            1023,
+            "a\0b",
+            4,
+            4,
+            0xdeadbeef
+        },
+        /* tests srclen < strlenW(src) with directly encodable chars */
+        {
+            {'h','e','l','l','o',0},
+            2,
+            1023,
+            "he",
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlenW(src) with non-directly encodable chars */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            2,
+            1023,
+            "+T2BZfQ-",
+            8,
+            8,
+            0xdeadbeef
+        },
+        /* tests a buffer that runs out while not encoding a UTF-7 sequence */
+        {
+            {'h','e','l','l','o',0},
+            -1,
+            2,
+            "he",
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out after writing 1 base64 character */
+        {
+            {0x4F60,0x0001,0},
+            -1,
+            2,
+            "+T",
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out after writing 2 base64 characters */
+        {
+            {0x4F60,0x0001,0},
+            -1,
+            3,
+            "+T2",
+            3,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out after writing 3 base64 characters */
+        {
+            {0x4F60,0x0001,0},
+            -1,
+            4,
+            "+T2A",
+            4,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out just after writing the + sign */
+        {
+            {0x4F60,0},
+            -1,
+            1,
+            "+",
+            1,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out just before writing the - sign */
+        /* the number of bits to encode here is not evenly divisible by 6 */
+        {
+            {0x4F60,0},
+            -1,
+            4,
+            "+T2",
+            3,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out just before writing the - sign */
+        /* the number of bits to encode here is evenly divisible by 6 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            9,
+            "+T2BZfVQX",
+            9,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out in the middle of escaping a + sign */
+        {
+            {'+',0},
+            -1,
+            1,
+            "+",
+            1,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        }
+    };
+
+    static const BOOL directly_encodable_table[] = {
+        /* \0     \x01   \x02   \x03   \x04   \x05   \x06   \a   */
+           TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
+        /* \b     \t     \n     \v     \f     \r     \x0E   \x0F */
+           FALSE, TRUE,  TRUE,  FALSE, FALSE, TRUE,  FALSE, FALSE,
+        /* \x10   \x11   \x12   \x13   \x14   \x15   \x16   \x17 */
+           FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
+        /* \x18   \x19   \x1A   \e     \x1C   \x1D   \x1E   \x1F */
+           FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
+        /*        !      "      #      $      %      &      '    */
+           TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE,
+        /* (      )      *      +      ,      -      .      /    */
+           TRUE,  TRUE,  FALSE, TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* 0      1      2      3      4      5      6      7    */
+           TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* 8      9      :      ;      <      =      >      ?    */
+           TRUE,  TRUE,  TRUE,  FALSE, FALSE, FALSE, FALSE, TRUE,
+        /* @      A      B      C      D      E      F      G    */
+           FALSE, TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* H      I      J      K      L      M      N      O    */
+           TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* P      Q      R      S      T      U      V      W    */
+           TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* X      Y      Z      [      \      ]      ^      _    */
+           TRUE,  TRUE,  TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE,
+        /* `      a      b      c      d      e      f      g    */
+           FALSE, TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* h      i      j      k      l      m      n      o    */
+           TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* p      q      r      s      t      u      v      w    */
+           TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,
+        /* x      y      z                                       */
+           TRUE,  TRUE,  TRUE
+    };
+
+    static const char base64_encoding_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    int i;
+
+    for (i = 0; i < sizeof(utf16_to_utf7_tests) / sizeof(struct utf16_to_utf7_test); i++)
+    {
+        char c_buffer[1024];
+        WCHAR w_buffer[1024];
+        int len;
+
+        c_buffer[sizeof(c_buffer) - 1] = 0;
+        w_buffer[sizeof(w_buffer) / sizeof(WCHAR) - 1] = 0;
+
+        /* test string conversion with srclen=-1 */
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -1, c_buffer, sizeof(c_buffer), NULL, NULL);
+        ok(len == utf16_to_utf7_tests[i].utf7_len &&
+           strcmp(c_buffer, utf16_to_utf7_tests[i].utf7) == 0 &&
+           c_buffer[len] == '#',
+           "utf16_to_utf7_test failure i=%i dst=\"%s\" len=%i\n", i, c_buffer, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test string conversion with srclen=-2 */
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -2, c_buffer, sizeof(c_buffer), NULL, NULL);
+        ok(len == utf16_to_utf7_tests[i].utf7_len &&
+           strcmp(c_buffer, utf16_to_utf7_tests[i].utf7) == 0 &&
+           c_buffer[len] == '#',
+           "utf16_to_utf7_test failure i=%i dst=\"%s\" len=%i\n", i, c_buffer, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test string conversion with dstlen=len-1 */
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -1, c_buffer, utf16_to_utf7_tests[i].utf7_len - 1, NULL, NULL);
+        ok(len == 0 &&
+           memcmp(c_buffer, utf16_to_utf7_tests[i].utf7, utf16_to_utf7_tests[i].utf7_len - 1) == 0 &&
+           c_buffer[utf16_to_utf7_tests[i].utf7_len - 1] == '#',
+           "utf16_to_utf7_test failure i=%i dst=\"%s\" len=%i\n", i, c_buffer, len);
+        ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "error=%x\n", GetLastError());
+
+        /* test string conversion with dstlen=len */
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -1, c_buffer, utf16_to_utf7_tests[i].utf7_len, NULL, NULL);
+        ok(len == utf16_to_utf7_tests[i].utf7_len &&
+           strcmp(c_buffer, utf16_to_utf7_tests[i].utf7) == 0 &&
+           c_buffer[len] == '#',
+           "utf16_to_utf7_test failure i=%i dst=\"%s\" len=%i\n", i, c_buffer, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test string conversion with dstlen=len+1 */
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -1, c_buffer, utf16_to_utf7_tests[i].utf7_len + 1, NULL, NULL);
+        ok(len == utf16_to_utf7_tests[i].utf7_len &&
+           strcmp(c_buffer, utf16_to_utf7_tests[i].utf7) == 0 &&
+           c_buffer[len] == '#',
+           "utf16_to_utf7_test failure i=%i dst=\"%s\" len=%i\n", i, c_buffer, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test dry run with dst=NULL and dstlen=0 */
+        memset(c_buffer, '#', sizeof(c_buffer));
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -1, NULL, 0, NULL, NULL);
+        ok(len == utf16_to_utf7_tests[i].utf7_len &&
+           c_buffer[0] == '#',
+           "utf16_to_utf7_test failure i=%i len=%i\n", i, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test dry run with dst!=NULL and dstlen=0 */
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, utf16_to_utf7_tests[i].utf16, -1, c_buffer, 0, NULL, NULL);
+        ok(len == utf16_to_utf7_tests[i].utf7_len &&
+           c_buffer[0] == '#',
+           "utf16_to_utf7_test failure i=%i len=%i\n", i, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* all simple utf16-to-utf7 tests can be reversed to make utf7-to-utf16 tests */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf16_to_utf7_tests[i].utf7, -1, w_buffer, sizeof(w_buffer) / sizeof(WCHAR));
+        ok(len == utf16_to_utf7_tests[i].utf16_len &&
+           memcmp(w_buffer, utf16_to_utf7_tests[i].utf16, len * sizeof(WCHAR)) == 0 &&
+           w_buffer[len] == 0x2323,
+           "utf16_to_utf7_test failure i=%i dst=%s len=%i\n", i, wine_dbgstr_w(w_buffer), len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+    }
+
+    for (i = 0; i < sizeof(wcstombs_tests) / sizeof(struct wcstombs_test); i++)
+    {
+        char c_buffer[1024];
+        int len;
+
+        c_buffer[sizeof(c_buffer) - 1] = 0;
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        SetLastError(0xdeadbeef);
+
+        len = WideCharToMultiByte(CP_UTF7, 0, wcstombs_tests[i].src, wcstombs_tests[i].srclen, c_buffer, wcstombs_tests[i].dstlen, NULL, NULL);
+        ok(len == wcstombs_tests[i].len &&
+           memcmp(c_buffer, wcstombs_tests[i].dst, wcstombs_tests[i].chars_written) == 0 &&
+           c_buffer[wcstombs_tests[i].chars_written] == '#',
+           "wcstombs_test failure i=%i len=%i dst=\"%s\"\n", i, len, c_buffer);
+        ok(GetLastError() == wcstombs_tests[i].error, "error=%x\n", GetLastError());
+    }
+
+    /* test which characters are encoded if surrounded by non-encoded characters */
+    for (i = 0; i <= 0xFFFF; i++)
+    {
+        WCHAR w_buffer[] = {' ',i,' ',0};
+        char c_buffer[1024];
+        int len;
+
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        c_buffer[sizeof(c_buffer) - 1] = 0;
+        SetLastError(0xdeadbeef);
+
+        len = WideCharToMultiByte(CP_UTF7, 0, w_buffer, sizeof(w_buffer) / sizeof(WCHAR), c_buffer, 1023, NULL, NULL);
+
+        if (i == '+')
+        {
+            /* escapes */
+            ok(len == 5 &&
+               memcmp(c_buffer, " +- \0#", 6) == 0,
+               "non-encoded surrounding characters failure i='+' len=%i dst=\"%s\"\n", len, c_buffer);
+        }
+        else if (i <= 'z' && directly_encodable_table[i])
+        {
+            /* encodes directly */
+            ok(len == 4 &&
+               c_buffer[0] == ' ' && c_buffer[1] == i && memcmp(c_buffer + 2, " \0#", 3) == 0,
+               "non-encoded surrounding characters failure i=0x%04x len=%i dst=\"%s\"\n", i, len, c_buffer);
+        }
+        else
+        {
+            /* base64-encodes */
+            ok(len == 8 &&
+               memcmp(c_buffer, " +", 2) == 0 &&
+               c_buffer[2] == base64_encoding_table[(i & 0xFC00) >> 10] &&
+               c_buffer[3] == base64_encoding_table[(i & 0x03F0) >> 4] &&
+               c_buffer[4] == base64_encoding_table[(i & 0x000F) << 2] &&
+               memcmp(c_buffer + 5, "- \0#", 4) == 0,
+               "non-encoded surrounding characters failure i=0x%04x len=%i dst=\"%s\" %c\n", i, len, c_buffer, base64_encoding_table[i & 0xFC00 >> 10]);
+        }
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+    }
+
+    /* test which one-byte characters are absorbed into surrounding base64 blocks */
+    /* (Windows always ends the base64 block when it encounters a directly encodable character) */
+    for (i = 0; i <= 0xFFFF; i++)
+    {
+        WCHAR w_buffer[] = {0x2672,i,0x2672,0};
+        char c_buffer[1024];
+        int len;
+
+        memset(c_buffer, '#', sizeof(c_buffer) - 1);
+        c_buffer[sizeof(c_buffer) - 1] = 0;
+        SetLastError(0xdeadbeef);
+
+        len = WideCharToMultiByte(CP_UTF7, 0, w_buffer, sizeof(w_buffer) / sizeof(WCHAR), c_buffer, 1023, NULL, NULL);
+
+        if (i == '+')
+        {
+            /* escapes */
+            ok(len == 13 &&
+               memcmp(c_buffer, "+JnI-+-+JnI-\0#", 14) == 0,
+               "encoded surrounding characters failure i='+' len=%i dst=\"%s\"\n", len, c_buffer);
+        }
+        else if (i <= 'z' && directly_encodable_table[i])
+        {
+            /* encodes directly */
+            ok(len == 12 &&
+               memcmp(c_buffer, "+JnI-", 5) == 0 && c_buffer[5] == i && memcmp(c_buffer + 6, "+JnI-\0#", 7) == 0,
+               "encoded surrounding characters failure i=0x%04x len=%i dst=\"%s\"\n", i, len, c_buffer);
+        }
+        else
+        {
+            /* base64-encodes */
+            ok(len == 11 &&
+               memcmp(c_buffer, "+Jn", 3) == 0 &&
+               c_buffer[3] == base64_encoding_table[8 | ((i & 0xC000) >> 14)] &&
+               c_buffer[4] == base64_encoding_table[(i & 0x3F00) >> 8] &&
+               c_buffer[5] == base64_encoding_table[(i & 0x00FC) >> 2] &&
+               c_buffer[6] == base64_encoding_table[((i & 0x0003) << 4) | 2] &&
+               memcmp(c_buffer + 7, "Zy-\0#", 5) == 0,
+               "encoded surrounding characters failure i=0x%04x len=%i dst=\"%s\" %c\n", i, len, c_buffer, base64_encoding_table[8 | ((i & 0xC000) >> 14)]);
+        }
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+    }
+}
+
+static void test_utf7_decoding(void)
+{
+    struct utf7_to_utf16_test
+    {
+        char utf7[1024];
+        WCHAR utf16[1024];
+        int utf16_len;
+    };
+
+    static const struct utf7_to_utf16_test utf7_to_utf16_tests[] = {
+        /* the first 4 tests test ill-formed UTF-7 */
+        /* they also test whether the unfinished byte pair is discarded or not */
+
+        /* 6 bits, not enough for a byte pair */
+        {
+            "+T-+T-+T-hello",
+            {'h','e','l','l','o',0},
+            6
+        },
+        /* 12 bits, not enough for a byte pair */
+        {
+            "+T2-+T2-+T2-hello",
+            {'h','e','l','l','o',0},
+            6
+        },
+        /* 18 bits, not a multiple of 16 and the last bit is a 1 */
+        {
+            "+T2B-+T2B-+T2B-hello",
+            {0x4F60,0x4F60,0x4F60,'h','e','l','l','o',0},
+            9
+        },
+        /* 24 bits, a multiple of 8 but not a multiple of 16 */
+        {
+            "+T2BZ-+T2BZ-+T2BZ-hello",
+            {0x4F60,0x4F60,0x4F60,'h','e','l','l','o',0},
+            9
+        },
+        /* tests UTF-7 followed by characters that should be encoded but aren't */
+        {
+            "+T2BZ-\x82\xFE",
+            {0x4F60,0x0082,0x00FE,0},
+            4
+        }
+    };
+
+    struct mbstowcs_test
+    {
+        /* inputs */
+        char src[1024];
+        int srclen;
+        int dstlen;
+        /* expected outputs */
+        WCHAR dst[1024];
+        int chars_written;
+        int len;
+        DWORD error;
+    };
+
+    static const struct mbstowcs_test mbstowcs_tests[] = {
+        /* tests srclen > strlen(src) */
+        {
+            "a\0b",
+            4,
+            1023,
+            {'a',0,'b',0},
+            4,
+            4,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) outside of a UTF-7 sequence */
+        {
+            "hello",
+            2,
+            1023,
+            {'h','e'},
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) inside of a UTF-7 sequence */
+        {
+            "+T2BZfQ-",
+            4,
+            1023,
+            {0x4F60},
+            1,
+            1,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) right at the beginning of a UTF-7 sequence */
+        {
+            "hi+T2A-",
+            3,
+            1023,
+            {'h','i'},
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) right at the end of a UTF-7 sequence */
+        {
+            "+T2A-hi",
+            5,
+            1023,
+            {0x4F60},
+            1,
+            1,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) at the beginning of an escaped + sign */
+        {
+            "hi+-",
+            3,
+            1023,
+            {'h','i'},
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) at the end of an escaped + sign */
+        {
+            "+-hi",
+            2,
+            1023,
+            {'+'},
+            1,
+            1,
+            0xdeadbeef
+        },
+        /* tests len=0 but no error */
+        {
+            "+",
+            1,
+            1023,
+            {},
+            0,
+            0,
+            0xdeadbeef
+        },
+        /* tests a buffer that runs out while not decoding a UTF-7 sequence */
+        {
+            "hello",
+            -1,
+            2,
+            {'h','e'},
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out in the middle of decoding a UTF-7 sequence */
+        {
+            "+T2BZfQ-",
+            -1,
+            1,
+            {0x4F60},
+            1,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        }
+    };
+
+    static const char base64_decoding_table[] = {
+        /* \0     \x01   \x02   \x03   \x04   \x05   \x06   \a   */
+           -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+        /* \b     \t     \n     \v     \f     \r     \x0E   \x0F */
+           -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+        /* \x10   \x11   \x12   \x13   \x14   \x15   \x16   \x17 */
+           -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+        /* \x18   \x19   \x1A   \e     \x1C   \x1D   \x1E   \x1F */
+           -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+        /*        !      "      #      $      %      &      '    */
+           -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
+        /* (      )      *      +      ,      -      .      /    */
+           -1,    -1,    -1,    62,    -1,    -1,    -1,    63,
+        /* 0      1      2      3      4      5      6      7    */
+           52,    53,    54,    55,    56,    57,    58,    59,
+        /* 8      9      :      ;      <      =      >      ?    */
+           60,    61,    -1,    -1,    -1,    -1,    -1,    -1,
+        /* @      A      B      C      D      E      F      G    */
+           -1,    0,     1,     2,     3,     4,     5,     6,
+        /* H      I      J      K      L      M      N      O    */
+           7,     8,     9,     10,    11,    12,    13,    14,
+        /* P      Q      R      S      T      U      V      W    */
+           15,    16,    17,    18,    19,    20,    21,    22,
+        /* X      Y      Z      [      \      ]      ^      _    */
+           23,    24,    25,    -1,    -1,    -1,    -1,    -1,
+        /* `      a      b      c      d      e      f      g    */
+           -1,    26,    27,    28,    29,    30,    31,    32,
+        /* h      i      j      k      l      m      n      o    */
+           33,    34,    35,    36,    37,    38,    39,    40,
+        /* p      q      r      s      t      u      v      w    */
+           41,    42,    43,    44,    45,    46,    47,    48,
+        /* x      y      z      {      |      }      ~      \x7F */
+           49,    50,    51,    -1,    -1,    -1,    -1,    -1
+    };
+
+    int i;
+
+    for (i = 0; i < sizeof(utf7_to_utf16_tests) / sizeof(struct utf7_to_utf16_test); i++)
+    {
+        WCHAR w_buffer[1024];
+        int len;
+
+        w_buffer[sizeof(w_buffer) / sizeof(WCHAR) - 1] = 0;
+
+        /* test string conversion with srclen=-1 */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -1, w_buffer, sizeof(w_buffer) / sizeof(WCHAR));
+        ok(len == utf7_to_utf16_tests[i].utf16_len &&
+           winetest_strcmpW(w_buffer, utf7_to_utf16_tests[i].utf16) == 0 &&
+           w_buffer[len] == 0x2323,
+           "utf7_to_utf16_test failure i=%i dst=%s len=%i\n", i, wine_dbgstr_w(w_buffer), len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test string conversion with srclen=-2 */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -2, w_buffer, sizeof(w_buffer) / sizeof(WCHAR));
+        ok(len == utf7_to_utf16_tests[i].utf16_len &&
+           winetest_strcmpW(w_buffer, utf7_to_utf16_tests[i].utf16) == 0 &&
+           w_buffer[len] == 0x2323,
+           "utf7_to_utf16_test failure i=%i dst=%s len=%i\n", i, wine_dbgstr_w(w_buffer), len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test string conversion with dstlen=len-1 */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -1, w_buffer, utf7_to_utf16_tests[i].utf16_len - 1);
+        ok(len == 0 &&
+           memcmp(w_buffer, utf7_to_utf16_tests[i].utf16, (utf7_to_utf16_tests[i].utf16_len - 1) * sizeof(WCHAR)) == 0 &&
+           w_buffer[utf7_to_utf16_tests[i].utf16_len - 1] == 0x2323,
+           "utf7_to_utf16_test failure i=%i dst=%s len=%i\n", i, wine_dbgstr_w(w_buffer), len);
+        ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "error=%x\n", GetLastError());
+
+        /* test string conversion with dstlen=len */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -1, w_buffer, utf7_to_utf16_tests[i].utf16_len);
+        ok(len == utf7_to_utf16_tests[i].utf16_len &&
+           winetest_strcmpW(w_buffer, utf7_to_utf16_tests[i].utf16) == 0 &&
+           w_buffer[len] == 0x2323,
+           "utf7_to_utf16_test failure i=%i dst=%s len=%i\n", i, wine_dbgstr_w(w_buffer), len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test string conversion with dstlen=len+1 */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -1, w_buffer, utf7_to_utf16_tests[i].utf16_len + 1);
+        ok(len == utf7_to_utf16_tests[i].utf16_len &&
+           winetest_strcmpW(w_buffer, utf7_to_utf16_tests[i].utf16) == 0 &&
+           w_buffer[len] == 0x2323,
+           "utf7_to_utf16_test failure i=%i dst=%s len=%i\n", i, wine_dbgstr_w(w_buffer), len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test dry run with dst=NULL and dstlen=0 */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -1, NULL, 0);
+        ok(len == utf7_to_utf16_tests[i].utf16_len &&
+           w_buffer[0] == 0x2323,
+           "utf7_to_utf16_test failure i=%i len=%i\n", i, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+
+        /* test dry run with dst!=NULL and dstlen=0 */
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+        len = MultiByteToWideChar(CP_UTF7, 0, utf7_to_utf16_tests[i].utf7, -1, w_buffer, 0);
+        ok(len == utf7_to_utf16_tests[i].utf16_len &&
+           w_buffer[0] == 0x2323,
+           "utf7_to_utf16_test failure i=%i len=%i\n", i, len);
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+    }
+
+    for (i = 0; i < sizeof(mbstowcs_tests) / sizeof(struct mbstowcs_test); i++)
+    {
+        WCHAR w_buffer[1024];
+        int len;
+
+        w_buffer[sizeof(w_buffer) / sizeof(WCHAR) - 1] = 0;
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        SetLastError(0xdeadbeef);
+
+        len = MultiByteToWideChar(CP_UTF7, 0, mbstowcs_tests[i].src, mbstowcs_tests[i].srclen, w_buffer, mbstowcs_tests[i].dstlen);
+        ok(len == mbstowcs_tests[i].len &&
+           memcmp(w_buffer, mbstowcs_tests[i].dst, mbstowcs_tests[i].chars_written * sizeof(WCHAR)) == 0 &&
+           w_buffer[mbstowcs_tests[i].chars_written] == 0x2323,
+           "mbstowcs_test failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+        ok(GetLastError() == mbstowcs_tests[i].error, "error=%x\n", GetLastError());
+    }
+
+    /* test which one-byte characters remove stray + signs */
+    for (i = 0; i < 256; i++)
+    {
+        char c_buffer[] = {'+',i,'+','A','A','A',0};
+        WCHAR w_buffer[1024];
+        int len;
+
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        w_buffer[sizeof(w_buffer) / sizeof(WCHAR) - 1] = 0;
+        SetLastError(0xdeadbeef);
+
+        len = MultiByteToWideChar(CP_UTF7, 0, c_buffer, sizeof(c_buffer), w_buffer, 1023);
+
+        if (i == '-')
+        {
+            /* removes the - sign */
+            ok(len == 3 && w_buffer[0] == '+' && w_buffer[1] == 0 && w_buffer[2] == 0 && w_buffer[3] == 0x2323,
+               "stray + removal failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+        }
+        else if (i < 128 && base64_decoding_table[i] != -1)
+        {
+            /* absorbs the character into the base64 sequence */
+            ok(len == 2 &&
+               w_buffer[0] == ((base64_decoding_table[i] << 10) | 0x03E0) &&
+               w_buffer[1] == 0x0000 && w_buffer[2] == 0x2323,
+               "stray + removal failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+        }
+        else
+        {
+            /* removes the + sign */
+            ok(len == 3 && w_buffer[0] == i && w_buffer[1] == 0 && w_buffer[2] == 0 && w_buffer[3] == 0x2323,
+               "stray + removal failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+        }
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+    }
+
+    /* test which one-byte characters terminate a sequence */
+    /* also test whether the unfinished byte pair is discarded or not */
+    for (i = 0; i < 256; i++)
+    {
+        char c_buffer[] = {'+','B',i,'+','A','A','A',0};
+        WCHAR w_buffer[1024];
+        int len;
+
+        memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+        w_buffer[sizeof(w_buffer) / sizeof(WCHAR) - 1] = 0;
+        SetLastError(0xdeadbeef);
+
+        len = MultiByteToWideChar(CP_UTF7, 0, c_buffer, sizeof(c_buffer), w_buffer, 1023);
+
+        if (i == '-')
+        {
+            /* explicitly terminates */
+            ok(len == 2 &&
+               w_buffer[0] == 0 && w_buffer[1] == 0 && w_buffer[2] == 0x2323,
+               "implicit termination failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+        }
+        else if (i < 128)
+        {
+            if (base64_decoding_table[i] != -1)
+            {
+                /* absorbs the character into the base64 sequence */
+                ok(len == 3 &&
+                   w_buffer[0] == (0x0400 | (base64_decoding_table[i] << 4) | 0x000F) &&
+                   w_buffer[1] == 0x8000 && w_buffer[2] == 0 && w_buffer[3] == 0x2323,
+                   "implicit termination failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+            }
+            else
+            {
+                /* implicitly terminates and discards the unfinished byte pair */
+                ok(len == 3 &&
+                   w_buffer[0] == i && w_buffer[1] == 0 && w_buffer[2] == 0 && w_buffer[3] == 0x2323,
+                   "implicit termination failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+            }
+        }
+        else
+        {
+            /* implicitly terminates but does not the discard unfinished byte pair */
+            ok(len == 3 &&
+               w_buffer[0] == i && w_buffer[1] == 0x0400 && w_buffer[2] == 0 && w_buffer[3] == 0x2323,
+               "implicit termination failure i=%i len=%i dst=%s\n", i, len, wine_dbgstr_w(w_buffer));
+        }
+        ok(GetLastError() == 0xdeadbeef, "error=%x\n", GetLastError());
+    }
+}
+
 static void test_undefined_byte_char(void)
 {
     static const struct tag_testset {
@@ -617,6 +1387,9 @@ START_TEST(codepage)
     /* WideCharToMultiByte has two code paths, test both here */
     test_string_conversion(NULL);
     test_string_conversion(&bUsedDefaultChar);
+
+    test_utf7_encoding();
+    test_utf7_decoding();
 
     test_undefined_byte_char();
     test_threadcp();
