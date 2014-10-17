@@ -433,6 +433,266 @@ static void test_utf7_encoding(void)
     static const char base64_encoding_table[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+    const struct
+    {
+        /* inputs */
+        WCHAR src[16];
+        int srclen;
+        char* dst;
+        int dstlen;
+        /* expected outputs */
+        char expected_dst[16];
+        int chars_written;
+        int len;
+        DWORD error;
+        int reversed_len;
+    }
+    tests[] =
+    {
+        /* tests string conversion with srclen=-1 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            output,
+            sizeof(output) - 1,
+            "+T2BZfVQX-",
+            11,
+            11,
+            0xdeadbeef,
+            4
+        },
+        /* tests string conversion with srclen=-2 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -2,
+            output,
+            sizeof(output) - 1,
+            "+T2BZfVQX-",
+            11,
+            11,
+            0xdeadbeef,
+            4
+        },
+        /* tests some invalid UTF-16 (stray lead surrogate) */
+        {
+            {0xD801,0},
+            -1,
+            output,
+            sizeof(output) - 1,
+            "+2AE-",
+            6,
+            6,
+            0xdeadbeef,
+            2
+        },
+        /* tests some more invalid UTF-16 (codepoint does not exist) */
+        {
+            {0xFF00,0},
+            -1,
+            output,
+            sizeof(output) - 1,
+            "+/wA-",
+            6,
+            6,
+            0xdeadbeef,
+            2
+        },
+        /* tests string conversion with dstlen=strlen(expected_dst) */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            output,
+            10,
+            "+T2BZfVQX-",
+            10,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            3
+        },
+        /* tests string conversion with dstlen=strlen(expected_dst)+1 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            output,
+            11,
+            "+T2BZfVQX-",
+            11,
+            11,
+            0xdeadbeef,
+            4
+        },
+        /* tests string conversion with dstlen=strlen(expected_dst)+2 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            output,
+            12,
+            "+T2BZfVQX-",
+            11,
+            11,
+            0xdeadbeef,
+            4
+        },
+        /* tests dry run with dst=NULL and dstlen=0 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            NULL,
+            0,
+            {},
+            0,
+            11,
+            0xdeadbeef,
+            0
+        },
+        /* tests dry run with dst!=NULL and dstlen=0 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            output,
+            0,
+            {},
+            0,
+            11,
+            0xdeadbeef,
+            0
+        },
+        /* tests srclen > strlenW(src) */
+        {
+            {'a',0,'b',0},
+            4,
+            output,
+            sizeof(output) - 1,
+            "a\0b",
+            4,
+            4,
+            0xdeadbeef,
+            4
+        },
+        /* tests srclen < strlenW(src) with directly encodable chars */
+        {
+            {'h','e','l','l','o',0},
+            2,
+            output,
+            sizeof(output) - 1,
+            "he",
+            2,
+            2,
+            0xdeadbeef,
+            2
+        },
+        /* tests srclen < strlenW(src) with non-directly encodable chars */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            2,
+            output,
+            sizeof(output) - 1,
+            "+T2BZfQ-",
+            8,
+            8,
+            0xdeadbeef,
+            2
+        },
+        /* tests a buffer that runs out while not encoding a UTF-7 sequence */
+        {
+            {'h','e','l','l','o',0},
+            -1,
+            output,
+            2,
+            "he",
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            2
+        },
+        /* tests a buffer that runs out after writing 1 base64 character */
+        {
+            {0x4F60,0x0001,0},
+            -1,
+            output,
+            2,
+            "+T",
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            0
+        },
+        /* tests a buffer that runs out after writing 2 base64 characters */
+        {
+            {0x4F60,0x0001,0},
+            -1,
+            output,
+            3,
+            "+T2",
+            3,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            0
+        },
+        /* tests a buffer that runs out after writing 3 base64 characters */
+        {
+            {0x4F60,0x0001,0},
+            -1,
+            output,
+            4,
+            "+T2A",
+            4,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            1
+        },
+        /* tests a buffer that runs out just after writing the + sign */
+        {
+            {0x4F60,0},
+            -1,
+            output,
+            1,
+            "+",
+            1,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            0
+        },
+        /* tests a buffer that runs out just before writing the - sign
+         * the number of bits to encode here is evenly divisible by 6 */
+        {
+            {0x4F60,0x597D,0x5417,0},
+            -1,
+            output,
+            9,
+            "+T2BZfVQX",
+            9,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            3
+        },
+        /* tests a buffer that runs out just before writing the - sign
+         * the number of bits to encode here is NOT evenly divisible by 6 */
+        {
+            {0x4F60,0},
+            -1,
+            output,
+            4,
+            "+T2",
+            3,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            0
+        },
+        /* tests a buffer that runs out in the middle of escaping a + sign */
+        {
+            {'+',0},
+            -1,
+            output,
+            1,
+            "+",
+            1,
+            0,
+            ERROR_INSUFFICIENT_BUFFER,
+            0
+        }
+    };
+
     if (WideCharToMultiByte(CP_UTF7, 0, foobarW, -1, NULL, 0, NULL, NULL) == 0 &&
         GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
     {
@@ -525,6 +785,55 @@ static void test_utf7_encoding(void)
         ok(output[expected_len] == '#', "i=0x%04x: expected output[%i]='#', got output[%i]=%i\n",
            i, expected_len, expected_len, output[expected_len]);
     }
+
+    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++)
+    {
+        memset(output, '#', sizeof(output) - 1);
+        output[sizeof(output) - 1] = 0;
+
+        SetLastError(0xdeadbeef);
+        len = WideCharToMultiByte(CP_UTF7, 0, tests[i].src, tests[i].srclen,
+                                  tests[i].dst, tests[i].dstlen, NULL, NULL);
+
+        ok(GetLastError() == tests[i].error,
+           "tests[%i]: expected error=0x%x, got error=0x%x\n", i, tests[i].error, GetLastError());
+        ok(len == tests[i].len, "tests[%i]: expected len=%i, got len=%i\n", i, tests[i].len, len);
+
+        if (tests[i].dst)
+        {
+            ok(memcmp(tests[i].dst, tests[i].expected_dst, tests[i].chars_written) == 0,
+               "tests[%i]: expected dst=\"%s\", got dst=\"%s\"\n",
+               i, tests[i].expected_dst, tests[i].dst);
+            ok(tests[i].dst[tests[i].chars_written] == '#',
+               "tests[%i]: expected dst[%i]='#', got dst[%i]=%i\n",
+               i, tests[i].chars_written, tests[i].chars_written, tests[i].dst[tests[i].chars_written]);
+        }
+
+        /* utf16-to-utf7 tests that are not dry runs can be reversed to make utf7-to-utf16 tests */
+        if (tests[i].chars_written)
+        {
+            WCHAR w_buffer[16];
+
+            memset(w_buffer, '#', sizeof(w_buffer) - sizeof(WCHAR));
+            w_buffer[sizeof(w_buffer) / sizeof(WCHAR) - 1] = 0;
+
+            SetLastError(0xdeadbeef);
+            len = MultiByteToWideChar(CP_UTF7, 0, tests[i].expected_dst, tests[i].chars_written,
+                                      w_buffer, sizeof(w_buffer) / sizeof(WCHAR) - 1);
+
+            ok(GetLastError() == 0xdeadbeef,
+               "tests[%i]: expected error=0xdeadbeef, got error=0x%x\n", i, GetLastError());
+            ok(len == tests[i].reversed_len,
+               "tests[%i]: expected len=%i, got len=%i\n", i, tests[i].reversed_len, len);
+            ok(memcmp(w_buffer, tests[i].src, tests[i].reversed_len * sizeof(WCHAR)) == 0,
+               "tests[%i]: expected w_buffer[0:%i]=%s, got w_buffer[0:%i]=%s\n",
+               i, tests[i].reversed_len, wine_dbgstr_wn(tests[i].src, tests[i].reversed_len),
+               tests[i].reversed_len, wine_dbgstr_wn(w_buffer, tests[i].reversed_len));
+            ok(w_buffer[tests[i].reversed_len] == 0x2323,
+               "tests[%i]: expected w_buffer[%i]=0x2323, got w_buffer[%i]=0x%04x\n",
+               i, tests[i].reversed_len, tests[i].reversed_len, w_buffer[tests[i].reversed_len]);
+        }
+    }
 }
 
 static void test_utf7_decoding(void)
@@ -543,6 +852,265 @@ static void test_utf7_decoding(void)
         15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, /* 0x50-0x5F */
         -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, /* 0x60-0x6F */
         41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1  /* 0x70-0x7F */
+    };
+
+    const struct
+    {
+        /* inputs */
+        char src[32];
+        int srclen;
+        WCHAR* dst;
+        int dstlen;
+        /* expected outputs */
+        WCHAR expected_dst[32];
+        int chars_written;
+        int len;
+        DWORD error;
+    }
+    tests[] =
+    {
+        /* tests string conversion with srclen=-1 */
+        {
+            "+T2BZfQ-",
+            -1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60,0x597D,0},
+            3,
+            3,
+            0xdeadbeef
+        },
+        /* tests string conversion with srclen=-2 */
+        {
+            "+T2BZfQ-",
+            -2,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60,0x597D,0},
+            3,
+            3,
+            0xdeadbeef
+        },
+        /* tests string conversion with dstlen=strlen(expected_dst) */
+        {
+            "+T2BZfQ-",
+            -1,
+            output,
+            2,
+            {0x4F60,0x597D,0},
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests string conversion with dstlen=strlen(expected_dst)+1 */
+        {
+            "+T2BZfQ-",
+            -1,
+            output,
+            3,
+            {0x4F60,0x597D,0},
+            3,
+            3,
+            0xdeadbeef
+        },
+        /* tests string conversion with dstlen=strlen(expected_dst)+2 */
+        {
+            "+T2BZfQ-",
+            -1,
+            output,
+            4,
+            {0x4F60,0x597D,0},
+            3,
+            3,
+            0xdeadbeef
+        },
+        /* tests dry run with dst=NULL and dstlen=0 */
+        {
+            "+T2BZfQ-",
+            -1,
+            NULL,
+            0,
+            {},
+            0,
+            3,
+            0xdeadbeef
+        },
+        /* tests dry run with dst!=NULL and dstlen=0 */
+        {
+            "+T2BZfQ-",
+            -1,
+            output,
+            0,
+            {},
+            0,
+            3,
+            0xdeadbeef
+        },
+        /* tests ill-formed UTF-7: 6 bits, not enough for a byte pair */
+        {
+            "+T-+T-+T-hello",
+            -1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'h','e','l','l','o',0},
+            6,
+            6,
+            0xdeadbeef
+        },
+        /* tests ill-formed UTF-7: 12 bits, not enough for a byte pair */
+        {
+            "+T2-+T2-+T2-hello",
+            -1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'h','e','l','l','o',0},
+            6,
+            6,
+            0xdeadbeef
+        },
+        /* tests ill-formed UTF-7: 18 bits, not a multiple of 16 and the last bit is a 1 */
+        {
+            "+T2B-+T2B-+T2B-hello",
+            -1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60,0x4F60,0x4F60,'h','e','l','l','o',0},
+            9,
+            9,
+            0xdeadbeef
+        },
+        /* tests ill-formed UTF-7: 24 bits, a multiple of 8 but not a multiple of 16 */
+        {
+            "+T2BZ-+T2BZ-+T2BZ-hello",
+            -1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60,0x4F60,0x4F60,'h','e','l','l','o',0},
+            9,
+            9,
+            0xdeadbeef
+        },
+        /* tests UTF-7 followed by characters that should be encoded but aren't */
+        {
+            "+T2BZ-\x82\xFE",
+            -1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60,0x0082,0x00FE,0},
+            4,
+            4,
+            0xdeadbeef
+        },
+        /* tests srclen > strlen(src) */
+        {
+            "a\0b",
+            4,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'a',0,'b',0},
+            4,
+            4,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) outside of a UTF-7 sequence */
+        {
+            "hello",
+            2,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'h','e'},
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) inside of a UTF-7 sequence */
+        {
+            "+T2BZfQ-",
+            4,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60},
+            1,
+            1,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) right at the beginning of a UTF-7 sequence */
+        {
+            "hi+T2A-",
+            3,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'h','i'},
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) right at the end of a UTF-7 sequence */
+        {
+            "+T2A-hi",
+            5,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {0x4F60},
+            1,
+            1,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) at the beginning of an escaped + sign */
+        {
+            "hi+-",
+            3,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'h','i'},
+            2,
+            2,
+            0xdeadbeef
+        },
+        /* tests srclen < strlen(src) at the end of an escaped + sign */
+        {
+            "+-hi",
+            2,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {'+'},
+            1,
+            1,
+            0xdeadbeef
+        },
+        /* tests len=0 but no error */
+        {
+            "+",
+            1,
+            output,
+            sizeof(output) / sizeof(WCHAR) - 1,
+            {},
+            0,
+            0,
+            0xdeadbeef
+        },
+        /* tests a buffer that runs out while not decoding a UTF-7 sequence */
+        {
+            "hello",
+            -1,
+            output,
+            2,
+            {'h','e'},
+            2,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        },
+        /* tests a buffer that runs out in the middle of decoding a UTF-7 sequence */
+        {
+            "+T2BZfQ-",
+            -1,
+            output,
+            1,
+            {0x4F60},
+            1,
+            0,
+            ERROR_INSUFFICIENT_BUFFER
+        }
     };
 
     if (MultiByteToWideChar(CP_UTF7, 0, "foobar", -1, NULL, 0) == 0 &&
@@ -644,6 +1212,31 @@ static void test_utf7_decoding(void)
         ok(memcmp(output, expected, (expected_len + 1) * sizeof(WCHAR)) == 0,
            "i=0x%02x: expected output=%s, got output=%s\n",
            i, wine_dbgstr_wn(expected, expected_len + 1), wine_dbgstr_wn(output, expected_len + 1));
+    }
+
+    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++)
+    {
+        memset(output, 0x23, sizeof(output) - sizeof(WCHAR));
+        output[sizeof(output) / sizeof(WCHAR) - 1] = 0;
+        SetLastError(0xdeadbeef);
+
+        len = MultiByteToWideChar(CP_UTF7, 0, tests[i].src, tests[i].srclen,
+                                  tests[i].dst, tests[i].dstlen);
+
+        ok(GetLastError() == tests[i].error,
+           "tests[%i]: expected error=0x%x, got error=0x%x\n", i, tests[i].error, GetLastError());
+        ok(len == tests[i].len, "tests[%i]: expected len=%i, got len=%i\n", i, tests[i].len, len);
+
+        if (tests[i].dst)
+        {
+            ok(memcmp(tests[i].dst, tests[i].expected_dst, tests[i].chars_written * sizeof(WCHAR)) == 0,
+               "tests[%i]: expected dst[0:%i]=%s, got dst[0:%i]=%s\n",
+               i, tests[i].chars_written, wine_dbgstr_wn(tests[i].expected_dst, tests[i].chars_written),
+               tests[i].chars_written, wine_dbgstr_wn(tests[i].dst, tests[i].chars_written));
+            ok(tests[i].dst[tests[i].chars_written] == 0x2323,
+               "tests[%i]: expected dst[%i]=0x2323, got dst[%i]=%04x\n",
+               i, tests[i].chars_written, tests[i].chars_written, output[tests[i].chars_written]);
+        }
     }
 }
 
