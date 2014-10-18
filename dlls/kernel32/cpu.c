@@ -229,3 +229,31 @@ BOOL WINAPI K32GetPerformanceInfo(PPERFORMANCE_INFORMATION info, DWORD size)
     }
     return TRUE;
 }
+
+/***********************************************************************
+ *           GetNumaProcessorNode (KERNEL32.@)
+ */
+BOOL WINAPI GetNumaProcessorNode(UCHAR processor, PUCHAR node)
+{
+    SYSTEM_INFO si;
+
+    TRACE( "(%d, %p)\n", processor, node );
+
+    if (!node)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    GetSystemInfo(&si);
+
+    if (processor < si.dwNumberOfProcessors)
+    {
+        *node = 0;
+        return TRUE;
+    }
+
+    *node = 0xFF;
+    SetLastError(ERROR_INVALID_PARAMETER);
+    return FALSE;
+}
