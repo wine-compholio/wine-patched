@@ -586,7 +586,7 @@
 @ stdcall GetNumaHighestNodeNumber(ptr)
 @ stdcall GetNumaNodeProcessorMask(long ptr)
 # @ stub GetNumaProcessorMap
-# @ stub GetNumaProcessorNode
+@ stdcall GetNumaProcessorNode(long ptr)
 @ stdcall GetNumberFormatA(long long str ptr ptr long)
 @ stdcall GetNumberFormatW(long long wstr ptr ptr long)
 @ stub GetNumberOfConsoleFonts
