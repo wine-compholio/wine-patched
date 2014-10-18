@@ -8,6 +8,7 @@ C_SRCS = \
 	codepage.c \
 	comm.c \
 	console.c \
+	cpu.c \
 	debugger.c \
 	directory.c \
 	drive.c \
