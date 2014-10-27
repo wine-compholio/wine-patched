@@ -2291,6 +2291,18 @@ DWORD WINAPI NotifyAddrChange(PHANDLE Handle, LPOVERLAPPED overlapped)
   return ERROR_IO_PENDING;
 }
 
+/******************************************************************
+ *    NotifyIpInterfaceChange (IPHLPAPI.@)
+ */
+DWORD WINAPI NotifyIpInterfaceChange(ULONG family, PVOID callback, PVOID context,
+                                     BOOLEAN init_notify, PHANDLE handle)
+{
+    FIXME("(family %d, callback %p, context %p, init_notify %d, handle %p): stub\n",
+          family, callback, context, init_notify, handle);
+    if (handle) *handle = NULL;
+    return ERROR_NOT_SUPPORTED;
+}
+
 
 /******************************************************************
  *    NotifyRouteChange (IPHLPAPI.@)
