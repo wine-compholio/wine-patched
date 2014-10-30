@@ -511,7 +511,7 @@
 @ stdcall RtlDecodePointer(ptr)
 # @ stub RtlDecodeSystemPointer
 @ stdcall RtlDecompressBuffer(long ptr long ptr long ptr)
-@ stub RtlDecompressFragment
+@ stdcall RtlDecompressFragment(long ptr long ptr long long ptr ptr)
 @ stub RtlDefaultNpAcl
 @ stub RtlDelete
 @ stdcall RtlDeleteAce(ptr long)
