@@ -1215,14 +1215,28 @@ PSLIST_ENTRY WINAPI RtlInterlockedPushListSList(PSLIST_HEADER list, PSLIST_ENTRY
 /******************************************************************************
  *  RtlGetCompressionWorkSpaceSize		[NTDLL.@]
  */
-NTSTATUS WINAPI RtlGetCompressionWorkSpaceSize(USHORT CompressionFormatAndEngine,
-                                               PULONG CompressBufferWorkSpaceSize,
-                                               PULONG CompressFragmentWorkSpaceSize)
+NTSTATUS WINAPI RtlGetCompressionWorkSpaceSize(USHORT format, PULONG compress_workspace,
+                                               PULONG decompress_workspace)
 {
-    FIXME("0x%04x, %p, %p: stub!\n", CompressionFormatAndEngine, CompressBufferWorkSpaceSize,
-         CompressFragmentWorkSpaceSize);
+    FIXME("0x%04x, %p, %p: semi-stub\n", format, compress_workspace, decompress_workspace);
 
-    return STATUS_NOT_IMPLEMENTED;
+    switch (format & ~COMPRESSION_ENGINE_MAXIMUM)
+    {
+        case COMPRESSION_FORMAT_LZNT1:
+            if (compress_workspace)
+                *compress_workspace = 16; /* FIXME */
+            if (decompress_workspace)
+                *decompress_workspace = 0x1000;
+            return STATUS_SUCCESS;
+
+        case COMPRESSION_FORMAT_NONE:
+        case COMPRESSION_FORMAT_DEFAULT:
+            return STATUS_INVALID_PARAMETER;
+
+        default:
+            FIXME("format %d not implemented\n", format);
+            return STATUS_UNSUPPORTED_COMPRESSION;
+    }
 }
 
 /******************************************************************************
