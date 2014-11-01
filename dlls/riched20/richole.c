@@ -146,6 +146,14 @@ static HRESULT WINAPI IRichEditOleImpl_inner_fnQueryInterface(IUnknown *iface, R
         IUnknown_AddRef((IUnknown *)*ppvObj);
         return S_OK;
     }
+
+    if (IsEqualGUID(riid, &IID_ITextServices))
+    {
+        static int once;
+        if (!once++) FIXME("%p: unhandled interface IID_ITextServices\n", This);
+        return E_NOINTERFACE;
+    }
+
     FIXME("%p: unhandled interface %s\n", This, debugstr_guid(riid));
  
     return E_NOINTERFACE;   
@@ -693,11 +701,12 @@ static HRESULT WINAPI ITextPara_fnSetStyle(ITextPara *me, LONG Value)
 
 static HRESULT WINAPI ITextPara_fnGetAlignment(ITextPara *me, LONG *pValue)
 {
+    static int once;
     ITextParaImpl *This = impl_from_ITextPara(me);
     if (!This->reOle)
          return CO_E_RELEASED;
 
-    FIXME("not implemented: %p\n", This);
+    if (!once++) FIXME("not implemented: %p\n", This);
     return E_NOTIMPL;
 }
 
@@ -1391,13 +1400,14 @@ static HRESULT WINAPI ITextFont_fnSetBackColor(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetBold(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
         return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = tomFalse;
     return S_OK;
 }
@@ -1434,13 +1444,14 @@ static HRESULT WINAPI ITextFont_fnSetEmboss(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetForeColor(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
         return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = tomAutoColor;
     return S_OK;
 }
@@ -1497,13 +1508,14 @@ static HRESULT WINAPI ITextFont_fnSetEngrave(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetItalic(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
         return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = tomFalse;
     return S_OK;
 }
@@ -1540,11 +1552,12 @@ static HRESULT WINAPI ITextFont_fnSetKerning(ITextFont *me, float Value)
 
 static HRESULT WINAPI ITextFont_fnGetLanguageID(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented: %p\n", This);
+    if (!once++) FIXME("not implemented: %p\n", This);
     return E_NOTIMPL;
 }
 
@@ -1664,13 +1677,14 @@ static HRESULT WINAPI ITextFont_fnSetShadow(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetSize(ITextFont *me, float *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
         return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = 12.0;
     return S_OK;
 }
@@ -1727,13 +1741,14 @@ static HRESULT WINAPI ITextFont_fnSetSpacing(ITextFont *me, float Value)
 
 static HRESULT WINAPI ITextFont_fnGetStrikeThrough(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
         return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = tomFalse;
     return S_OK;
 }
@@ -1750,13 +1765,14 @@ static HRESULT WINAPI ITextFont_fnSetStrikeThrough(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetSubscript(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
       return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = tomFalse;
     return S_OK;
 }
@@ -1796,13 +1812,14 @@ static HRESULT WINAPI ITextFont_fnSetSuperscript(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetUnderline(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!pValue)
         return E_INVALIDARG;
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("Stub\n");
+    if (!once++) FIXME("Stub\n");
     *pValue = tomNone;
     return S_OK;
 }
@@ -1819,11 +1836,12 @@ static HRESULT WINAPI ITextFont_fnSetUnderline(ITextFont *me, LONG Value)
 
 static HRESULT WINAPI ITextFont_fnGetWeight(ITextFont *me, LONG *pValue)
 {
+    static int once;
     ITextFontImpl *This = impl_from_ITextFont(me);
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented: %p\n", This);
+    if (!once++) FIXME("not implemented: %p\n", This);
     return E_NOTIMPL;
 }
 
