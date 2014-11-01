@@ -3195,11 +3195,17 @@ static HRESULT WINAPI ITextSelection_fnSetChar(ITextSelection *me, LONG ch)
 static HRESULT WINAPI ITextSelection_fnGetDuplicate(ITextSelection *me, ITextRange **ppRange)
 {
     ITextSelectionImpl *This = impl_from_ITextSelection(me);
+    int start, end;
+
     if (!This->reOle)
         return CO_E_RELEASED;
 
-    FIXME("not implemented\n");
-    return E_NOTIMPL;
+    TRACE("%p %p\n", This, ppRange);
+    if (!ppRange)
+        return E_INVALIDARG;
+
+    ME_GetSelectionOfs(This->reOle->editor, &start, &end);
+    return CreateITextRange(This->reOle, start, end, ppRange);
 }
 
 static HRESULT WINAPI ITextSelection_fnGetFormattedText(ITextSelection *me, ITextRange **ppRange)
