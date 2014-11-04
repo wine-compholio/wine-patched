@@ -4460,9 +4460,19 @@ HRESULT WINAPI CoWaitForMultipleHandles(DWORD dwFlags, DWORD dwTimeout,
 
             TRACE("waiting for rpc completion or window message\n");
 
-            res = MsgWaitForMultipleObjectsEx(cHandles, pHandles,
-                (dwTimeout == INFINITE) ? INFINITE : start_time + dwTimeout - now,
-                QS_SENDMESSAGE | QS_ALLPOSTMESSAGE | QS_PAINT, wait_flags);
+            /* MsgWaitForMultipleObjectsEx will always process Window messages, even when an
+             * APC call is queued. We work around that by checking for APC calls manually first */
+
+            res = WAIT_TIMEOUT;
+
+            if (dwFlags & COWAIT_ALERTABLE)
+                res = WaitForMultipleObjectsEx(cHandles, pHandles,
+                    (dwFlags & COWAIT_WAITALL) != 0, 0, TRUE);
+
+            if (res == WAIT_TIMEOUT)
+                res = MsgWaitForMultipleObjectsEx(cHandles, pHandles,
+                    (dwTimeout == INFINITE) ? INFINITE : start_time + dwTimeout - now,
+                    QS_SENDMESSAGE | QS_ALLPOSTMESSAGE | QS_PAINT, wait_flags);
 
             if (res == WAIT_OBJECT_0 + cHandles)  /* messages available */
             {
