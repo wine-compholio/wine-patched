@@ -27,6 +27,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3d);
 
 static void* txc_dxtn_handle;
 static void (*pfetch_2d_texel_rgba_dxt1)(int srcRowStride, const BYTE *pixData, int i, int j, DWORD *texel);
+static void (*pfetch_2d_texel_rgba_dxt3)(int srcRowStride, const BYTE *pixData, int i, int j, DWORD *texel);
+static void (*pfetch_2d_texel_rgba_dxt5)(int srcRowStride, const BYTE *pixData, int i, int j, DWORD *texel);
 static void (*ptx_compress_dxtn)(int comps, int width, int height, const BYTE *srcPixData,
                                  GLenum destformat, BYTE *dest, int dstRowStride);
 
@@ -45,6 +47,70 @@ static inline BOOL dxt1_to_x8r8g8b8(const BYTE *src, BYTE *dst, DWORD pitch_in,
         {
             /* pfetch_2d_texel_rgba_dxt1 doesn't correctly handle pitch */
             pfetch_2d_texel_rgba_dxt1(0, src + (y / 4) * pitch_in + (x / 4) * 8,
+                                      x & 3, y & 3, &color);
+            if (alpha)
+            {
+                dst_line[x] = (color & 0xff00ff00) | ((color & 0xff) << 16) |
+                              ((color & 0xff0000) >> 16);
+            }
+            else
+            {
+                dst_line[x] = 0xff000000 | ((color & 0xff) << 16) |
+                              (color & 0xff00) | ((color & 0xff0000) >> 16);
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+static inline BOOL dxt3_to_x8r8g8b8(const BYTE *src, BYTE *dst, DWORD pitch_in,
+        DWORD pitch_out, unsigned int w, unsigned int h, BOOL alpha)
+{
+    unsigned int x, y;
+    DWORD color;
+
+    TRACE("Converting %ux%u pixels, pitches %u %u\n", w, h, pitch_in, pitch_out);
+
+    for (y = 0; y < h; ++y)
+    {
+        DWORD *dst_line = (DWORD *)(dst + y * pitch_out);
+        for (x = 0; x < w; ++x)
+        {
+            /* pfetch_2d_texel_rgba_dxt3 doesn't correctly handle pitch */
+            pfetch_2d_texel_rgba_dxt3(0, src + (y / 4) * pitch_in + (x / 4) * 16,
+                                      x & 3, y & 3, &color);
+            if (alpha)
+            {
+                dst_line[x] = (color & 0xff00ff00) | ((color & 0xff) << 16) |
+                              ((color & 0xff0000) >> 16);
+            }
+            else
+            {
+                dst_line[x] = 0xff000000 | ((color & 0xff) << 16) |
+                              (color & 0xff00) | ((color & 0xff0000) >> 16);
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+static inline BOOL dxt5_to_x8r8g8b8(const BYTE *src, BYTE *dst, DWORD pitch_in,
+        DWORD pitch_out, unsigned int w, unsigned int h, BOOL alpha)
+{
+    unsigned int x, y;
+    DWORD color;
+
+    TRACE("Converting %ux%u pixels, pitches %u %u\n", w, h, pitch_in, pitch_out);
+
+    for (y = 0; y < h; ++y)
+    {
+        DWORD *dst_line = (DWORD *)(dst + y * pitch_out);
+        for (x = 0; x < w; ++x)
+        {
+            /* pfetch_2d_texel_rgba_dxt5 doesn't correctly handle pitch */
+            pfetch_2d_texel_rgba_dxt5(0, src + (y / 4) * pitch_in + (x / 4) * 16,
                                       x & 3, y & 3, &color);
             if (alpha)
             {
@@ -177,6 +243,52 @@ BOOL wined3d_dxt1_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch
     return FALSE;
 }
 
+BOOL wined3d_dxt3_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+        enum wined3d_format_id format, unsigned int w, unsigned int h)
+{
+    if (!pfetch_2d_texel_rgba_dxt3)
+    {
+        FIXME("Failed to decode DXT3 image, there is a problem with %s.\n", SONAME_LIBTXC_DXTN);
+        return FALSE;
+    }
+
+    switch (format)
+    {
+        case WINED3DFMT_B8G8R8A8_UNORM:
+            return dxt3_to_x8r8g8b8(src, dst, pitch_in, pitch_out, w, h, TRUE);
+        case WINED3DFMT_B8G8R8X8_UNORM:
+            return dxt3_to_x8r8g8b8(src, dst, pitch_in, pitch_out, w, h, FALSE);
+        default:
+            break;
+    }
+
+    FIXME("Cannot find a conversion function from format DXT3 to %s.\n", debug_d3dformat(format));
+    return FALSE;
+}
+
+BOOL wined3d_dxt5_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+        enum wined3d_format_id format, unsigned int w, unsigned int h)
+{
+    if (!pfetch_2d_texel_rgba_dxt5)
+    {
+        FIXME("Failed to decode DXT5 image, there is a problem with %s.\n", SONAME_LIBTXC_DXTN);
+        return FALSE;
+    }
+
+    switch (format)
+    {
+        case WINED3DFMT_B8G8R8A8_UNORM:
+            return dxt5_to_x8r8g8b8(src, dst, pitch_in, pitch_out, w, h, TRUE);
+        case WINED3DFMT_B8G8R8X8_UNORM:
+            return dxt5_to_x8r8g8b8(src, dst, pitch_in, pitch_out, w, h, FALSE);
+        default:
+            break;
+    }
+
+    FIXME("Cannot find a conversion function from format DXT5 to %s.\n", debug_d3dformat(format));
+    return FALSE;
+}
+
 BOOL wined3d_dxt1_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
         enum wined3d_format_id format, unsigned int w, unsigned int h)
 {
@@ -269,6 +381,8 @@ BOOL wined3d_dxtn_init(void)
 
     #define LOAD_FUNCPTR(f) if((p##f = wine_dlsym(txc_dxtn_handle, #f, NULL, 0)) == NULL){WARN("Can't find symbol %s\n", #f);}
     LOAD_FUNCPTR(fetch_2d_texel_rgba_dxt1);
+    LOAD_FUNCPTR(fetch_2d_texel_rgba_dxt3);
+    LOAD_FUNCPTR(fetch_2d_texel_rgba_dxt5);
     LOAD_FUNCPTR(tx_compress_dxtn);
     #undef LOAD_FUNCPTR
 
@@ -298,10 +412,24 @@ BOOL wined3d_dxt1_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch
     return FALSE;
 }
 
+BOOL wined3d_dxt3_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+        enum wined3d_format_id format, unsigned int w, unsigned int h)
+{
+    FIXME("Failed to convert DXT3 texture. Wine is compiled without DXT3 support.\n");
+    return FALSE;
+}
+
 BOOL wined3d_dxt3_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
         enum wined3d_format_id format, unsigned int w, unsigned int h)
 {
     FIXME("Failed to convert to DXT3 texture. Wine is compiled without DXT3 support.\n");
+    return FALSE;
+}
+
+BOOL wined3d_dxt5_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+        enum wined3d_format_id format, unsigned int w, unsigned int h)
+{
+    FIXME("Failed to convert DXT5 texture. Wine is compiled without DXT5 support.\n");
     return FALSE;
 }
 

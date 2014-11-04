@@ -2553,4 +2553,11 @@ HRESULT __cdecl wined3d_volume_map(struct wined3d_volume *volume,
 void __cdecl wined3d_volume_preload(struct wined3d_volume *volume);
 HRESULT __cdecl wined3d_volume_unmap(struct wined3d_volume *volume);
 
+BOOL wined3d_dxt1_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out, enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt1_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out, enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt3_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out, enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt3_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out, enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt5_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out, enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt5_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out, enum wined3d_format_id format, unsigned int w, unsigned int h);
+
 #endif /* __WINE_WINED3D_H */
