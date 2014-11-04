@@ -293,3 +293,11 @@
 @ cdecl wined3d_volume_map(ptr ptr ptr long)
 @ cdecl wined3d_volume_preload(ptr)
 @ cdecl wined3d_volume_unmap(ptr)
+
+@ cdecl wined3d_dxtn_supported()
+@ cdecl wined3d_dxt1_decode(ptr ptr long long long long long)
+@ cdecl wined3d_dxt1_encode(ptr ptr long long long long long)
+@ cdecl wined3d_dxt3_decode(ptr ptr long long long long long)
+@ cdecl wined3d_dxt3_encode(ptr ptr long long long long long)
+@ cdecl wined3d_dxt5_decode(ptr ptr long long long long long)
+@ cdecl wined3d_dxt5_encode(ptr ptr long long long long long)
