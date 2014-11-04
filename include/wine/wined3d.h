@@ -2763,4 +2763,18 @@ static inline void wined3d_box_set(struct wined3d_box *box, unsigned int left, u
     box->back = back;
 }
 
+BOOL wined3d_dxt1_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+                         enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt1_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+                         enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt3_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+                         enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt3_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+                         enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt5_decode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+                         enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxt5_encode(const BYTE *src, BYTE *dst, DWORD pitch_in, DWORD pitch_out,
+                         enum wined3d_format_id format, unsigned int w, unsigned int h);
+BOOL wined3d_dxtn_supported(void);
+
 #endif /* __WINE_WINED3D_H */
