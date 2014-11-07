@@ -1401,6 +1401,8 @@ DECL_HANDLER(get_thread_times)
     {
         reply->creation_time  = thread->creation_time;
         reply->exit_time      = thread->exit_time;
+        reply->unix_pid       = thread->unix_pid;
+        reply->unix_tid       = thread->unix_tid;
 
         release_object( thread );
     }
