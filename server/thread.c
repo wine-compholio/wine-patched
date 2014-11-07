@@ -1354,6 +1354,22 @@ DECL_HANDLER(open_thread)
     }
 }
 
+/* fetch information about thread times */
+DECL_HANDLER(get_thread_times)
+{
+    struct thread *thread;
+
+    if ((thread = get_thread_from_handle( req->handle, THREAD_QUERY_INFORMATION )))
+    {
+        reply->creation_time  = thread->creation_time;
+        reply->exit_time      = thread->exit_time;
+        reply->unix_pid       = thread->unix_pid;
+        reply->unix_tid       = thread->unix_tid;
+
+        release_object( thread );
+    }
+}
+
 /* fetch information about a thread */
 DECL_HANDLER(get_thread_info)
 {
