@@ -434,6 +434,12 @@ static double strtod_helper(const char *str, char **end, MSVCRT__locale_t locale
  */
 double CDECL MSVCRT_strtod_l(const char *str, char **end, MSVCRT__locale_t locale)
 {
+    if (!str)
+    {
+        if (end) *end = NULL;
+        *MSVCRT__errno() = MSVCRT_EINVAL;
+        return 0.0;
+    }
     return strtod_helper(str, end, locale, NULL);
 }
 
