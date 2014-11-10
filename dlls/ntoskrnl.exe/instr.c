@@ -740,8 +740,28 @@ LONG CALLBACK vectored_handler( EXCEPTION_POINTERS *ptrs )
 
     if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
     {
+        DWORD64 rip = context->Rip;
         if (emulate_instruction( record, context ) == ExceptionContinueExecution)
+        {
+
+            if (context->Rip - rip <= 32)
+            {
+                TRACE("emulated opcodes:");
+                for (; rip < context->Rip; rip++) TRACE(" %02x", *(BYTE *)rip);
+                TRACE("\n");
+            }
+            TRACE( "next instruction rip=%lx\n", context->Rip );
+            TRACE( "  rax=%016lx rbx=%016lx rcx=%016lx rdx=%016lx\n",
+                   context->Rax, context->Rbx, context->Rcx, context->Rdx );
+            TRACE( "  rsi=%016lx rdi=%016lx rbp=%016lx rsp=%016lx\n",
+                   context->Rsi, context->Rdi, context->Rbp, context->Rsp );
+            TRACE( "   r8=%016lx  r9=%016lx r10=%016lx r11=%016lx\n",
+                   context->R8, context->R9, context->R10, context->R11 );
+            TRACE( "  r12=%016lx r13=%016lx r14=%016lx r15=%016lx\n",
+                   context->R12, context->R13, context->R14, context->R15 );
+
             return EXCEPTION_CONTINUE_EXECUTION;
+        }
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
