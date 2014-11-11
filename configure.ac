@@ -32,6 +32,7 @@ AC_ARG_ENABLE(win16, AS_HELP_STRING([--disable-win16],[do not include Win16 supp
 AC_ARG_ENABLE(win64, AS_HELP_STRING([--enable-win64],[build a Win64 emulator on AMD64 (won't run Win32 binaries)]))
 AC_ARG_ENABLE(tests, AS_HELP_STRING([--disable-tests],[do not build the regression tests]))
 AC_ARG_ENABLE(maintainer-mode, AS_HELP_STRING([--enable-maintainer-mode],[enable maintainer-specific build rules]))
+AC_ARG_ENABLE(exagear-compat, AS_HELP_STRING([--enable-exagear-compat],[use workarounds for known problems in the Exagear emulator]))
 
 AC_ARG_WITH(alsa,      AS_HELP_STRING([--without-alsa],[do not use the Alsa sound support]),
             [if test "x$withval" = "xno"; then ac_cv_header_sys_asoundlib_h=no; ac_cv_header_alsa_asoundlib_h=no; fi])
@@ -368,6 +369,13 @@ EOF
 fi
 WINE_WARNING_WITH(gettext,[test "$MSGFMT" = false],
                   [gettext tools not found (or too old), translations won't be built.])
+
+dnl **** Enable Exagear workarounds ****
+
+if test "x$enable_exagear_compat" = "xyes"
+then
+  AC_DEFINE(EXAGEAR_COMPAT, 1, [Define if you want to enable Exagear emulator workarounds])
+fi
 
 dnl **** Check for some libraries ****
 
