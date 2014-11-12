@@ -64,6 +64,7 @@ static BOOL (WINAPI *pMirrorRgn)(HWND hwnd, HRGN hrgn);
 
 static BOOL test_lbuttondown_flag;
 static DWORD num_gettext_msgs;
+static DWORD num_settext_msgs;
 static HWND hwndMessage;
 static HWND hwndMain, hwndMain2;
 static HHOOK hhook;
@@ -797,6 +798,9 @@ static LRESULT WINAPI main_window_procA(HWND hwnd, UINT msg, WPARAM wparam, LPAR
             break;
         case WM_GETTEXT:
             num_gettext_msgs++;
+            break;
+        case WM_SETTEXT:
+            num_settext_msgs++;
             break;
     }
 
@@ -5689,23 +5693,131 @@ static void test_ShowWindow(void)
     ok(!IsWindow(hwnd), "window should not exist\n");
 }
 
-static void test_gettext(void)
+static DWORD CALLBACK gettext_msg_thread( LPVOID arg )
 {
-    WNDCLASSA cls;
-    LPCSTR clsname = "gettexttest";
-    HWND hwnd;
+    HWND hwnd = arg;
+    char buf[32];
     LRESULT r;
 
-    memset( &cls, 0, sizeof cls );
-    cls.lpfnWndProc = DefWindowProcA;
-    cls.lpszClassName = clsname;
-    cls.hInstance = GetModuleHandleA(NULL);
+    /* test GetWindowTextA */
+    num_gettext_msgs = 0;
+    memset( buf, 0, sizeof(buf) );
+    r = GetWindowTextA( hwnd, buf, sizeof(buf) );
+    ok( r != 0, "expected a nonempty window text\n" );
+    ok( !strcmp(buf, "caption"), "got wrong window text '%s'\n", buf );
+    ok( num_gettext_msgs == 1, "got %d WM_GETTEXT messages\n", num_gettext_msgs );
 
-    if (!RegisterClassA( &cls )) return;
+    return 0;
+}
 
-    hwnd = CreateWindowA( clsname, "test text", WS_OVERLAPPED, 0, 0, 10, 10, 0, NULL, NULL, NULL);
-    ok( hwnd != NULL, "window was null\n");
+static DWORD CALLBACK settext_msg_thread( LPVOID arg )
+{
+    HWND hwnd = arg;
+    BOOL ret;
 
+    /* test SetWindowTextA */
+    num_settext_msgs = 0;
+    ret = SetWindowTextA( hwnd, "new_caption" );
+    ok( ret != 0, "SetWindowTextA failed\n" );
+    ok( num_settext_msgs == 1, "got %d WM_SETTEXT messages\n", num_settext_msgs );
+
+    return 0;
+}
+
+static void test_gettext(void)
+{
+    DWORD tid, num_msgs;
+    HANDLE thread;
+    char buf[32];
+    HWND hwnd;
+    LRESULT r;
+    BOOL ret;
+    MSG msg;
+
+    hwnd = CreateWindowExA( 0, "MainWindowClass", "caption", WS_POPUP, 0, 0, 0, 0, 0, 0, 0, NULL );
+    ok( hwnd != 0, "CreateWindowExA error %d\n", GetLastError() );
+
+    /* test GetWindowTextA */
+    num_gettext_msgs = 0;
+    memset( buf, 0, sizeof(buf) );
+    r = GetWindowTextA( hwnd, buf, sizeof(buf) );
+    ok( r != 0, "expected a nonempty window text\n" );
+    ok( !strcmp(buf, "caption"), "got wrong window text '%s'\n", buf );
+    ok( num_gettext_msgs == 1, "got %d WM_GETTEXT messages\n", num_gettext_msgs );
+
+    /* test WM_GETTEXT */
+    num_gettext_msgs = 0;
+    memset( buf, 0, sizeof(buf) );
+    r = SendMessageA( hwnd, WM_GETTEXT, sizeof(buf), (LONG_PTR)buf );
+    ok( r != 0, "expected a nonempty window text\n" );
+    ok( !strcmp(buf, "caption"), "got wrong window text '%s'\n", buf );
+    ok( num_gettext_msgs == 1, "got %d WM_GETTEXT messages\n", num_gettext_msgs );
+
+    /* test SetWindowTextA */
+    num_settext_msgs = 0;
+    ret = SetWindowTextA( hwnd, "new_caption" );
+    ok( ret != 0, "SetWindowTextA failed\n" );
+    ok( num_settext_msgs == 1, "got %d WM_SETTEXT messages\n", num_settext_msgs );
+
+    num_gettext_msgs = 0;
+    memset( buf, 0, sizeof(buf) );
+    r = GetWindowTextA( hwnd, buf, sizeof(buf) );
+    ok( r != 0, "expected a nonempty window text\n" );
+    ok( !strcmp(buf, "new_caption"), "got wrong window text '%s'\n", buf );
+    ok( num_gettext_msgs == 1, "got %d WM_GETTEXT messages\n", num_gettext_msgs );
+
+    /* test WM_SETTEXT */
+    num_settext_msgs = 0;
+    r = SendMessageA( hwnd, WM_SETTEXT, 0, (ULONG_PTR)"caption" );
+    ok( r != 0, "WM_SETTEXT failed\n" );
+    ok( num_settext_msgs == 1, "got %d WM_SETTEXT messages\n", num_settext_msgs );
+
+    num_gettext_msgs = 0;
+    memset( buf, 0, sizeof(buf) );
+    r = GetWindowTextA( hwnd, buf, sizeof(buf) );
+    ok( r != 0, "expected a nonempty window text\n" );
+    ok( !strcmp(buf, "caption"), "got wrong window text '%s'\n", buf );
+    ok( num_gettext_msgs == 1, "got %d WM_GETTEXT messages\n", num_gettext_msgs );
+
+    while (PeekMessageA( &msg, 0, 0, 0, PM_REMOVE | PM_QS_SENDMESSAGE ))
+        DispatchMessageA( &msg );
+
+    /* test interthread GetWindowTextA */
+    num_msgs = 0;
+    thread = CreateThread( NULL, 0, gettext_msg_thread, hwnd, 0, &tid );
+    ok(thread != NULL, "CreateThread failed, error %d\n", GetLastError());
+    while (MsgWaitForMultipleObjects( 1, &thread, FALSE, INFINITE, QS_SENDMESSAGE ) != WAIT_OBJECT_0)
+    {
+        while (PeekMessageA( &msg, 0, 0, 0, PM_REMOVE | PM_QS_SENDMESSAGE ))
+            DispatchMessageA( &msg );
+        num_msgs++;
+    }
+    CloseHandle( thread );
+    ok( num_msgs == 1, "got %d wakeups from MsgWaitForMultipleObjects\n", num_msgs );
+
+    /* test interthread SetWindowText */
+    num_msgs = 0;
+    thread = CreateThread( NULL, 0, settext_msg_thread, hwnd, 0, &tid );
+    ok(thread != NULL, "CreateThread failed, error %d\n", GetLastError());
+    while (MsgWaitForMultipleObjects( 1, &thread, FALSE, INFINITE, QS_SENDMESSAGE ) != WAIT_OBJECT_0)
+    {
+        while (PeekMessageA( &msg, 0, 0, 0, PM_REMOVE | PM_QS_SENDMESSAGE ))
+            DispatchMessageA( &msg );
+        num_msgs++;
+    }
+    CloseHandle( thread );
+    ok( num_msgs == 1, "got %d wakeups from MsgWaitForMultipleObjects\n", num_msgs );
+
+    num_gettext_msgs = 0;
+    memset( buf, 0, sizeof(buf) );
+    r = GetWindowTextA( hwnd, buf, sizeof(buf) );
+    ok( r != 0, "expected a nonempty window text\n" );
+    ok( !strcmp(buf, "new_caption"), "got wrong window text '%s'\n", buf );
+    ok( num_gettext_msgs == 1, "got %d WM_GETTEXT messages\n", num_gettext_msgs );
+
+    /* seems to crash on every Windows version? */
+    if (0)
+    {
     r = SendMessageA( hwnd, WM_GETTEXT, 0x10, 0x1000);
     ok( r == 0, "settext should return zero\n");
 
@@ -5717,9 +5829,9 @@ static void test_gettext(void)
 
     r = SendMessageA( hwnd, WM_GETTEXT, 0x1000, 0xff000000);
     ok( r == 0, "settext should return zero (%ld)\n", r);
+    }
 
     DestroyWindow(hwnd);
-    UnregisterClassA( clsname, NULL );
 }
 
 
@@ -7987,7 +8099,7 @@ START_TEST(win)
     test_csparentdc();
     test_SetWindowLong();
     test_ShowWindow();
-    if (0) test_gettext(); /* crashes on NT4 */
+    test_gettext();
     test_GetUpdateRect();
     test_Expose();
     test_layered_window();
