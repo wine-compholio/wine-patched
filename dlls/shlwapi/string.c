@@ -670,6 +670,7 @@ LPSTR WINAPI StrStrIA(LPCSTR lpszStr, LPCSTR lpszSearch)
 LPWSTR WINAPI StrStrIW(LPCWSTR lpszStr, LPCWSTR lpszSearch)
 {
   int iLen;
+  int jLen;
 
   TRACE("(%s,%s)\n", debugstr_w(lpszStr), debugstr_w(lpszSearch));
 
@@ -678,11 +679,14 @@ LPWSTR WINAPI StrStrIW(LPCWSTR lpszStr, LPCWSTR lpszSearch)
 
   iLen = strlenW(lpszSearch);
 
-  while (*lpszStr)
+  /* Workaround for bugs in CompareStringW */
+  jLen = strlenW(lpszStr);
+  while (jLen >= iLen)
   {
     if (!StrCmpNIW(lpszStr, lpszSearch, iLen))
       return (LPWSTR)lpszStr;
     lpszStr++;
+    jLen--;
   }
   return NULL;
 }
