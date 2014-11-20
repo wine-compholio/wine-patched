@@ -1352,6 +1352,7 @@ DECL_HANDLER(get_socket_info)
     reply->family   = sock->family;
     reply->type     = sock->type;
     reply->protocol = sock->proto;
+    reply->connect_time = -(current_time - sock->connect_time);
 
     release_object( &sock->obj );
 }
