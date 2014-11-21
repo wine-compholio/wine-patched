@@ -1957,7 +1957,16 @@ static int WS2_recv( int fd, struct ws2_async *wsa )
 
     while ((n = recvmsg(fd, &hdr, wsa->flags)) == -1)
     {
-        if (errno != EINTR)
+        if (errno == EFAULT)
+        {
+            unsigned int i;
+            for (i = wsa->first_iovec; i < wsa->n_iovecs; i++)
+            {
+                if (IsBadWritePtr( wsa->iovec[i].iov_base, wsa->iovec[i].iov_len ))
+                    return -1;
+            }
+        }
+        else if (errno != EINTR)
             return -1;
     }
 
