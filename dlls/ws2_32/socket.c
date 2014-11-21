@@ -263,6 +263,8 @@ static int WS2_recv_base( SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
                           LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine,
                           LPWSABUF lpControlBuffer );
 
+extern ssize_t CDECL wine_virtual_locked_recvmsg( int sockfd, struct msghdr *msg, int flags );
+
 /* critical section to protect some non-reentrant net function */
 static CRITICAL_SECTION csWSgetXXXbyYYY;
 static CRITICAL_SECTION_DEBUG critsect_debug =
@@ -2396,7 +2398,7 @@ static int WS2_recv( int fd, struct ws2_async *wsa, int flags )
     hdr.msg_flags = 0;
 #endif
 
-    while ((n = recvmsg(fd, &hdr, flags)) == -1)
+    while ((n = wine_virtual_locked_recvmsg(fd, &hdr, flags)) == -1)
     {
         if (errno != EINTR)
             return -1;

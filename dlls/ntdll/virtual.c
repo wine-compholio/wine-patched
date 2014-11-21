@@ -41,6 +41,9 @@
 #ifdef HAVE_SYS_SYSINFO_H
 # include <sys/sysinfo.h>
 #endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
 #ifdef HAVE_VALGRIND_VALGRIND_H
 # include <valgrind/valgrind.h>
 #endif
@@ -1993,6 +1996,48 @@ ssize_t virtual_locked_pread( int fd, void *addr, size_t size, off_t offset )
     return ret;
 }
 
+
+/***********************************************************************
+ *           virtual_locked_recvmsg
+ */
+ssize_t CDECL wine_virtual_locked_recvmsg( int sockfd, struct msghdr *msg, int flags )
+{
+    sigset_t sigset;
+    BOOL has_write_watch = FALSE;
+    int err = EFAULT;
+    int i;
+
+    ssize_t size, ret = recvmsg( sockfd, msg, flags );
+    if (ret != -1 || errno != EFAULT) return ret;
+
+    server_enter_uninterrupted_section( &csVirtual, &sigset );
+
+    for (i = 0; i < msg->msg_iovlen; i++)
+    {
+        struct iovec *iov = &msg->msg_iov[i];
+        if (check_write_access( iov->iov_base, iov->iov_len, &has_write_watch ))
+        {
+            while (i--) update_write_watches( msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len, 0 );
+            goto done;
+        }
+    }
+
+    size = ret = recvmsg( sockfd, msg, flags );
+    err = errno;
+
+    if (!has_write_watch) goto done;
+    for (i = 0; i < msg->msg_iovlen; i++)
+    {
+        struct iovec *iov = &msg->msg_iov[i];
+        update_write_watches( iov->iov_base, iov->iov_len, min( max( 0, size ), iov->iov_len ));
+        size -= iov->iov_len;
+    }
+
+done:
+    server_leave_uninterrupted_section( &csVirtual, &sigset );
+    errno = err;
+    return ret;
+}
 
 
 /***********************************************************************
