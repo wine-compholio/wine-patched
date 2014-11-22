@@ -1514,6 +1514,26 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
     {
         void *page = ROUND_ADDR( addr, page_mask );
         BYTE *vprot = &view->prot[((const char *)page - (const char *)view->base) >> page_shift];
+#ifdef EXAGEAR_COMPAT
+        /* Exagear doesn't correctly set err, so always check for write watches, and
+         * retry after removing the VPROT_WRITEWATCH or VPROT_WRITECOPY flag. In
+         * contrary to the general implementation below this is not completely race-
+         * condition safe. When multiple threads trigger the write watch at the same
+         * time only the first thread will properly continue the execution, the rest
+         * will crash. */
+        if ((view->protect & VPROT_WRITEWATCH) && (*vprot & VPROT_WRITEWATCH))
+        {
+            *vprot &= ~VPROT_WRITEWATCH;
+            VIRTUAL_SetProt( view, page, page_size, *vprot );
+            if (VIRTUAL_GetUnixProt( *vprot ) & PROT_WRITE) ret = STATUS_SUCCESS;
+        }
+        if (*vprot & VPROT_WRITECOPY)
+        {
+            *vprot = (*vprot & ~VPROT_WRITECOPY) | VPROT_WRITE;
+            VIRTUAL_SetProt( view, page, page_size, *vprot );
+            if (VIRTUAL_GetUnixProt( *vprot ) & PROT_WRITE) ret = STATUS_SUCCESS;
+        }
+#else
         if (err & EXCEPTION_WRITE_FAULT)
         {
             if ((view->protect & VPROT_WRITEWATCH) && (*vprot & VPROT_WRITEWATCH))
@@ -1529,6 +1549,7 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
             /* ignore fault if page is writable now */
             if (VIRTUAL_GetUnixProt( *vprot ) & PROT_WRITE) ret = STATUS_SUCCESS;
         }
+#endif
         if (!on_signal_stack && (*vprot & VPROT_GUARD))
         {
             VIRTUAL_SetProt( view, page, page_size, *vprot & ~VPROT_GUARD );
