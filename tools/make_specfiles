@@ -162,6 +162,7 @@ my @dll_groups =
   "api-ms-win-core-psapi-l1-1-0",
   "api-ms-win-core-threadpool-legacy-l1-1-0",
   "api-ms-win-core-timezone-l1-1-0",
+  "api-ms-win-core-xstate-l2-1-0",
  ],
  [
   "ole32",
