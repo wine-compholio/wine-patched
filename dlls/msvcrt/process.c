@@ -149,8 +149,8 @@ static MSVCRT_intptr_t msvcrt_spawn(int flags, const MSVCRT_wchar_t* exe, MSVCRT
   si.cb = sizeof(si);
   msvcrt_create_io_inherit_block(&si.cbReserved2, &si.lpReserved2);
   if (!CreateProcessW(fullname, cmdline, NULL, NULL, TRUE,
-                     flags == MSVCRT__P_DETACH ? DETACHED_PROCESS : 0,
-                     env, NULL, &si, &pi))
+                     (flags == MSVCRT__P_DETACH ? DETACHED_PROCESS : 0) |
+                     CREATE_UNICODE_ENVIRONMENT, env, NULL, &si, &pi))
   {
     msvcrt_set_errno(GetLastError());
     MSVCRT_free(si.lpReserved2);
