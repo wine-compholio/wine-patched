@@ -13926,7 +13926,7 @@ msgstr ""
 "http://appdb.winehq.org за савете о покретању овог програма.\n"
 "\n"
 "Ако овај проблем није присутан под Windows-ом и још увек није пријављен, "
-"пријавите га на http://bugs.winehq.org."
+"пријавите га на http://bugs.wine-staging.com."
 
 #: winedbg.rc:61
 #, fuzzy
@@ -13942,7 +13942,7 @@ msgstr "Програмска грешка"
 msgid ""
 "If this problem is not present under Windows and has not been reported yet, "
 "you can save the detailed information to a file using the \"Save As\" "
-"button, then <a href=\"http://wiki.winehq.org/Bugs\">file a bug report</a> "
+"button, then <a href=\"http://bugs.wine-staging.com\">file a bug report</a> "
 "and attach that file to the report."
 msgstr ""
 

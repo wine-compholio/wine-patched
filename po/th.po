@@ -13416,7 +13416,7 @@ msgstr "ปรับแต่งนาฬิกา"
 msgid ""
 "If this problem is not present under Windows and has not been reported yet, "
 "you can save the detailed information to a file using the \"Save As\" "
-"button, then <a href=\"http://wiki.winehq.org/Bugs\">file a bug report</a> "
+"button, then <a href=\"http://bugs.wine-staging.com\">file a bug report</a> "
 "and attach that file to the report."
 msgstr ""
 

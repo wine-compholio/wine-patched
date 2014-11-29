@@ -13882,11 +13882,11 @@ msgstr "程式錯誤詳細資訊"
 msgid ""
 "If this problem is not present under Windows and has not been reported yet, "
 "you can save the detailed information to a file using the \"Save As\" "
-"button, then <a href=\"http://wiki.winehq.org/Bugs\">file a bug report</a> "
+"button, then <a href=\"http://bugs.wine-staging.com\">file a bug report</a> "
 "and attach that file to the report."
 msgstr ""
 "如果這個問題在 Windows 之下不會出現且未曾被報告，您可以使用「另存新檔」 按鈕"
-"將詳細的資訊儲存到檔案，然後<a href=\"http://wiki.winehq.org/Bugs\">發送錯誤"
+"將詳細的資訊儲存到檔案，然後<a href=\"http://bugs.wine-staging.com\">發送錯誤"
 "報告</a>並附加該檔案到報告中。"
 
 #: winedbg.rc:38

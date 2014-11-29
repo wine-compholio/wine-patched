@@ -13850,7 +13850,7 @@ msgstr ""
 "לכתובת http://appdb.winehq.org לקבלת עצות להרצת יישום זה.\n"
 "\n"
 "אם תקלה זו אינה קיימת בעת הרצת Windows ולא דווח עליה עדיין, ניתן לדווח עליה "
-"בכתובת http://bugs.winehq.org."
+"בכתובת http://bugs.wine-staging.com."
 
 #: winedbg.rc:61
 #, fuzzy
@@ -13866,7 +13866,7 @@ msgstr "שגיאה בתכנית"
 msgid ""
 "If this problem is not present under Windows and has not been reported yet, "
 "you can save the detailed information to a file using the \"Save As\" "
-"button, then <a href=\"http://wiki.winehq.org/Bugs\">file a bug report</a> "
+"button, then <a href=\"http://bugs.wine-staging.com\">file a bug report</a> "
 "and attach that file to the report."
 msgstr ""
 
