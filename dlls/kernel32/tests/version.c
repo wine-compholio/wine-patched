@@ -360,7 +360,6 @@ static void test_VerifyVersionInfo(void)
     info.dwMinorVersion++;
     ret = pVerifyVersionInfoA(&info, VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
@@ -464,7 +463,6 @@ static void test_VerifyVersionInfo(void)
     info.wServicePackMinor++;
     ret = pVerifyVersionInfoA(&info, VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(0, VER_SERVICEPACKMAJOR, VER_EQUAL), VER_SERVICEPACKMINOR, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
@@ -484,7 +482,6 @@ static void test_VerifyVersionInfo(void)
     ret = pVerifyVersionInfoA(&info, VER_MINORVERSION | VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(pVerSetConditionMask(0, VER_MINORVERSION, VER_EQUAL),
         VER_SERVICEPACKMAJOR, VER_EQUAL), VER_SERVICEPACKMINOR, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
@@ -505,7 +502,6 @@ static void test_VerifyVersionInfo(void)
     ret = pVerifyVersionInfoA(&info, VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(pVerSetConditionMask(pVerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL),
         VER_MINORVERSION, VER_EQUAL), VER_SERVICEPACKMAJOR, VER_EQUAL), VER_SERVICEPACKMINOR, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
@@ -584,7 +580,6 @@ static void test_VerifyVersionInfo(void)
     info.wServicePackMajor++;
     ret = pVerifyVersionInfoA(&info, VER_MINORVERSION | VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(0, VER_MINORVERSION, VER_EQUAL), VER_SERVICEPACKMAJOR, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
@@ -603,7 +598,6 @@ static void test_VerifyVersionInfo(void)
     info.wServicePackMajor++;
     ret = pVerifyVersionInfoA(&info, VER_MAJORVERSION | VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_SERVICEPACKMAJOR, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
@@ -623,7 +617,6 @@ static void test_VerifyVersionInfo(void)
     ret = pVerifyVersionInfoA(&info, VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
         pVerSetConditionMask(pVerSetConditionMask(pVerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL),
         VER_MINORVERSION, VER_EQUAL), VER_SERVICEPACKMAJOR, VER_LESS));
-    todo_wine
     ok(ret, "VerifyVersionInfoA failed with error %d\n", GetLastError());
 
     info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
