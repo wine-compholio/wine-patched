@@ -499,6 +499,7 @@ UINT WINAPI GetRawInputDeviceList(RAWINPUTDEVICELIST *devices, UINT *device_coun
     if (*device_count < 2)
     {
         *device_count = 2;
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
         return ~0U;
     }
 
