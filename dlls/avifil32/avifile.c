@@ -1424,11 +1424,20 @@ static HRESULT AVIFILE_AddRecord(IAVIFileImpl *This)
   /* pre-conditions */
   assert(This != NULL && This->ppStreams[0] != NULL);
 
-  if (This->idxRecords == NULL || This->cbIdxRecords == 0) {
-    This->cbIdxRecords += 1024 * sizeof(AVIINDEXENTRY);
-    This->idxRecords = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->cbIdxRecords);
-    if (This->idxRecords == NULL)
-      return AVIERR_MEMORY;
+  if (This->idxRecords == NULL || This->cbIdxRecords / sizeof(AVIINDEXENTRY) <= This->nIdxRecords) {
+    DWORD new_count = This->cbIdxRecords + 1024 * sizeof(AVIINDEXENTRY);
+    if (!This->idxRecords)
+    {
+      This->idxRecords = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, new_count);
+      if (!This->idxRecords) return AVIERR_MEMORY;
+    }
+    else
+    {
+      void *new_buffer = HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->idxRecords, new_count);
+      if (!new_buffer) return AVIERR_MEMORY;
+      This->idxRecords = new_buffer;
+    }
+    This->cbIdxRecords = new_count;
   }
 
   assert(This->nIdxRecords < This->cbIdxRecords/sizeof(AVIINDEXENTRY));
