@@ -85,7 +85,7 @@ struct wined3d_settings wined3d_settings =
     ~0U,            /* No GS shader model limit by default. */
     ~0U,            /* No PS shader model limit by default. */
     FALSE,          /* 3D support enabled by default. */
-    FALSE,          /* No multithreaded CS by default. */
+    TRUE,           /* Multithreaded CS by default. */
     FALSE,          /* Do not ignore render target maps. */
 };
 
@@ -307,10 +307,10 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
             wined3d_settings.no_3d = TRUE;
         }
         if (!get_config_key(hkey, appkey, "CSMT", buffer, size)
-                && !strcmp(buffer,"enabled"))
+                && !strcmp(buffer,"disabled"))
         {
-            TRACE("Enabling multithreaded command stream.\n");
-            wined3d_settings.cs_multithreaded = TRUE;
+            TRACE("Disabling multithreaded command stream.\n");
+            wined3d_settings.cs_multithreaded = FALSE;
         }
         if (!get_config_key(hkey, appkey, "ignore_rt_map", buffer, size)
                 && !strcmp(buffer,"enabled"))
@@ -319,6 +319,9 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
             wined3d_settings.ignore_rt_map = TRUE;
         }
     }
+
+    FIXME_(winediag)("Experimental wined3d CSMT feature is currently %s.\n",
+        wined3d_settings.cs_multithreaded ? "enabled" : "disabled");
 
     if (appkey) RegCloseKey( appkey );
     if (hkey) RegCloseKey( hkey );
