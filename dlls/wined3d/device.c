@@ -3370,7 +3370,6 @@ void CDECL wined3d_device_draw_indexed_primitive_instanced(struct wined3d_device
 static HRESULT device_update_volume(struct wined3d_context *context,
         struct wined3d_volume *src_volume, struct wined3d_volume *dst_volume)
 {
-    HRESULT hr;
     struct wined3d_bo_address data;
 
     TRACE("src_volume %p, dst_volume %p.\n",
@@ -3395,7 +3394,7 @@ static HRESULT device_update_volume(struct wined3d_context *context,
     wined3d_volume_upload_data(dst_volume, context, &data);
     wined3d_resource_invalidate_location(&dst_volume->resource, ~WINED3D_LOCATION_TEXTURE_RGB);
 
-    return hr;
+    return WINED3D_OK;
 }
 
 /* Context activation is done by the caller */

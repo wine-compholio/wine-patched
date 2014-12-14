@@ -770,7 +770,7 @@ static void surface_blt_fbo(const struct wined3d_device *device,
 
     if (required_rt && required_rt != old_ctx->current_rt)
     {
-        restore_rt = context->current_rt;
+        restore_rt = old_ctx->current_rt;
         context = context_acquire(device, required_rt);
     }
     else
