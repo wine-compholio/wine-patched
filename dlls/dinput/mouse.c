@@ -552,6 +552,8 @@ static HRESULT WINAPI SysMouseWImpl_GetDeviceState(LPDIRECTINPUTDEVICE8W iface, 
 
     if(This->base.acquired == 0) return DIERR_NOTACQUIRED;
 
+    MsgWaitForMultipleObjectsEx(0, NULL, 0, QS_ALLINPUT, 0);
+
     TRACE("(this=%p,0x%08x,%p):\n", This, len, ptr);
     _dump_mouse_state(&This->m_state);
 
