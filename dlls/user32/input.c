@@ -354,11 +354,17 @@ HWND WINAPI GetCapture(void)
 }
 
 
-static void check_for_events( UINT flags )
+/***********************************************************************
+ *      __wine_check_for_events  (USER32.@)
+ *
+ * Internal function to check for pending X11 events.
+ */
+void CDECL __wine_check_for_events( UINT flags )
 {
     if (USER_Driver->pMsgWaitForMultipleObjectsEx( 0, NULL, 0, flags, 0 ) == WAIT_TIMEOUT)
         flush_window_surfaces( TRUE );
 }
+
 
 /**********************************************************************
  *		GetAsyncKeyState (USER32.@)
@@ -375,7 +381,7 @@ SHORT WINAPI DECLSPEC_HOTPATCH GetAsyncKeyState( INT key )
 
     if (key < 0 || key >= 256) return 0;
 
-    check_for_events( QS_INPUT );
+    __wine_check_for_events( QS_INPUT );
 
     if ((ret = USER_Driver->pGetAsyncKeyState( key )) == -1)
     {
@@ -430,7 +436,7 @@ DWORD WINAPI GetQueueStatus( UINT flags )
         return 0;
     }
 
-    check_for_events( flags );
+    __wine_check_for_events( flags );
 
     SERVER_START_REQ( get_queue_status )
     {
@@ -450,7 +456,7 @@ BOOL WINAPI GetInputState(void)
 {
     DWORD ret;
 
-    check_for_events( QS_INPUT );
+    __wine_check_for_events( QS_INPUT );
 
     SERVER_START_REQ( get_queue_status )
     {
