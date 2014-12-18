@@ -4061,6 +4061,7 @@ WINUSERAPI INT         WINAPI wvsprintfW(LPWSTR,LPCWSTR,__ms_va_list);
 WORD        WINAPI SYSTEM_KillSystemTimer( WORD );
 
 #ifdef __WINESRC__
+WINUSERAPI VOID CDECL __wine_check_for_events( UINT flags );
 WINUSERAPI BOOL CDECL __wine_send_input( HWND hwnd, const INPUT *input );
 #endif
 
