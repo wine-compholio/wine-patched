@@ -1631,8 +1631,9 @@ HRESULT WINAPI IDirectInputDevice2WImpl_Poll(LPDIRECTINPUTDEVICE8W iface)
     IDirectInputDeviceImpl *This = impl_from_IDirectInputDevice8W(iface);
 
     if (!This->acquired) return DIERR_NOTACQUIRED;
-    /* Because wine devices do not need to be polled, just return DI_NOEFFECT */
-    return DI_NOEFFECT;
+
+    __wine_check_for_events( QS_ALLINPUT );
+    return DI_OK;
 }
 
 HRESULT WINAPI IDirectInputDevice2AImpl_Poll(LPDIRECTINPUTDEVICE8A iface)
