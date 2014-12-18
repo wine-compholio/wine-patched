@@ -335,6 +335,8 @@ static HRESULT WINAPI SysKeyboardWImpl_GetDeviceState(LPDIRECTINPUTDEVICE8W ifac
     if (len != This->base.data_format.user_df->dwDataSize )
         return DIERR_INVALIDPARAM;
 
+    __wine_check_for_events( QS_ALLINPUT );
+
     EnterCriticalSection(&This->base.crit);
 
     if (TRACE_ON(dinput)) {
