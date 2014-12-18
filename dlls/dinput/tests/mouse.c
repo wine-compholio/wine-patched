@@ -160,6 +160,7 @@ static void test_acquire(IDirectInputA *pDI, HWND hwnd)
     IDirectInputDevice_Acquire(pMouse);
     cnt = 1;
     hr = IDirectInputDevice_GetDeviceData(pMouse, sizeof(mouse_state), &mouse_state, &cnt, 0);
+    todo_wine
     ok(hr == S_OK && cnt > 0, "GetDeviceData() failed: %08x cnt:%d\n", hr, cnt);
 
     /* Check for buffer owerflow */
@@ -171,6 +172,7 @@ static void test_acquire(IDirectInputA *pDI, HWND hwnd)
     ok(hr == DI_OK, "GetDeviceData() failed: %08x cnt:%d\n", hr, cnt);
     cnt = 1;
     hr = IDirectInputDevice_GetDeviceData(pMouse, sizeof(mouse_state), &mouse_state, &cnt, 0);
+    todo_wine
     ok(hr == DI_OK && cnt == 1, "GetDeviceData() failed: %08x cnt:%d\n", hr, cnt);
 
     if (pMouse) IUnknown_Release(pMouse);
