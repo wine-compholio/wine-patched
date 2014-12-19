@@ -121,9 +121,34 @@ static HRESULT STDMETHODCALLTYPE dxgi_output_GetParent(IDXGIOutput *iface,
 
 static HRESULT STDMETHODCALLTYPE dxgi_output_GetDesc(IDXGIOutput *iface, DXGI_OUTPUT_DESC *desc)
 {
-    FIXME("iface %p, desc %p stub!\n", iface, desc);
+    struct dxgi_output *This = impl_from_IDXGIOutput(iface);
+    struct wined3d *wined3d;
+    MONITORINFOEXW monitor_info;
 
-    return E_NOTIMPL;
+    FIXME("iface %p, desc %p semi-stub!\n", iface, desc);
+
+    if (!desc)
+        return DXGI_ERROR_INVALID_CALL;
+
+    wined3d = This->adapter->parent->wined3d;
+
+    EnterCriticalSection(&dxgi_cs);
+    desc->Monitor = wined3d_get_adapter_monitor(wined3d, This->adapter->ordinal);
+    LeaveCriticalSection(&dxgi_cs);
+
+    if (!desc->Monitor)
+        return DXGI_ERROR_INVALID_CALL;
+
+    monitor_info.cbSize = sizeof(monitor_info);
+    if (!GetMonitorInfoW(desc->Monitor, (MONITORINFO *)&monitor_info))
+        return DXGI_ERROR_INVALID_CALL;
+
+    memcpy(&desc->DeviceName, &monitor_info.szDevice, sizeof(desc->DeviceName));
+    memcpy(&desc->DesktopCoordinates, &monitor_info.rcMonitor, sizeof(RECT));
+    desc->AttachedToDesktop = TRUE;
+    desc->Rotation = DXGI_MODE_ROTATION_IDENTITY;
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE dxgi_output_GetDisplayModeList(IDXGIOutput *iface,
