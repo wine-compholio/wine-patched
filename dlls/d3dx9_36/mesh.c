@@ -7234,3 +7234,23 @@ HRESULT WINAPI D3DXOptimizeFaces(const void *indices, UINT num_faces,
 error:
     return hr;
 }
+
+/*************************************************************************
+ * D3DXComputeTangentFrameEx    (D3DX9_36.@)
+ */
+HRESULT WINAPI D3DXComputeTangentFrameEx(ID3DXMesh *Mesh, DWORD TextureInSemantic, DWORD TextureInIndex,
+               DWORD UPartialOutSemantic, DWORD UPartialOutIndex, DWORD VPartialOutSemantic, DWORD VPartialOutIndex,
+               DWORD NormalOutSemantic, DWORD NormalOutIndex, DWORD options, const DWORD *adjacency,
+               FLOAT PartialEdgeThreshold, FLOAT SingularPointThreshold, FLOAT NormalEdgeThreshold,
+               ID3DXMesh **MeshOut, ID3DXBuffer **VertexMapping)
+{
+    FIXME("Mesh %p, TextureInSemantic %u, TextureInIndex %u, UPartialOutSemantic %u, UPartialOutIndex %u, "
+            "VPartialOutSemantic %u, VPartialOutIndex %u, NormalOutSemantic %u, NormalOutIndex %u, "
+            "options %x, adjacency %p, PartialEdgeThreshold %f, SingularPointThreshold %f, NormalEdgeThreshold %f, "
+            "MeshOut %p, VertexMapping %p stub.\n",
+            Mesh, TextureInSemantic, TextureInIndex, UPartialOutSemantic, UPartialOutIndex, VPartialOutSemantic,
+            VPartialOutIndex, NormalOutSemantic, NormalOutIndex, options, adjacency, PartialEdgeThreshold,
+            SingularPointThreshold, NormalEdgeThreshold, MeshOut, VertexMapping);
+
+    return E_NOTIMPL;
+}
