@@ -7254,3 +7254,15 @@ HRESULT WINAPI D3DXComputeTangentFrameEx(ID3DXMesh *Mesh, DWORD TextureInSemanti
 
     return E_NOTIMPL;
 }
+
+/*************************************************************************
+ * D3DXIntersect    (D3DX9_36.@)
+ */
+HRESULT WINAPI D3DXIntersect(ID3DXBaseMesh *Mesh, const D3DXVECTOR3 *RayPos, const D3DXVECTOR3 *RayDir, BOOL *Hit,
+        DWORD *FaceIndex, FLOAT *U, FLOAT *V, FLOAT *Dist, ID3DXBuffer **AllHits, DWORD *CountOfHits)
+{
+    FIXME("Mesh %p, RayPos %p, RayDir %p, Hit %p, FaceIndex %p, U %p, V %p, Dist %p, AllHits %p, CountOfHits %p stub.\n",
+            Mesh, RayPos, RayDir, Hit, FaceIndex, U, V, Dist, AllHits, CountOfHits);
+
+    return E_NOTIMPL;
+}
