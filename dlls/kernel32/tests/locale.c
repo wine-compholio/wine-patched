@@ -3579,6 +3579,7 @@ static void test_GetStringTypeW(void)
 
     WORD types[20];
     WCHAR ch;
+    BOOL res;
     int i;
 
     memset(types,0,sizeof(types));
@@ -3635,6 +3636,15 @@ static void test_GetStringTypeW(void)
     GetStringTypeW(CT_CTYPE1, space_special, 3, types);
     for (i = 0; i < 3; i++)
         ok(types[i] & C1_SPACE || broken(types[i] == C1_CNTRL) || broken(types[i] == 0), "incorrect types returned for %x -> (%x does not have %x)\n",space_special[i], types[i], C1_SPACE );
+
+    for (i = -1; i < 3; i++)
+    {
+        SetLastError(0xdeadbeef);
+        memset(types, 0, sizeof(types));
+        res = GetStringTypeW(CT_CTYPE1, NULL, i, types);
+        ok(!res, "GetStringTypeW unexpectedly succeeded\n");
+        ok(GetLastError() == ERROR_INVALID_PARAMETER, "wrong error, got %u\n", GetLastError());
+    }
 
     /* surrogate pairs */
     ch = 0xd800;
