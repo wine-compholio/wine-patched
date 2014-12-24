@@ -29,6 +29,7 @@
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
+#include "ntdef.h"
 #include "windef.h"
 #include "winternl.h"
 #include "excpt.h"
@@ -1734,6 +1735,19 @@ NTSTATUS WINAPI KeWaitForSingleObject(PVOID Object,
                                       PLARGE_INTEGER Timeout)
 {
     FIXME( "stub: %p, %d, %d, %d, %p\n", Object, WaitReason, WaitMode, Alertable, Timeout );
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+/***********************************************************************
+ *           KeWaitForMultipleObjects   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI KeWaitForMultipleObjects(ULONG Count, PVOID Object[], WAIT_TYPE WaitType,
+                                         KWAIT_REASON WaitReason, KPROCESSOR_MODE WaitMode,
+                                         BOOLEAN Alertable, PLARGE_INTEGER Timeout,
+                                         PKWAIT_BLOCK WaitBlockArray)
+{
+    FIXME( "stub: %u, %p, %d, %d, %d, %d, %p, %p\n", Count, Object, WaitType, WaitReason, WaitMode,
+           Alertable, Timeout, WaitBlockArray );
     return STATUS_NOT_IMPLEMENTED;
 }
 
