@@ -1586,3 +1586,21 @@ BOOL WINAPI RtlSetCurrentTransaction(HANDLE new_transaction)
     FIXME("(%p) :stub\n", new_transaction);
     return FALSE;
 }
+
+/******************************************************************************
+ * WinSqmEndSession [NTDLL.@]
+ */
+NTSTATUS WINAPI WinSqmEndSession(PVOID unknown1)
+{
+    FIXME("(%p) stub!\n", unknown1);
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+/******************************************************************************
+ * WinSqmStartSession [NTDLL.@]
+ */
+PVOID WINAPI WinSqmStartSession(PVOID unknown1, DWORD unknown2, DWORD unknown3)
+{
+    FIXME("(%p, 0x%x, 0x%x) stub!\n", unknown1, unknown2, unknown3);
+    return NULL;
+}
