@@ -63,6 +63,9 @@ static inline USHORT __my_ushort_swap(USHORT s)
 
 /* Function ptrs for ntdll calls */
 static HMODULE hntdll = 0;
+static PVOID     (WINAPI *pWinSqmStartSession)(PVOID unknown1, DWORD unknown2, DWORD unknown3);
+static BOOL      (WINAPI *pWinSqmIsOptedIn)(void);
+static NTSTATUS  (WINAPI *pWinSqmEndSession)(PVOID unknown1);
 static SIZE_T    (WINAPI  *pRtlCompareMemory)(LPCVOID,LPCVOID,SIZE_T);
 static SIZE_T    (WINAPI  *pRtlCompareMemoryUlong)(PULONG, SIZE_T, ULONG);
 static NTSTATUS  (WINAPI  *pRtlDeleteTimer)(HANDLE, HANDLE, HANDLE);
@@ -122,6 +125,9 @@ static void InitFunctionPtrs(void)
     hntdll = LoadLibraryA("ntdll.dll");
     ok(hntdll != 0, "LoadLibrary failed\n");
     if (hntdll) {
+        pWinSqmStartSession = (void *)GetProcAddress(hntdll, "WinSqmStartSession");
+        pWinSqmIsOptedIn = (void *)GetProcAddress(hntdll, "WinSqmIsOptedIn");
+        pWinSqmEndSession = (void *)GetProcAddress(hntdll, "WinSqmEndSession");
 	pRtlCompareMemory = (void *)GetProcAddress(hntdll, "RtlCompareMemory");
 	pRtlCompareMemoryUlong = (void *)GetProcAddress(hntdll, "RtlCompareMemoryUlong");
         pRtlDeleteTimer = (void *)GetProcAddress(hntdll, "RtlDeleteTimer");
@@ -173,6 +179,48 @@ static void InitFunctionPtrs(void)
     strcpy((char*)src_aligned_block, src_src);
     ok(strlen(src) == 15, "Source must be 16 bytes long!\n");
 }
+
+#ifdef __i386__
+const char stdcall3_thunk[] =
+    "\x56"              /* push %esi */
+    "\x89\xE6"          /* mov %esp, %esi */
+    "\xFF\x74\x24\x14"  /* pushl 20(%esp) */
+    "\xFF\x74\x24\x14"  /* pushl 20(%esp) */
+    "\xFF\x74\x24\x14"  /* pushl 20(%esp) */
+    "\xFF\x54\x24\x14"  /* calll 20(%esp) */
+    "\x89\xF0"          /* mov %esi, %eax */
+    "\x29\xE0"          /* sub %esp, %eax */
+    "\x89\xF4"          /* mov %esi, %esp */
+    "\x5E"              /* pop %esi */
+    "\xC2\x10\x00"      /* ret $16 */
+;
+
+static INT (WINAPI *call_stdcall_func3)(PVOID func, PVOID arg0, DWORD arg1, DWORD arg2) = NULL;
+
+static void test_WinSqm(void)
+{
+    INT args;
+
+    if (!pWinSqmStartSession)
+    {
+        win_skip("WinSqmStartSession() is not available\n");
+        return;
+    }
+
+    call_stdcall_func3 = (void*) VirtualAlloc( NULL, sizeof(stdcall3_thunk) - 1, MEM_COMMIT,
+                                               PAGE_EXECUTE_READWRITE );
+    memcpy( call_stdcall_func3, stdcall3_thunk, sizeof(stdcall3_thunk) - 1 );
+
+    args = 3 - call_stdcall_func3( pWinSqmStartSession, NULL, 0, 0 ) / 4;
+    ok(args == 3, "WinSqmStartSession expected to take %d arguments instead of 3\n", args);
+    args = 3 - call_stdcall_func3( pWinSqmIsOptedIn, NULL, 0, 0 ) / 4;
+    ok(args == 0, "WinSqmIsOptedIn expected to take %d arguments instead of 0\n", args);
+    args = 3 - call_stdcall_func3( pWinSqmEndSession, NULL, 0, 0 ) / 4;
+    ok(args == 1, "WinSqmEndSession expected to take %d arguments instead of 1\n", args);
+
+    VirtualFree( call_stdcall_func3, 0, MEM_RELEASE );
+}
+#endif
 
 #define COMP(str1,str2,cmplen,len) size = pRtlCompareMemory(str1, str2, cmplen); \
   ok(size == len, "Expected %ld, got %ld\n", size, (SIZE_T)len)
@@ -3226,6 +3274,12 @@ static void test_RtlDecompressBuffer(void)
 START_TEST(rtl)
 {
     InitFunctionPtrs();
+
+#ifdef __i386__
+    test_WinSqm();
+#else
+    skip("stdcall-style parameter checks are not supported on this platform.\n");
+#endif
 
     test_RtlCompareMemory();
     test_RtlCompareMemoryUlong();
