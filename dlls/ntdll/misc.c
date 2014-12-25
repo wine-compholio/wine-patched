@@ -27,6 +27,8 @@
 #include <sys/utsname.h>
 #endif
 
+#include "ntstatus.h"
+#define WIN32_NO_STATUS
 #include "windows.h"
 #include "wmistr.h"
 #include "evntrace.h"
@@ -340,12 +342,30 @@ void * __cdecl _lfind( const void *key, const void *base, unsigned int *nmemb,
 }
 
 /*********************************************************************
+ *                  WinSqmEndSession   (NTDLL.@)
+ */
+NTSTATUS WINAPI WinSqmEndSession(PVOID unknown1)
+{
+    FIXME("(%p) stub!\n", unknown1);
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+/*********************************************************************
  *                  WinSqmIsOptedIn   (NTDLL.@)
  */
 BOOL WINAPI WinSqmIsOptedIn(void)
 {
     FIXME("() stub\n");
     return FALSE;
+}
+
+/*********************************************************************
+ *                  WinSqmStartSession   (NTDLL.@)
+ */
+PVOID WINAPI WinSqmStartSession(PVOID unknown1, DWORD unknown2, DWORD unknown3)
+{
+    FIXME("(%p, 0x%x, 0x%x) stub!\n", unknown1, unknown2, unknown3);
+    return NULL;
 }
 
 /*********************************************************************
