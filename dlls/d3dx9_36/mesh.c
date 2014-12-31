@@ -7268,6 +7268,18 @@ HRESULT WINAPI D3DXComputeNormals(ID3DXBaseMesh *mesh, const DWORD *adjacency)
 }
 
 /*************************************************************************
+ * D3DXComputeNormalMap    (D3DX9_36.@)
+ */
+HRESULT WINAPI D3DXComputeNormalMap(IDirect3DTexture9 *texture, IDirect3DTexture9 *src_texture,
+        const PALETTEENTRY *src_palette, DWORD flags, DWORD channel, FLOAT amplitude)
+{
+    FIXME("texture %p, src_texture %p, src_palette %p, flags %#x, channel %u, amplitude %f stub.\n",
+            texture, src_texture, src_palette, flags, channel, amplitude);
+
+    return D3D_OK;
+}
+
+/*************************************************************************
  * D3DXIntersect    (D3DX9_36.@)
  */
 HRESULT WINAPI D3DXIntersect(ID3DXBaseMesh *Mesh, const D3DXVECTOR3 *RayPos, const D3DXVECTOR3 *RayDir, BOOL *Hit,
