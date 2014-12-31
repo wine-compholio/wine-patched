@@ -22,7 +22,7 @@
 @ stdcall D3DXComputeIMTFromPerVertexSignal(ptr ptr long long long ptr ptr ptr) d3dx9_36.D3DXComputeIMTFromPerVertexSignal
 @ stdcall D3DXComputeIMTFromSignal(ptr long long long long ptr ptr ptr ptr ptr) d3dx9_36.D3DXComputeIMTFromSignal
 @ stdcall D3DXComputeIMTFromTexture(ptr ptr long long ptr ptr ptr) d3dx9_36.D3DXComputeIMTFromTexture
-@ stdcall D3DXComputeNormalMap(ptr ptr ptr long long long) d3dx9_36.D3DXComputeNormalMap
+@ stdcall D3DXComputeNormalMap(ptr ptr ptr long long float) d3dx9_36.D3DXComputeNormalMap
 @ stdcall D3DXComputeNormals(ptr ptr) d3dx9_36.D3DXComputeNormals
 @ stdcall D3DXComputeTangent(ptr long long long long ptr) d3dx9_36.D3DXComputeTangent
 @ stdcall D3DXComputeTangentFrame(ptr long) d3dx9_36.D3DXComputeTangentFrame
