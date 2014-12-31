@@ -7256,6 +7256,18 @@ HRESULT WINAPI D3DXComputeTangentFrameEx(ID3DXMesh *Mesh, DWORD TextureInSemanti
 }
 
 /*************************************************************************
+ * D3DXComputeNormals    (D3DX9_36.@)
+ */
+HRESULT WINAPI D3DXComputeNormals(ID3DXBaseMesh *mesh, const DWORD *adjacency)
+{
+    TRACE("mesh %p, adjacency %p.\n", mesh, adjacency);
+
+    return D3DXComputeTangentFrameEx((ID3DXMesh *)mesh, D3DX_DEFAULT, 0, D3DX_DEFAULT, 0, D3DX_DEFAULT, 0,
+                                     D3DDECLUSAGE_NORMAL, 0, D3DXTANGENT_GENERATE_IN_PLACE | D3DXTANGENT_CALCULATE_NORMALS,
+                                     adjacency, -1.01f, -0.01f, -1.01f, NULL, NULL);
+}
+
+/*************************************************************************
  * D3DXIntersect    (D3DX9_36.@)
  */
 HRESULT WINAPI D3DXIntersect(ID3DXBaseMesh *Mesh, const D3DXVECTOR3 *RayPos, const D3DXVECTOR3 *RayDir, BOOL *Hit,
