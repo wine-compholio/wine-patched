@@ -1956,13 +1956,14 @@ BOOL virtual_check_buffer_for_write( void *ptr, SIZE_T size )
 
 
 /***********************************************************************
- *           virtual_uninterrupted_read_memory
+ *           wine_uninterrupted_read_memory  (NTDLL.@)
  *
  * Similar to NtReadVirtualMemory, but without wineserver calls. Moreover
  * permissions are checked before accessing each page, to ensure that no
- * exceptions can happen.
+ * exceptions can happen. When a NULL pointer is passed as buffer the
+ * permissions are only checked and no actual memcpy is performed.
  */
-SIZE_T virtual_uninterrupted_read_memory( const void *addr, void *buffer, SIZE_T size )
+SIZE_T CDECL wine_uninterrupted_read_memory( const void *addr, void *buffer, SIZE_T size )
 {
     struct file_view *view;
     sigset_t sigset;
@@ -1980,10 +1981,14 @@ SIZE_T virtual_uninterrupted_read_memory( const void *addr, void *buffer, SIZE_T
             while (bytes_read < size && (VIRTUAL_GetUnixProt( get_page_vprot( page )) & PROT_READ))
             {
                 SIZE_T block_size = min( size, page_size - ((UINT_PTR)addr & page_mask) );
-                memcpy( buffer, addr, block_size );
 
-                addr   = (const void *)((const char *)addr + block_size);
-                buffer = (void *)((char *)buffer + block_size);
+                if (buffer)
+                {
+                    memcpy( buffer, addr, block_size );
+                    buffer = (void *)((char *)buffer + block_size);
+                }
+
+                addr = (const void *)((const char *)addr + block_size);
                 bytes_read += block_size;
                 page += page_size;
             }
@@ -1995,13 +2000,14 @@ SIZE_T virtual_uninterrupted_read_memory( const void *addr, void *buffer, SIZE_T
 
 
 /***********************************************************************
- *           virtual_uninterrupted_write_memory
+ *           wine_uninterrupted_write_memory
  *
  * Similar to NtWriteVirtualMemory, but without wineserver calls. Moreover
  * permissions are checked before accessing each page, to ensure that no
- * exceptions can happen.
+ * exceptions can happen. When a NULL pointer is passed as buffer the
+ * permissions are only checked and no actual memcpy is performed.
  */
-NTSTATUS virtual_uninterrupted_write_memory( void *addr, const void *buffer, SIZE_T size )
+NTSTATUS CDECL wine_uninterrupted_write_memory( void *addr, const void *buffer, SIZE_T size )
 {
     struct file_view *view;
     sigset_t sigset;
@@ -2025,7 +2031,7 @@ NTSTATUS virtual_uninterrupted_write_memory( void *addr, const void *buffer, SIZ
             set_page_vprot_bits( addr, size, 0, VPROT_WRITEWATCH );
             mprotect_range( view, addr, size, 0, 0 );
         }
-        memcpy( addr, buffer, size );
+        if (buffer) memcpy( addr, buffer, size );
         ret = STATUS_SUCCESS;
     }
 done:
