@@ -200,6 +200,7 @@ SRCDIR_INCLUDES = \
 	crtrow.idl \
 	cryptdlg.h \
 	cryptuiapi.h \
+	cuda.h \
 	custcntl.h \
 	cvconst.h \
 	d2dbasetypes.h \
