@@ -964,33 +964,25 @@ static WAVEFORMATEX *clone_format(const WAVEFORMATEX *fmt)
 
 static DWORD get_channel_mask(unsigned int channels)
 {
-    switch(channels) {
+    switch(channels){
     case 0:
         return 0;
     case 1:
-        return SPEAKER_FRONT_CENTER;
+        return KSAUDIO_SPEAKER_MONO;
     case 2:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
+        return KSAUDIO_SPEAKER_STEREO;
     case 3:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT |
-            SPEAKER_LOW_FREQUENCY;
+        return KSAUDIO_SPEAKER_STEREO | SPEAKER_LOW_FREQUENCY;
     case 4:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT |
-            SPEAKER_BACK_RIGHT;
+        return KSAUDIO_SPEAKER_QUAD;    /* not _SURROUND */
     case 5:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT |
-            SPEAKER_BACK_RIGHT | SPEAKER_LOW_FREQUENCY;
+        return KSAUDIO_SPEAKER_QUAD | SPEAKER_LOW_FREQUENCY;
     case 6:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT |
-            SPEAKER_BACK_RIGHT | SPEAKER_LOW_FREQUENCY | SPEAKER_FRONT_CENTER;
+        return KSAUDIO_SPEAKER_5POINT1; /* not 5POINT1_SURROUND */
     case 7:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT |
-            SPEAKER_BACK_RIGHT | SPEAKER_LOW_FREQUENCY | SPEAKER_FRONT_CENTER |
-            SPEAKER_BACK_CENTER;
+        return KSAUDIO_SPEAKER_5POINT1 | SPEAKER_BACK_CENTER;
     case 8:
-        return SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT |
-            SPEAKER_BACK_RIGHT | SPEAKER_LOW_FREQUENCY | SPEAKER_FRONT_CENTER |
-            SPEAKER_SIDE_LEFT | SPEAKER_SIDE_RIGHT;
+        return KSAUDIO_SPEAKER_7POINT1_SURROUND; /* Vista deprecates 7POINT1 */
     }
     FIXME("Unknown speaker configuration: %u\n", channels);
     return 0;
