@@ -1940,14 +1940,17 @@ static HRESULT WINAPI AudioRenderClient_ReleaseBuffer(
         return AUDCLNT_E_INVALID_SIZE;
     }
 
-    if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
-        silence_buffer(This->ss.format, This->tmp_buffer, written_bytes);
-
     This->locked = 0;
-    if (This->locked_ptr)
+    if (This->locked_ptr) {
+        if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
+            silence_buffer(This->ss.format, This->locked_ptr, written_bytes);
         pa_stream_write(This->stream, This->locked_ptr, written_bytes, NULL, 0, PA_SEEK_RELATIVE);
-    else
+    } else {
+        if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
+            silence_buffer(This->ss.format, This->tmp_buffer, written_bytes);
         pa_stream_write(This->stream, This->tmp_buffer, written_bytes, pulse_free_noop, 0, PA_SEEK_RELATIVE);
+    }
+
     This->pad += written_bytes;
     This->locked_ptr = NULL;
     TRACE("Released %u, pad %zu\n", written_frames, This->pad / pa_frame_size(&This->ss));
