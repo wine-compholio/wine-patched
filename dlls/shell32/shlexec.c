@@ -1558,6 +1558,7 @@ static void do_error_dialog( UINT_PTR retval, HWND hwnd )
  */
 static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
 {
+    static const WCHAR wQuote[] = {'\"',0};
     static const WCHAR wSpace[] = {' ',0};
     static const WCHAR wWww[] = {'w','w','w',0};
     static const WCHAR wHttp[] = {'h','t','t','p',':','/','/',0};
@@ -1580,6 +1581,7 @@ static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
     LPCWSTR lpFile;
     UINT_PTR retval = SE_ERR_NOASSOC;
     BOOL appKnownSingular = FALSE;
+    BOOL needs_quote;
 
     /* make a local copy of the LPSHELLEXECUTEINFO structure and work with this from now on */
     sei_tmp = *sei;
@@ -1802,32 +1804,35 @@ static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
 	}
 	else
 	{
-	    /* If the executable name is not quoted, we have to use this search loop here,
-	       that in CreateProcess() is not sufficient because it does not handle shell links. */
+            /* FIXME: what versions support this? Fails on 2000/XP
+             * If the executable name is not quoted, we have to use this search loop here,
+             * that in CreateProcess() is not sufficient because it does not handle shell links. */
 	    WCHAR buffer[MAX_PATH], xlpFile[MAX_PATH];
-	    LPWSTR space, s;
+            LPWSTR space;
 
-	    LPWSTR beg = wszApplicationName/*sei_tmp.lpFile*/;
-	    for(s=beg; (space=strchrW(s, ' ')); s=space+1) {
-		int idx = space-sei_tmp.lpFile;
-		memcpy(buffer, sei_tmp.lpFile, idx * sizeof(WCHAR));
+            lstrcpynW(buffer, wszApplicationName, sizeof(buffer)/sizeof(WCHAR));
+            space = buffer + strlenW(buffer);
+            do
+            {
+                int idx = space-buffer;
 		buffer[idx] = '\0';
 
 		/*FIXME This finds directory paths if the targeted file name contains spaces. */
 		if (SearchPathW(*sei_tmp.lpDirectory? sei_tmp.lpDirectory: NULL, buffer, wszExe, sizeof(xlpFile)/sizeof(xlpFile[0]), xlpFile, NULL))
 		{
 		    /* separate out command from parameter string */
-		    LPCWSTR p = space + 1;
+                    LPCWSTR p = wszApplicationName + idx;
 
 		    while(isspaceW(*p))
 			++p;
 
 		    strcpyW(wszParameters, p);
-		    *space = '\0';
+                    wszApplicationName[idx] = '\0';
 
 		    break;
 		}
 	    }
+            while((space=strrchrW(buffer, ' ')));
 
             lpFile = sei_tmp.lpFile;
 	}
@@ -1836,6 +1841,9 @@ static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
 
     wcmd = wcmdBuffer;
     len = lstrlenW(wszApplicationName) + 1;
+    needs_quote = NULL != strstrW(wszApplicationName,wSpace);
+    if (needs_quote)
+        len += 2;
     if (sei_tmp.lpParameters[0])
         len += 1 + lstrlenW(wszParameters);
     if (len > wcmdLen)
@@ -1843,7 +1851,12 @@ static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
         wcmd = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
         wcmdLen = len;
     }
-    strcpyW(wcmd, wszApplicationName);
+
+    wcmd[0] = 0;
+    if (needs_quote) strcatW(wcmd, wQuote);
+    strcatW(wcmd, wszApplicationName);
+    if (needs_quote) strcatW(wcmd, wQuote);
+
     if (sei_tmp.lpParameters[0]) {
         strcatW(wcmd, wSpace);
         strcatW(wcmd, wszParameters);
