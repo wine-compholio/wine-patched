@@ -498,6 +498,7 @@ SRCDIR_INCLUDES = \
 	ntsecapi.h \
 	ntsecpkg.h \
 	ntstatus.h \
+	nvapi.h \
 	objbase.h \
 	objsel.h \
 	odbcinst.h \
