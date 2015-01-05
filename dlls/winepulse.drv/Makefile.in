@@ -1,5 +1,6 @@
 MODULE    = winepulse.drv
 IMPORTS   = dxguid uuid winmm user32 advapi32 ole32
+DELAYIMPORTS = winealsa.drv
 EXTRALIBS = @PULSELIBS@ $(PTHREAD_LIBS)
 EXTRAINCL = @PULSEINCL@
 
