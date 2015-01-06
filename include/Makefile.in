@@ -244,6 +244,7 @@ HEADER_SRCS = \
 	cryptuiapi.h \
 	cuda.h \
 	custcntl.h \
+	cuviddec.h \
 	cvconst.h \
 	d2dbasetypes.h \
 	d2derr.h \
@@ -545,6 +546,7 @@ HEADER_SRCS = \
 	ntsecpkg.h \
 	ntstatus.h \
 	nvapi.h \
+	nvcuvid.h \
 	objbase.h \
 	objsel.h \
 	odbcinst.h \
