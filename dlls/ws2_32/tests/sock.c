@@ -5155,14 +5155,12 @@ static void test_events(int useMessages)
     SetLastError(0xdeadbeef);
     ret = recv(src, buffer, 1, MSG_PEEK);
     ok(ret == 1, "Failed to peek at recv buffer %d err %d\n", ret, GetLastError());
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
     ok_event_seq(src, hEvent, read_seq, NULL, 0);
 
     SetLastError(0xdeadbeef);
     ret = recv(src, buffer, 50, 0);
     ok(ret == 50, "Failed to recv buffer %d err %d\n", ret, GetLastError());
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
     ok_event_seq(src, hEvent, read_seq, NULL, 0);
 
@@ -5190,7 +5188,6 @@ todo_wine
     SetLastError(0xdeadbeef);
     ret = recv(src, buffer, 1, 0);
     ok(ret == 1, "Failed to recv buffer %d err %d\n", ret, GetLastError());
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
     ok_event_seq(src, hEvent, empty_seq, NULL, 0);
 
@@ -5622,7 +5619,6 @@ static void test_WSASendMsg(void)
     ret = recvfrom(dst, buffer, sizeof(buffer), 0, (struct sockaddr *) &sockaddr, &addrlen);
     ok(ret == bytesSent, "got %d, expected %d\n",
        ret, bytesSent);
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
 
     /* A successful call to WSASendMsg must have bound the socket */
@@ -5653,7 +5649,6 @@ todo_wine
     ret = recvfrom(dst, buffer, sizeof(buffer), 0, (struct sockaddr *) &sockaddr, &addrlen);
     ok(ret == bytesSent, "got %d, expected %d\n",
        ret, bytesSent);
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
 
     closesocket(sock);
@@ -5789,14 +5784,12 @@ static void test_WSARecv(void)
     iret = WSARecv(dest, &bufs, 1, &bytesReturned, &flags, NULL, NULL);
     ok(!iret, "Expected 0, got %d\n", iret);
     ok(bytesReturned, "Expected 2, got %d\n", bytesReturned);
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
     SetLastError(0xdeadbeef);
     bytesReturned = 0xdeadbeef;
     iret = WSARecv(dest, &bufs, 1, &bytesReturned, &flags, NULL, NULL);
     ok(!iret, "Expected 0, got %d\n", iret);
     ok(bytesReturned, "Expected 2, got %d\n", bytesReturned);
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
 
     bufs.len = 4;
@@ -5809,7 +5802,6 @@ todo_wine
     iret = WSARecv(dest, &bufs, 1, &bytesReturned, &flags, NULL, NULL);
     ok(!iret, "Expected 0, got %d\n", iret);
     ok(bytesReturned, "Expected 4, got %d\n", bytesReturned);
-todo_wine
     ok(GetLastError() == ERROR_SUCCESS, "Expected 0, got %d\n", GetLastError());
 
     bufs.len = sizeof(buf);
