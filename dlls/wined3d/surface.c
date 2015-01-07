@@ -3840,12 +3840,12 @@ static HRESULT surface_blt_special(struct wined3d_surface *dst_surface, const RE
         else if (flags & WINEDDBLT_KEYSRCOVERRIDE)
         {
             /* Use color key from DDBltFx */
-            wined3d_texture_set_color_key(src_surface->container, WINEDDSD_CKSRCBLT, &DDBltFx->ddckSrcColorkey);
+            wined3d_texture_set_color_key(src_surface->container, WINEDDCKEY_SRCBLT, &DDBltFx->ddckSrcColorkey);
         }
         else
         {
             /* Do not use color key */
-            wined3d_texture_set_color_key(src_surface->container, WINEDDSD_CKSRCBLT, NULL);
+            wined3d_texture_set_color_key(src_surface->container, WINEDDCKEY_SRCBLT, NULL);
         }
 
         surface_blt_to_drawable(device, filter,
@@ -3853,7 +3853,7 @@ static HRESULT surface_blt_special(struct wined3d_surface *dst_surface, const RE
                 src_surface, src_rect, dst_surface, dst_rect);
 
         /* Restore the color key parameters */
-        wined3d_texture_set_color_key(src_surface->container, WINEDDSD_CKSRCBLT,
+        wined3d_texture_set_color_key(src_surface->container, WINEDDCKEY_SRCBLT,
                 (old_color_key_flags & WINEDDSD_CKSRCBLT) ? &old_blt_key : NULL);
 
         surface_validate_location(dst_surface, dst_surface->container->resource.draw_binding);
