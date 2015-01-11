@@ -80,7 +80,7 @@ static const GUID *d3dformat_to_wic_guid(D3DFORMAT format)
 /* dds_header.flags */
 #define DDS_CAPS 0x1
 #define DDS_HEIGHT 0x2
-#define DDS_WIDTH 0x2
+#define DDS_WIDTH 0x4
 #define DDS_PITCH 0x8
 #define DDS_PIXELFORMAT 0x1000
 #define DDS_MIPMAPCOUNT 0x20000
@@ -490,13 +490,12 @@ static HRESULT save_dds_surface_to_memory(ID3DXBuffer **dst_buffer, IDirect3DSur
 
     memset(header, 0, sizeof(*header));
     header->signature = MAKEFOURCC('D','D','S',' ');
-    header->size = sizeof(*header);
-    header->flags = DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PITCH | DDS_PIXELFORMAT | DDS_MIPMAPCOUNT;
+    /* The signature is not really part of the DDS header */
+    header->size = sizeof(*header) - sizeof(header->signature);
+    header->flags = DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PITCH | DDS_PIXELFORMAT;
     header->height = src_desc.Height;
     header->width = src_desc.Width;
     header->pitch_or_linear_size = dst_pitch;
-    header->depth = 1;
-    header->miplevels = 1;
     header->caps = DDS_CAPS_TEXTURE;
     hr = d3dformat_to_dds_pixel_format(&header->pixel_format, src_desc.Format);
     if (FAILED(hr))
