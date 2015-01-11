@@ -1272,7 +1272,7 @@ static void test_D3DXSaveSurfaceToFileInMemory(IDirect3DDevice9 *device)
         header = ID3DXBuffer_GetBufferPointer(buffer);
 
         ok(header->magic == MAKEFOURCC('D','D','S',' '), "Invalid DDS signature\n");
-        todo_wine ok(header->size == 124, "Invalid DDS size %d\n", header->size);
+        ok(header->size == 124, "Invalid DDS size %d\n", header->size);
         ok(header->height == 4, "Wrong height %d\n", header->height);
         ok(header->width == 4, "Wrong width %d\n", header->width);
         todo_wine ok(header->flags == (DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PIXELFORMAT),
