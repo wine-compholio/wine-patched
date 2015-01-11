@@ -314,6 +314,14 @@ static HRESULT d3dformat_to_dds_pixel_format(struct dds_pixel_format *pixel_form
         }
     }
 
+    /* Reuse dds_fourcc_to_d3dformat as D3DFORMAT and FOURCC are DWORD with same values */
+    if (dds_fourcc_to_d3dformat(d3dformat) != D3DFMT_UNKNOWN)
+    {
+        pixel_format->flags |= DDS_PF_FOURCC;
+        pixel_format->fourcc = d3dformat;
+        return D3D_OK;
+    }
+
     WARN("Unknown pixel format %#x\n", d3dformat);
     return E_NOTIMPL;
 }
@@ -492,7 +500,9 @@ static HRESULT save_dds_surface_to_memory(ID3DXBuffer **dst_buffer, IDirect3DSur
     header->signature = MAKEFOURCC('D','D','S',' ');
     /* The signature is not really part of the DDS header */
     header->size = sizeof(*header) - sizeof(header->signature);
-    header->flags = DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PITCH | DDS_PIXELFORMAT;
+    header->flags = DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PIXELFORMAT;
+    /* Note that native does not set DDS_LINEARSIZE flag nor pitch_or_linear_size field for DXTn */
+    header->flags |= (pixel_format->block_width != 1) || (pixel_format->block_height != 1) ? DDS_LINEARSIZE : DDS_PITCH;
     header->height = src_desc.Height;
     header->width = src_desc.Width;
     header->pitch_or_linear_size = dst_pitch;
