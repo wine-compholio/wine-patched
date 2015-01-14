@@ -414,120 +414,122 @@ error:
     return 1;
 }
 
-static int reg_delete(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
-    BOOL value_all, BOOL force)
+static int reg_delete(const WCHAR *key_name,    const WCHAR *value_name,  const BOOL value_empty,
+                      const BOOL value_all,     const BOOL force)
 {
-    HKEY subkey;
-    LONG err;
-
-    static const WCHAR stubW[] = {'D','E','L','E','T','E',
-        ' ','-',' ','%','s',' ','%','s',' ','%','d',' ','%','d',' ','%','d','\n'
-        ,0};
-    reg_printfW(stubW, key_name, value_name, value_empty, value_all, force);
-
-    err = sane_path(key_name);
+    HKEY key = NULL;
+    LONG err = sane_path(key_name);
     if (err != ERROR_SUCCESS)
     {
         reg_print_error(err);
         return 1;
     }
 
-    err = path_open(key_name, &subkey, FALSE);
+    err = path_open(key_name, &key, FALSE);
     if (err != ERROR_SUCCESS)
-    {
-        reg_message(STRING_INVALID_KEY);
-        return 1;
-    }
+        goto error;
 
-    if (value_name && value_empty)
+    /* Mutually exclusive options */
+    if ((!!value_name + !!value_empty + !!value_all) > 1)
     {
-        reg_message(STRING_INVALID_CMDLINE);
-        return 1;
-    }
-
-    if (value_empty && value_all)
-    {
-        reg_message(STRING_INVALID_CMDLINE);
-        return 1;
+        err = ERROR_BAD_COMMAND;
+        goto error;
     }
 
     if (!force)
     {
-        /* FIXME:  Prompt for delete */
+        WINE_FIXME("Prompt for delete\n");
     }
 
-    /* Delete subtree only if no /v* option is given */
-    if (!value_name && !value_empty && !value_all)
+    if (value_empty || value_name)
     {
-        err = RegDeleteTreeW(subkey, NULL);
-        if (err != ERROR_SUCCESS)
-        {
-            reg_print_error(err);
-            return 1;
-        }
+        if (value_name && value_name[0])
+            err = RegDeleteValueW(key, value_name);
+        else
+            err = RegDeleteValueW(key, NULL);
 
-        err = RegDeleteKeyW(subkey, empty_wstr);
         if (err != ERROR_SUCCESS)
-        {
-            reg_print_error(err);
-            return 1;
-        }
-        reg_message(STRING_SUCCESS);
-        return 0;
+            goto error;
     }
-
-    if (value_all)
+    else if (value_all)
     {
-        LPWSTR szValue;
-        DWORD maxValue;
-        DWORD count;
-        LONG rc;
+        WCHAR *enum_v_name;
+        DWORD count, max_size, this_size, i = 0;
+        BOOL incomplete = FALSE;
 
-        rc = RegQueryInfoKeyW(subkey, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            &maxValue, NULL, NULL, NULL);
-        if (rc != ERROR_SUCCESS)
+        err = RegQueryInfoKeyW(key, NULL, NULL, NULL, NULL, NULL, NULL,
+                &count, &max_size, NULL, NULL, NULL);
+        if (err != ERROR_SUCCESS)
+            goto error;
+
+        max_size++;
+        enum_v_name = HeapAlloc(GetProcessHeap(), 0, max_size * sizeof(WCHAR));
+        if (!enum_v_name)
         {
-            /* FIXME: failure */
-            RegCloseKey(subkey);
-            return 1;
+            err = ERROR_NOT_ENOUGH_MEMORY;
+            goto error;
         }
-        maxValue++;
-        szValue = HeapAlloc(GetProcessHeap(),0,maxValue*sizeof(WCHAR));
 
-        while (1)
+        while (i < count)
         {
-            count = maxValue;
-            rc = RegEnumValueW(subkey, 0, szValue, &count, NULL, NULL, NULL, NULL);
-            if (rc == ERROR_SUCCESS)
+            this_size = max_size;
+
+            err = RegEnumValueW(key, i, enum_v_name, &this_size, NULL, NULL, NULL, NULL);
+            if (err != ERROR_SUCCESS)
             {
-                rc = RegDeleteValueW(subkey, szValue);
-                if (rc != ERROR_SUCCESS)
-                    break;
+                reg_print_error(err);
+                incomplete = TRUE;
+                i++;
+                continue;
             }
-            else break;
+
+            err = RegDeleteValueW(key, enum_v_name);
+            if (err != ERROR_SUCCESS)
+            {
+                reg_print_error(err);
+                incomplete = TRUE;
+                i++;
+                continue;
+            }
+
+            count--;
         }
-        if (rc != ERROR_SUCCESS)
+
+        HeapFree(GetProcessHeap(), 0, enum_v_name);
+
+        if (incomplete)
         {
-            /* FIXME  delete failed */
-        }
-    }
-    else if (value_name)
-    {
-        if (RegDeleteValueW(subkey,value_name) != ERROR_SUCCESS)
-        {
-            RegCloseKey(subkey);
-            reg_message(STRING_CANNOT_FIND);
+            RegCloseKey(key);
             return 1;
         }
     }
-    else if (value_empty)
+    /* Delete subtree only if no /v* option is given */
+    else
     {
-        RegSetValueExW(subkey,NULL,0,REG_SZ,NULL,0);
+        if (key == path_get_rootkey(key_name))
+        {
+            /* "This works well enough on native to make you regret you pressed enter" - stefand */
+            WINE_FIXME("Deleting a root key is not implemented.\n");
+            RegCloseKey(key);
+            return 1;
+        }
+
+        err = RegDeleteTreeW(key, NULL);
+        if (err != ERROR_SUCCESS)
+            goto error;
+        err = RegDeleteKeyW(key, empty_wstr);
+        if (err != ERROR_SUCCESS)
+            goto error;
     }
 
-    RegCloseKey(subkey);
+    RegCloseKey(key);
     reg_message(STRING_SUCCESS);
     return 0;
+
+error:
+    RegCloseKey(key);
+    reg_print_error(err);
+    return 1;
 }
 
 static int reg_query(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
