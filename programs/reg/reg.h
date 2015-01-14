@@ -31,3 +31,4 @@
 #define STRING_NO_REMOTE        108
 #define STRING_CANNOT_FIND      109
 #define STRING_ERROR            110
+#define STRING_UNSUPPORTED_TYPE 111
