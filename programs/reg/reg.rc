@@ -37,4 +37,5 @@ STRINGTABLE
     STRING_CANNOT_FIND, "Error: The system was unable to find the specified registry key or value\n"
     STRING_ERROR, "Unexpected error: "
     STRING_UNSUPPORTED_TYPE, "Error: Unsupported type\n"
+    STRING_INVALID_DWORD, "Error: /d must be positive number\n"
 }
