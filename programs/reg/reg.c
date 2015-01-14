@@ -20,6 +20,8 @@
 #include <wine/unicode.h>
 #include "reg.h"
 
+#define ERROR_NO_REMOTE         20000
+
 static int reg_printfW(const WCHAR *msg, ...)
 {
     va_list va_args;
@@ -75,6 +77,9 @@ static void reg_print_error(LSTATUS error_code)
             return;
         case ERROR_BAD_COMMAND:
             reg_message(STRING_INVALID_CMDLINE);
+            return;
+        case ERROR_NO_REMOTE:
+            reg_message(STRING_NO_REMOTE);
             return;
         default:
         {
@@ -203,6 +208,14 @@ static LPBYTE get_regdata(LPWSTR data, DWORD reg_type, WCHAR separator, DWORD *r
     return out_data;
 }
 
+static LSTATUS sane_path(const WCHAR *key)
+{
+    if (key[0] == '\\' && key[1] == '\\' && key[2] != '\\')
+        return ERROR_NO_REMOTE;
+
+    return ERROR_SUCCESS;
+}
+
 static int reg_add(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
     WCHAR *type, WCHAR separator, WCHAR *data, BOOL force)
 {
@@ -210,12 +223,14 @@ static int reg_add(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
         ' ','%','s',' ','%','d',' ','%','s',' ','%','s',' ','%','d','\n',0};
     LPWSTR p;
     HKEY root,subkey;
+    LONG err;
 
     reg_printfW(stubW, key_name, value_name, value_empty, type, data, force);
 
-    if (key_name[0]=='\\' && key_name[1]=='\\')
+    err = sane_path(key_name);
+    if (err != ERROR_SUCCESS)
     {
-        reg_message(STRING_NO_REMOTE);
+        reg_print_error(err);
         return 1;
     }
 
@@ -280,15 +295,17 @@ static int reg_delete(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
 {
     LPWSTR p;
     HKEY root,subkey;
+    LONG err;
 
     static const WCHAR stubW[] = {'D','E','L','E','T','E',
         ' ','-',' ','%','s',' ','%','s',' ','%','d',' ','%','d',' ','%','d','\n'
         ,0};
     reg_printfW(stubW, key_name, value_name, value_empty, value_all, force);
 
-    if (key_name[0]=='\\' && key_name[1]=='\\')
+    err = sane_path(key_name);
+    if (err != ERROR_SUCCESS)
     {
-        reg_message(STRING_NO_REMOTE);
+        reg_print_error(err);
         return 1;
     }
 
