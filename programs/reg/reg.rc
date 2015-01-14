@@ -36,4 +36,5 @@ STRINGTABLE
     STRING_NO_REMOTE, "Error: Unable to access remote machine\n"
     STRING_CANNOT_FIND, "Error: The system was unable to find the specified registry key or value\n"
     STRING_ERROR, "Unexpected error: "
+    STRING_UNSUPPORTED_TYPE, "Error: Unsupported type\n"
 }
