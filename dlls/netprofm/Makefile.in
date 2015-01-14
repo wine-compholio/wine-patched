@@ -2,6 +2,7 @@ MODULE    = netprofm.dll
 
 C_SRCS = \
 	list.c \
+	connectionpoint.c \
 	main.c
 
 IDL_SRCS = netprofm.idl
