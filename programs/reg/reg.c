@@ -349,71 +349,69 @@ static LSTATUS sane_path(const WCHAR *key)
     return ERROR_SUCCESS;
 }
 
-static int reg_add(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
-    WCHAR *type, WCHAR separator, WCHAR *data, BOOL force)
+static int reg_add( const WCHAR *key_name,  const WCHAR *value_name,    const BOOL value_empty,
+                    const WCHAR *type,      const WCHAR separator,      const WCHAR *data,
+                    const BOOL force)
 {
-    static const WCHAR stubW[] = {'A','D','D',' ','-',' ','%','s',
-        ' ','%','s',' ','%','d',' ','%','s',' ','%','s',' ','%','d','\n',0};
-    HKEY subkey;
-    LONG err;
-
-    reg_printfW(stubW, key_name, value_name, value_empty, type, data, force);
-
-    err = sane_path(key_name);
+    HKEY key = NULL;
+    LONG err = sane_path(key_name);
     if (err != ERROR_SUCCESS)
+        goto error;
+
+    if (value_name && value_empty)
     {
-        reg_print_error(err);
-        return 1;
+        err = ERROR_BAD_COMMAND;
+        goto error;
     }
 
-    err = path_open(key_name, &subkey, TRUE);
+    err = path_open(key_name, &key, TRUE);
     if (err != ERROR_SUCCESS)
-    {
-        reg_message(STRING_INVALID_KEY);
-        return 1;
-    }
+        goto error;
 
     if (value_name || data)
     {
-        DWORD reg_type;
-        DWORD reg_count = 0;
-        BYTE* reg_data = NULL;
+        DWORD size, reg_type;
+        BYTE *data_out;
 
-        if (!force)
+        if (value_name && !value_name[0])
+            value_name = NULL;
+
+        if (type && !type[0])
         {
-            if (RegQueryValueW(subkey,value_name,NULL,NULL)==ERROR_SUCCESS)
-            {
-                /* FIXME:  Prompt for overwrite */
-            }
+            data = NULL;
+            type = NULL;
+        }
+
+        if (!force && RegQueryValueExW(key, value_name, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+        {
+            WINE_FIXME("Prompt for overwrite\n");
         }
 
         reg_type = wchar_get_type(type);
         if (reg_type == ~0u)
         {
-            RegCloseKey(subkey);
-            reg_print_error(ERROR_UNSUPPORTED_TYPE);
-            return 1;
+            err = ERROR_INVALID_DATATYPE;
+            goto error;
         }
 
-        if (data)
-        {
-            err = wchar_get_data(data, reg_type, separator, &reg_count, &reg_data);
-            if (err != ERROR_SUCCESS)
-            {
-                RegCloseKey(subkey);
-                reg_print_error(err);
-                return 1;
-            }
-        }
+        err = wchar_get_data(data, reg_type, separator, &size, &data_out);
+        if (err != ERROR_SUCCESS)
+            goto error;
 
-        RegSetValueExW(subkey,value_name,0,reg_type,reg_data,reg_count);
-        HeapFree(GetProcessHeap(),0,reg_data);
+        err = RegSetValueExW(key, value_name, 0, reg_type, data_out, size);
+        HeapFree(GetProcessHeap(), 0, data_out);
+        if (err != ERROR_SUCCESS)
+            goto error;
     }
 
-    RegCloseKey(subkey);
+    RegCloseKey(key);
     reg_message(STRING_SUCCESS);
-
     return 0;
+
+error:
+    RegCloseKey(key);
+    reg_print_error(err);
+    return 1;
 }
 
 static int reg_delete(WCHAR *key_name, WCHAR *value_name, BOOL value_empty,
@@ -593,7 +591,14 @@ int wmain(int argc, WCHAR *argvW[])
             else if (!lstrcmpiW(argvW[i], slashTW))
                 type = argvW[++i];
             else if (!lstrcmpiW(argvW[i], slashSW))
-                separator = argvW[++i][0];
+            {
+                if (!argvW[++i][0] || argvW[i][1])
+                {
+                    reg_print_error(ERROR_BAD_COMMAND);
+                    return 1;
+                }
+                separator = argvW[i][0];
+            }
             else if (!lstrcmpiW(argvW[i], slashDW))
                 data = argvW[++i];
             else if (!lstrcmpiW(argvW[i], slashFW))
