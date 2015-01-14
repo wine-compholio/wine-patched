@@ -15,5 +15,8 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
+#include "ocidl.h"
 
 HRESULT list_manager_create(void **) DECLSPEC_HIDDEN;
+HRESULT connection_point_create( IConnectionPoint **obj, REFIID riid,
+                                 IConnectionPointContainer *container ) DECLSPEC_HIDDEN;

@@ -328,8 +328,19 @@ static HRESULT WINAPI ConnectionPointContainer_FindConnectionPoint(IConnectionPo
         REFIID riid, IConnectionPoint **cp)
 {
     struct list_manager *This = impl_from_IConnectionPointContainer( iface );
-    FIXME("(%p)->(%s %p): stub\n", This, debugstr_guid(riid), cp);
-    return E_NOTIMPL;
+
+    TRACE("%p, %s, %p\n", This, debugstr_guid(riid), cp);
+
+    if (!riid || !cp)
+        return E_POINTER;
+
+    if (IsEqualGUID( riid, &IID_INetworkListManagerEvents ))
+        return connection_point_create( cp, riid, iface );
+
+    FIXME( "interface %s not implemented\n", debugstr_guid(riid) );
+
+    *cp = NULL;
+    return E_NOINTERFACE;
 }
 
 static const struct IConnectionPointContainerVtbl cpc_vtbl =
