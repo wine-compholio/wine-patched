@@ -67,6 +67,30 @@ static int reg_message(int msg)
     return reg_printfW(formatW, msg_buffer);
 }
 
+static void reg_print_error(LSTATUS error_code)
+{
+    switch (error_code)
+    {
+        case ERROR_SUCCESS:
+            return;
+        case ERROR_BAD_COMMAND:
+            reg_message(STRING_INVALID_CMDLINE);
+            return;
+        default:
+        {
+            static const WCHAR error_string[] = {'%','0','5','d',':',' ','%','s',0};
+            WCHAR *message = NULL;
+            FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER, NULL,
+                error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (WCHAR *)&message, 0, NULL);
+
+            reg_message(STRING_ERROR);
+            reg_printfW(error_string, error_code, message);
+            LocalFree(message);
+            return;
+        }
+    }
+}
+
 static int reg_StrCmpNIW(LPCWSTR str, LPCWSTR comp, int len)
 {
     int i;
@@ -413,7 +437,7 @@ int wmain(int argc, WCHAR *argvW[])
 
         if (argc < 3)
         {
-            reg_message(STRING_INVALID_CMDLINE);
+            reg_print_error(ERROR_BAD_COMMAND);
             return 1;
         }
         else if (argc == 3 && (!lstrcmpW(argvW[2], slashHelpW) ||
@@ -449,7 +473,7 @@ int wmain(int argc, WCHAR *argvW[])
 
         if (argc < 3)
         {
-            reg_message(STRING_INVALID_CMDLINE);
+            reg_print_error(ERROR_BAD_COMMAND);
             return 1;
         }
         else if (argc == 3 && (!lstrcmpW(argvW[2], slashHelpW) ||
@@ -480,7 +504,7 @@ int wmain(int argc, WCHAR *argvW[])
 
         if (argc < 3)
         {
-            reg_message(STRING_INVALID_CMDLINE);
+            reg_print_error(ERROR_BAD_COMMAND);
             return 1;
         }
         else if (argc == 3 && (!lstrcmpW(argvW[2], slashHelpW) ||
@@ -504,7 +528,7 @@ int wmain(int argc, WCHAR *argvW[])
     }
     else
     {
-        reg_message(STRING_INVALID_CMDLINE);
+        reg_print_error(ERROR_BAD_COMMAND);
         return 1;
     }
 }
