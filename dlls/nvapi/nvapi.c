@@ -550,6 +550,20 @@ static NvAPI_Status CDECL NvAPI_D3D_GetCurrentSLIState(IUnknown *pDevice, NV_GET
     return NVAPI_NO_ACTIVE_SLI_TOPOLOGY;
 }
 
+static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp, NvLogicalGpuHandle *pLogicalGPU)
+{
+    TRACE("(%p, %p)\n", hNvDisp, pLogicalGPU);
+
+    if (!pLogicalGPU)
+        return NVAPI_INVALID_POINTER;
+
+    if (hNvDisp && hNvDisp != FAKE_DISPLAY)
+        return NVAPI_NVIDIA_DEVICE_NOT_FOUND;
+
+    *pLogicalGPU = FAKE_LOGICAL_GPU;
+    return NVAPI_OK;
+}
+
 void* CDECL nvapi_QueryInterface(unsigned int offset)
 {
     static const struct
@@ -589,6 +603,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x2926aaad, NvAPI_SYS_GetDriverAndBranchVersion},
         {0xd22bdd7e, NvAPI_Unload},
         {0x4b708b54, NvAPI_D3D_GetCurrentSLIState},
+        {0xee1370cf, NvAPI_GetLogicalGPUFromDisplay},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
