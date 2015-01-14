@@ -78,6 +78,9 @@ static void reg_print_error(LSTATUS error_code)
         case ERROR_BAD_COMMAND:
             reg_message(STRING_INVALID_CMDLINE);
             return;
+        case ERROR_INVALID_HANDLE:
+            reg_message(STRING_INVALID_KEY);
+            return;
         case ERROR_NO_REMOTE:
             reg_message(STRING_NO_REMOTE);
             return;
@@ -210,6 +213,11 @@ static LPBYTE get_regdata(LPWSTR data, DWORD reg_type, WCHAR separator, DWORD *r
 
 static LSTATUS sane_path(const WCHAR *key)
 {
+    int i = strlenW(key);
+
+    if (i < 3 || (key[i - 1] == '\\' && key[i - 2] == '\\'))
+        return ERROR_INVALID_HANDLE;
+
     if (key[0] == '\\' && key[1] == '\\' && key[2] != '\\')
         return ERROR_NO_REMOTE;
 
