@@ -416,12 +416,6 @@ static void test_GetCompressionTypes(HRESULT (WINAPI *GetCompressionTypes)(void*
         { 0 /* initialized later */, 0, 0, DV_OK }
     };
 
-    if(GetCompressionTypes(iface, NULL, NULL, NULL, 0) == E_NOTIMPL)
-    {
-        skip("%s: GetCompressionTypes not implemented\n", name);
-        return;
-    }
-
     data_size = 0;
     ret = GetCompressionTypes(iface, NULL, &data_size, &num_elements, 0);
     ok(ret == DVERR_BUFFERTOOSMALL,
