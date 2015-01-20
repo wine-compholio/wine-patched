@@ -25,6 +25,7 @@
 #include "winioctl.h"
 #include "wine/test.h"
 
+#include "driver.sys/test.h"
 #include "driver.sys/driver.h"
 
 static const char driver_name[] = "WineTestDriver";
@@ -184,29 +185,21 @@ err:
     return NULL;
 }
 
-static void test_basic_ioctl(void)
+static void test_PsGetCurrentProcessId(void)
 {
-    const char str[] = "Wine is not an emulator";
-    DWORD bytes_returned;
-    char buf[32];
-    HANDLE file;
-    BOOL res;
+    struct kernel_test_state state;
+    struct test_PsGetCurrentProcessId *test = (void *)&state.userdata;
 
-    file = CreateFileA(device_path, GENERIC_READ | GENERIC_WRITE,
-                       0, NULL, OPEN_EXISTING, 0, NULL);
-    if (file == INVALID_HANDLE_VALUE)
-    {
-        ok(0, "Connecting to driver failed with %x\n", GetLastError());
-        return;
-    }
+    memset(&state, 0, sizeof(state));
+    trace("Running tests for PsGetCurrentProcessId\n");
+    wine_run_kernel_test(device_path, WINE_IOCTL_PsGetCurrentProcessId, &state);
+    ok(test->pid == GetCurrentProcessId(), "Expected pid %u, got %u\n", GetCurrentProcessId(), test->pid);
+}
 
-    res = DeviceIoControl(file, IOCTL_WINETEST_BASIC_IOCTL, NULL, 0, buf,
-                          sizeof(buf), &bytes_returned, NULL);
-    ok(res, "DeviceIoControl failed with %x\n", GetLastError());
-    ok(bytes_returned == sizeof(str)-1, "Unexpected number of bytes\n");
-    ok(!memcmp(buf, str, sizeof(str)-1), "Unexpected response data\n");
-
-    CloseHandle(file);
+static void test_PsGetCurrentThread(void)
+{
+    trace("Running tests for PsGetCurrentThread\n");
+    wine_run_kernel_test(device_path, WINE_IOCTL_PsGetCurrentThread, NULL);
 }
 
 START_TEST(ntoskrnl)
@@ -220,7 +213,8 @@ START_TEST(ntoskrnl)
         return;
     }
 
-    test_basic_ioctl();
+    test_PsGetCurrentProcessId();
+    test_PsGetCurrentThread();
 
     unload_driver(service, filename);
 }
