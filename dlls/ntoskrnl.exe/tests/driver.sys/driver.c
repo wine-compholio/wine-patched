@@ -30,6 +30,9 @@
 #include "winioctl.h"
 #include "ddk/wdm.h"
 
+#define WINE_KERNEL
+#include "util.h"
+#include "test.h"
 #include "driver.h"
 
 const WCHAR driver_device[] = {'\\','D','e','v','i','c','e',
@@ -37,24 +40,25 @@ const WCHAR driver_device[] = {'\\','D','e','v','i','c','e',
 const WCHAR driver_link[] = {'\\','D','o','s','D','e','v','i','c','e','s',
                              '\\','W','i','n','e','T','e','s','t','D','r','i','v','e','r',0};
 
+/* In each kernel testcase the following variables are available:
+ *
+ *   device     - DEVICE_OBJECT used for ioctl
+ *   irp        - IRP pointer passed to ioctl
+ *   __state    - used internally for test macros
+ */
 
-static NTSTATUS test_basic_ioctl(IRP *irp, IO_STACK_LOCATION *stack, ULONG_PTR *info)
+KERNEL_TESTCASE(PsGetCurrentProcessId)
 {
-    const char str[] = "Wine is not an emulator";
-    ULONG length = stack->Parameters.DeviceIoControl.OutputBufferLength;
-    char *buffer = irp->AssociatedIrp.SystemBuffer;
-    int i;
+    struct test_PsGetCurrentProcessId *test = (void *)&__state->userdata;
+    test->pid = (DWORD)(ULONG_PTR)PsGetCurrentProcessId();
+    ok(test->pid, "Expected processid to be non zero\n");
+    return STATUS_SUCCESS;
+}
 
-    if (!buffer)
-        return STATUS_ACCESS_VIOLATION;
-
-    if (length < sizeof(str)-1)
-        return STATUS_BUFFER_TOO_SMALL;
-
-    for (i = 0; i < sizeof(str)-1; i++)
-        buffer[i] = str[i];
-
-    *info = sizeof(str)-1;
+KERNEL_TESTCASE(PsGetCurrentThread)
+{
+    PETHREAD thread = PsGetCurrentThread();
+    todo_wine ok(thread != NULL, "Expected thread to be non-NULL\n");
     return STATUS_SUCCESS;
 }
 
@@ -69,19 +73,44 @@ static NTSTATUS WINAPI driver_Create(DEVICE_OBJECT *device, IRP *irp)
 static NTSTATUS WINAPI driver_IoControl(DEVICE_OBJECT *device, IRP *irp)
 {
     IO_STACK_LOCATION *stack = IoGetCurrentIrpStackLocation(irp);
+    struct kernel_test_state *state = irp->AssociatedIrp.SystemBuffer;
     NTSTATUS status = STATUS_NOT_SUPPORTED;
     ULONG_PTR information = 0;
 
+    if (!state)
+    {
+        status = STATUS_ACCESS_VIOLATION;
+        goto done;
+    }
+
+    if (stack->Parameters.DeviceIoControl.InputBufferLength < sizeof(*state) ||
+        stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(*state))
+    {
+        status = STATUS_BUFFER_TOO_SMALL;
+        goto done;
+    }
+
+    kernel_memset(&state->temp, 0, sizeof(state->temp));
+    kernel_memset(&state->output, 0, sizeof(state->output));
+
+#define DECLARE_TEST(name) \
+    case WINE_IOCTL_##name: status = test_##name(device, irp, state); break;
+
     switch (stack->Parameters.DeviceIoControl.IoControlCode)
     {
-        case IOCTL_WINETEST_BASIC_IOCTL:
-            status = test_basic_ioctl(irp, stack, &information);
-            break;
+        DECLARE_TEST(PsGetCurrentProcessId);
+        DECLARE_TEST(PsGetCurrentThread);
 
         default:
             break;
     }
 
+#undef DECLARE_TEST
+
+    kernel_memset(&state->temp, 0, sizeof(state->temp));
+    if (status == STATUS_SUCCESS) information = sizeof(*state);
+
+done:
     irp->IoStatus.Status = status;
     irp->IoStatus.Information = information;
     IoCompleteRequest(irp, IO_NO_INCREMENT);
