@@ -1881,6 +1881,12 @@ static LRESULT handle_internal_message( HWND hwnd, UINT msg, WPARAM wparam, LPAR
         return call_current_hook( h_extra->handle, HC_ACTION, wparam, h_extra->lparam );
     }
     case WM_WINE_CLIPCURSOR:
+        if (!lparam)
+        {
+            /* This is just a notification, nothing to do. Clipping will be
+             * done by the process that issues the set_cursor wineserver call. */
+            return 0;
+        }
         if (wparam)
         {
             RECT rect;
