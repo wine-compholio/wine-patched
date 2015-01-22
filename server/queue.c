@@ -362,7 +362,7 @@ static void set_cursor_pos( struct desktop *desktop, int x, int y )
 }
 
 /* set the cursor clip rectangle */
-static void set_clip_rectangle( struct desktop *desktop, const rectangle_t *rect )
+static void set_clip_rectangle( struct desktop *desktop, const rectangle_t *rect, int send_clip_msg )
 {
     rectangle_t top_rect;
     int x, y;
@@ -380,8 +380,8 @@ static void set_clip_rectangle( struct desktop *desktop, const rectangle_t *rect
     }
     else desktop->cursor.clip = top_rect;
 
-    if (desktop->cursor.clip_msg)
-        post_desktop_message( desktop, desktop->cursor.clip_msg, rect != NULL, 0 );
+    if (desktop->cursor.clip_msg && send_clip_msg)
+        post_desktop_message( desktop, desktop->cursor.clip_msg, 0, 0 );
 
     /* warp the mouse to be inside the clip rect */
     x = min( max( desktop->cursor.x, desktop->cursor.clip.left ), desktop->cursor.clip.right-1 );
@@ -393,7 +393,7 @@ static void set_clip_rectangle( struct desktop *desktop, const rectangle_t *rect
 static void set_foreground_input( struct desktop *desktop, struct thread_input *input )
 {
     if (desktop->foreground_input == input) return;
-    set_clip_rectangle( desktop, NULL );
+    set_clip_rectangle( desktop, NULL, 1 );
     desktop->foreground_input = input;
 }
 
@@ -3023,7 +3023,7 @@ DECL_HANDLER(set_cursor)
         if (req->clip_msg && get_top_window_owner(desktop) == current->process)
             desktop->cursor.clip_msg = req->clip_msg;
 
-        set_clip_rectangle( desktop, (req->flags & SET_CURSOR_NOCLIP) ? NULL : &req->clip );
+        set_clip_rectangle( desktop, (req->flags & SET_CURSOR_NOCLIP) ? NULL : &req->clip, 0 );
     }
 
     reply->new_x       = input->desktop->cursor.x;
