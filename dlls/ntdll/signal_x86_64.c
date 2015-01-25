@@ -3231,7 +3231,7 @@ void WINAPI RtlUnwindEx( PVOID end_frame, PVOID target_ip, EXCEPTION_RECORD *rec
             dispatch.EstablisherFrame = new_context.Rsp;
         }
 
-        if (context->Rsp == (ULONG64)end_frame) break;
+        if (dispatch.EstablisherFrame == (ULONG64)end_frame) break;
         *context = new_context;
     }
 
