@@ -3220,6 +3220,7 @@ void WINAPI RtlUnwindEx( PVOID end_frame, PVOID target_ip, EXCEPTION_RECORD *rec
         }
         else  /* hack: call builtin handlers registered in the tib list */
         {
+            DWORD64 backup_frame = dispatch.EstablisherFrame;
             while ((ULONG64)teb_frame < new_context.Rsp && (ULONG64)teb_frame < (ULONG64)end_frame)
             {
                 TRACE( "found builtin frame %p handler %p\n", teb_frame, teb_frame->Handler );
@@ -3228,10 +3229,10 @@ void WINAPI RtlUnwindEx( PVOID end_frame, PVOID target_ip, EXCEPTION_RECORD *rec
                 teb_frame = __wine_pop_frame( teb_frame );
             }
             if ((ULONG64)teb_frame == (ULONG64)end_frame && (ULONG64)end_frame < new_context.Rsp) break;
-            dispatch.EstablisherFrame = new_context.Rsp;
+            dispatch.EstablisherFrame = backup_frame;
         }
 
-        if (context->Rsp == (ULONG64)end_frame) break;
+        if (dispatch.EstablisherFrame == (ULONG64)end_frame) break;
         *context = new_context;
     }
 
