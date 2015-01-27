@@ -23,16 +23,6 @@
 extern "C" {
 #endif
 
-typedef enum _EVENT_TYPE {
-    NotificationEvent,
-    SynchronizationEvent
-} EVENT_TYPE;
-
-typedef enum _TIMER_TYPE {
-    NotificationTimer,
-    SynchronizationTimer
-} TIMER_TYPE;
-
 typedef enum _WAIT_TYPE {
     WaitAll,
     WaitAny,
