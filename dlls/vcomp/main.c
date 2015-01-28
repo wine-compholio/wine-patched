@@ -126,6 +126,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
                 ERR("Failed to allocate TLS index\n");
                 return FALSE;
             }
+
+            FIXME("Builtin vcomp doesn't support multithreading, use native library for better performance.\n");
             break;
         case DLL_PROCESS_DETACH:
             TlsFree(vcomp_context_tls);
