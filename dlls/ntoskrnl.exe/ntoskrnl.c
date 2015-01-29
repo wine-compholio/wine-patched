@@ -417,9 +417,9 @@ void WINAPI IoAcquireCancelSpinLock(PKIRQL irql)
 /***********************************************************************
  *           IoReleaseCancelSpinLock  (NTOSKRNL.EXE.@)
  */
-void WINAPI IoReleaseCancelSpinLock(PKIRQL irql)
+void WINAPI IoReleaseCancelSpinLock(KIRQL irql)
 {
-    FIXME("(%p): stub\n", irql);
+    FIXME("(%u): stub\n", irql);
 }
 
 
