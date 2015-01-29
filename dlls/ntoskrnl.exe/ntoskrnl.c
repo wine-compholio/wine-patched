@@ -1087,6 +1087,15 @@ NTSTATUS WINAPI IofCallDriver( DEVICE_OBJECT *device, IRP *irp )
     return IoCallDriver( device, irp );
 }
 
+/***********************************************************************
+ *           IoGetAttachedDeviceReference    (NTOSKRNL.EXE.@)
+ */
+PDEVICE_OBJECT WINAPI IoGetAttachedDeviceReference(PDEVICE_OBJECT obj)
+{
+    FIXME("(%p): stub\n", obj);
+
+    return obj;
+}
 
 /***********************************************************************
  *           IoGetRelatedDeviceObject    (NTOSKRNL.EXE.@)
