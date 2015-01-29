@@ -1734,6 +1734,29 @@ NTSTATUS WINAPI ObReferenceObjectByName( UNICODE_STRING *ObjectName,
     return STATUS_NOT_IMPLEMENTED;
 }
 
+
+/***********************************************************************
+ *           ObReferenceObjectByPointer   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI ObReferenceObjectByPointer(VOID *obj, ACCESS_MASK access,
+                                           POBJECT_TYPE type,
+                                           KPROCESSOR_MODE mode)
+{
+    FIXME("(%p, %x, %p, %d): stub\n", obj, access, type, mode);
+
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+
+/***********************************************************************
+ *           ObDereferenceObject   (NTOSKRNL.EXE.@)
+ */
+void WINAPI ObDereferenceObject(VOID *obj)
+{
+    FIXME("(%p): stub\n", obj);
+}
+
+
 /***********************************************************************
  *           ObfDereferenceObject   (NTOSKRNL.EXE.@)
  */
@@ -1744,7 +1767,7 @@ void WINAPI __regs_ObfDereferenceObject( VOID *obj )
 void WINAPI ObfDereferenceObject( VOID *obj )
 #endif
 {
-    FIXME( "stub: %p\n", obj );
+    ObDereferenceObject( obj );
 }
 
 
