@@ -798,7 +798,7 @@
 @ stub ObCloseHandle
 @ stub ObCreateObject
 @ stub ObCreateObjectType
-@ stub ObDereferenceObject
+@ stdcall ObDereferenceObject(ptr)
 @ stub ObDereferenceSecurityDescriptor
 @ stub ObFindHandleForObject
 @ stub ObGetObjectSecurity
@@ -811,7 +811,7 @@
 @ stub ObQueryObjectAuditingByHandle
 @ stdcall ObReferenceObjectByHandle(long long ptr long ptr ptr)
 @ stdcall ObReferenceObjectByName(ptr long ptr long ptr long ptr ptr)
-@ stub ObReferenceObjectByPointer
+@ stdcall ObReferenceObjectByPointer(ptr long ptr long)
 @ stub ObReferenceSecurityDescriptor
 @ stub ObReleaseObjectSecurity
 @ stub ObSetHandleAttributes
