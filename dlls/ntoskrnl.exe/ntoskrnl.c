@@ -1646,6 +1646,9 @@ void WINAPI KeInitializeSpinLock( PKSPIN_LOCK SpinLock )
 void WINAPI KeInitializeTimerEx( PKTIMER Timer, TIMER_TYPE Type )
 {
     FIXME( "stub: %p %d\n", Timer, Type );
+
+    RtlZeroMemory(Timer, sizeof(KTIMER));
+    Timer->Header.Type = Type ? 9 : 8;
 }
 
 
