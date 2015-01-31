@@ -1567,6 +1567,19 @@ PRKTHREAD WINAPI KeGetCurrentThread(void)
     return NULL;
 }
 
+
+/***********************************************************************
+ *           KeDelayExecutionThread   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI KeDelayExecutionThread(KPROCESSOR_MODE WaitMode, BOOLEAN Alertable,
+                                       PLARGE_INTEGER Interval)
+{
+    FIXME("(%d, %d, %p): stub\n", WaitMode, Alertable, Interval);
+
+    return STATUS_SUCCESS;
+}
+
+
 /***********************************************************************
  *           KeInitializeEvent   (NTOSKRNL.EXE.@)
  */
