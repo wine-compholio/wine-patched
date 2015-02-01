@@ -973,7 +973,7 @@
 # @ stub TpAllocIoCompletion
 # @ stub TpAllocJobNotification
 @ stdcall TpAllocPool(ptr ptr)
-# @ stub TpAllocTimer
+@ stdcall TpAllocTimer(ptr ptr ptr)
 # @ stub TpAllocWait
 @ stdcall TpAllocWork(ptr ptr ptr ptr)
 # @ stub TpAlpcRegisterCompletionList
@@ -995,7 +995,7 @@
 # @ stub TpDbgSetLogRoutine
 # @ stub TpDisablePoolCallbackChecks
 @ stdcall TpDisassociateCallback(ptr)
-# @ stub TpIsTimerSet
+@ stdcall TpIsTimerSet(ptr)
 @ stdcall TpPostWork(ptr)
 # @ stub TpQueryPoolStackInformation
 # @ stub TpReleaseAlpcCompletion
@@ -1004,7 +1004,7 @@
 # @ stub TpReleaseIoCompletion
 # @ stub TpReleaseJobNotification
 @ stdcall TpReleasePool(ptr)
-# @ stub TpReleaseTimer
+@ stdcall TpReleaseTimer(ptr)
 # @ stub TpReleaseWait
 @ stdcall TpReleaseWork(ptr)
 # @ stub TpSetDefaultPoolMaxThreads
@@ -1015,7 +1015,7 @@
 # @ stub TpSetPoolStackInformation
 # @ stub TpSetPoolThreadBasePriority
 # @ stub TpSetPoolWorkerThreadIdleTimeout
-# @ stub TpSetTimer
+@ stdcall TpSetTimer(ptr ptr long long)
 # @ stub TpSetTimerEx
 # @ stub TpSetWait
 # @ stub TpSetWaitEx
@@ -1026,7 +1026,7 @@
 # @ stub TpWaitForAlpcCompletion
 # @ stub TpWaitForIoCompletion
 # @ stub TpWaitForJobNotification
-# @ stub TpWaitForTimer
+@ stdcall TpWaitForTimer(ptr long)
 # @ stub TpWaitForWait
 @ stdcall TpWaitForWork(ptr long)
 @ stdcall -ret64 VerSetConditionMask(int64 long long)
