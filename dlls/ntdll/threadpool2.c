@@ -123,7 +123,8 @@ struct threadpool_object
     enum
     {
         TP_OBJECT_TYPE_UNDEFINED,
-        TP_OBJECT_TYPE_SIMPLE
+        TP_OBJECT_TYPE_SIMPLE,
+        TP_OBJECT_TYPE_WORK
     } type;
 
     /* arguments for callback */
@@ -134,6 +135,11 @@ struct threadpool_object
         {
             PTP_SIMPLE_CALLBACK callback;
         } simple;
+        /* work callback */
+        struct
+        {
+            PTP_WORK_CALLBACK callback;
+        } work;
     } u;
 };
 
@@ -151,6 +157,13 @@ struct threadpool_group
 static inline struct threadpool *impl_from_TP_POOL( TP_POOL *pool )
 {
     return (struct threadpool *)pool;
+}
+
+static inline struct threadpool_object *impl_from_TP_WORK( TP_WORK *work )
+{
+    struct threadpool_object *object = (struct threadpool_object *)work;
+    assert( !object || object->type == TP_OBJECT_TYPE_WORK );
+    return object;
 }
 
 static inline struct threadpool_group *impl_from_TP_CLEANUP_GROUP( TP_CLEANUP_GROUP *group )
@@ -423,6 +436,16 @@ static void CALLBACK threadpool_worker_proc( void *param )
                     break;
                 }
 
+                case TP_OBJECT_TYPE_WORK:
+                {
+                    TP_CALLBACK_INSTANCE *cb_instance = (TP_CALLBACK_INSTANCE *)&instance;
+                    TRACE( "executing callback %p(%p, %p, %p)\n",
+                           object->u.work.callback, cb_instance, object->userdata, object );
+                    object->u.work.callback( cb_instance, object->userdata, (TP_WORK *)object );
+                    TRACE( "callback %p returned\n", object->u.work.callback );
+                    break;
+                }
+
                 default:
                     FIXME( "callback type %u not implemented\n", object->type );
                     break;
@@ -575,6 +598,29 @@ static NTSTATUS tp_object_submit_simple( PTP_SIMPLE_CALLBACK callback, PVOID use
     object->u.simple.callback = callback;
     tp_object_initialize( object, pool, userdata, environment, TRUE );
 
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS tp_object_alloc_work( struct threadpool_object **out, PTP_WORK_CALLBACK callback,
+                                      PVOID userdata, TP_CALLBACK_ENVIRON *environment )
+{
+    struct threadpool_object *object;
+    struct threadpool *pool;
+
+    /* determine threadpool */
+    pool = environment ? (struct threadpool *)environment->Pool : NULL;
+    if (!pool) pool = get_default_threadpool();
+    if (!pool) return STATUS_NO_MEMORY;
+
+    object = RtlAllocateHeap( GetProcessHeap(), 0, sizeof(*object) );
+    if (!object)
+        return STATUS_NO_MEMORY;
+
+    object->type = TP_OBJECT_TYPE_WORK;
+    object->u.work.callback = callback;
+    tp_object_initialize( object, pool, userdata, environment, FALSE );
+
+    *out = object;
     return STATUS_SUCCESS;
 }
 
@@ -816,6 +862,16 @@ NTSTATUS WINAPI TpAllocPool( TP_POOL **out, PVOID reserved )
 }
 
 /***********************************************************************
+ *           TpAllocWork    (NTDLL.@)
+ */
+NTSTATUS WINAPI TpAllocWork( TP_WORK **out, PTP_WORK_CALLBACK callback, PVOID userdata,
+                             TP_CALLBACK_ENVIRON *environment )
+{
+    TRACE("%p %p %p %p\n", out, callback, userdata, environment);
+    return tp_object_alloc_work( (struct threadpool_object **)out, callback, userdata, environment );
+}
+
+/***********************************************************************
  *           TpCallbackLeaveCriticalSectionOnCompletion    (NTDLL.@)
  */
 VOID WINAPI TpCallbackLeaveCriticalSectionOnCompletion( TP_CALLBACK_INSTANCE *instance, CRITICAL_SECTION *crit )
@@ -910,6 +966,16 @@ VOID WINAPI TpDisassociateCallback( TP_CALLBACK_INSTANCE *instance )
 }
 
 /***********************************************************************
+ *           TpPostWork    (NTDLL.@)
+ */
+VOID WINAPI TpPostWork( TP_WORK *work )
+{
+    struct threadpool_object *this = impl_from_TP_WORK( work );
+    TRACE("%p\n", work);
+    if (this) tp_object_submit( this );
+}
+
+/***********************************************************************
  *           TpReleaseCleanupGroup    (NTDLL.@)
  */
 VOID WINAPI TpReleaseCleanupGroup( TP_CLEANUP_GROUP *group )
@@ -948,6 +1014,20 @@ VOID WINAPI TpReleasePool( TP_POOL *pool )
 }
 
 /***********************************************************************
+ *           TpReleaseWork    (NTDLL.@)
+ */
+VOID WINAPI TpReleaseWork( TP_WORK *work )
+{
+    struct threadpool_object *this = impl_from_TP_WORK( work );
+    TRACE("%p\n", work);
+    if (this)
+    {
+        tp_object_shutdown( this );
+        tp_object_release( this );
+    }
+}
+
+/***********************************************************************
  *           TpSetPoolMaxThreads    (NTDLL.@)
  */
 VOID WINAPI TpSetPoolMaxThreads( TP_POOL *pool, DWORD maximum )
@@ -975,4 +1055,19 @@ NTSTATUS WINAPI TpSimpleTryPost( PTP_SIMPLE_CALLBACK callback, PVOID userdata, T
 {
     TRACE("%p %p %p\n", callback, userdata, environment);
     return tp_object_submit_simple( callback, userdata, environment );
+}
+
+/***********************************************************************
+ *           TpWaitForWork    (NTDLL.@)
+ */
+VOID WINAPI TpWaitForWork( TP_WORK *work, BOOL cancel_pending )
+{
+    struct threadpool_object *this = impl_from_TP_WORK( work );
+    TRACE("%p %d\n", work, cancel_pending);
+    if (this)
+    {
+        if (cancel_pending)
+            tp_object_cancel( this, FALSE, NULL );
+        tp_object_wait( this );
+    }
 }

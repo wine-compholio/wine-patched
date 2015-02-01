@@ -975,7 +975,7 @@
 @ stdcall TpAllocPool(ptr ptr)
 # @ stub TpAllocTimer
 # @ stub TpAllocWait
-# @ stub TpAllocWork
+@ stdcall TpAllocWork(ptr ptr ptr ptr)
 # @ stub TpAlpcRegisterCompletionList
 # @ stub TpAlpcUnregisterCompletionList
 # @ stub TpCallbackDetectedUnrecoverableError
@@ -996,7 +996,7 @@
 # @ stub TpDisablePoolCallbackChecks
 @ stdcall TpDisassociateCallback(ptr)
 # @ stub TpIsTimerSet
-# @ stub TpPostWork
+@ stdcall TpPostWork(ptr)
 # @ stub TpQueryPoolStackInformation
 # @ stub TpReleaseAlpcCompletion
 @ stdcall TpReleaseCleanupGroup(ptr)
@@ -1006,7 +1006,7 @@
 @ stdcall TpReleasePool(ptr)
 # @ stub TpReleaseTimer
 # @ stub TpReleaseWait
-# @ stub TpReleaseWork
+@ stdcall TpReleaseWork(ptr)
 # @ stub TpSetDefaultPoolMaxThreads
 # @ stub TpSetDefaultPoolStackInformation
 @ stdcall TpSetPoolMaxThreads(ptr long)
@@ -1028,7 +1028,7 @@
 # @ stub TpWaitForJobNotification
 # @ stub TpWaitForTimer
 # @ stub TpWaitForWait
-# @ stub TpWaitForWork
+@ stdcall TpWaitForWork(ptr long)
 @ stdcall -ret64 VerSetConditionMask(int64 long long)
 @ stdcall ZwAcceptConnectPort(ptr long ptr long long ptr) NtAcceptConnectPort
 @ stdcall ZwAccessCheck(ptr long long ptr ptr ptr ptr ptr) NtAccessCheck
