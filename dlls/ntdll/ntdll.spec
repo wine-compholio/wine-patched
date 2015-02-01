@@ -969,10 +969,10 @@
 @ stdcall RtlxUnicodeStringToOemSize(ptr) RtlUnicodeStringToOemSize
 # @ stub TpAllocAlpcCompletion
 # @ stub TpAllocAlpcCompletionEx
-# @ stub TpAllocCleanupGroup
+@ stdcall TpAllocCleanupGroup(ptr)
 # @ stub TpAllocIoCompletion
 # @ stub TpAllocJobNotification
-# @ stub TpAllocPool
+@ stdcall TpAllocPool(ptr ptr)
 # @ stub TpAllocTimer
 # @ stub TpAllocWait
 # @ stub TpAllocWork
@@ -980,38 +980,38 @@
 # @ stub TpAlpcUnregisterCompletionList
 # @ stub TpCallbackDetectedUnrecoverableError
 # @ stub TpCallbackIndependent
-# @ stub TpCallbackLeaveCriticalSectionOnCompletion
-# @ stub TpCallbackMayRunLong
-# @ stub TpCallbackReleaseMutexOnCompletion
-# @ stub TpCallbackReleaseSemaphoreOnCompletion
+@ stdcall TpCallbackLeaveCriticalSectionOnCompletion(ptr ptr)
+@ stdcall TpCallbackMayRunLong(ptr)
+@ stdcall TpCallbackReleaseMutexOnCompletion(ptr long)
+@ stdcall TpCallbackReleaseSemaphoreOnCompletion(ptr long long)
 # @ stub TpCallbackSendAlpcMessageOnCompletion
 # @ stub TpCallbackSendPendingAlpcMessage
-# @ stub TpCallbackSetEventOnCompletion
-# @ stub TpCallbackUnloadDllOnCompletion
+@ stdcall TpCallbackSetEventOnCompletion(ptr long)
+@ stdcall TpCallbackUnloadDllOnCompletion(ptr long)
 # @ stub TpCancelAsyncIoOperation
 # @ stub TpCaptureCaller
 # @ stub TpCheckTerminateWorker
 # @ stub TpDbgDumpHeapUsage
 # @ stub TpDbgSetLogRoutine
 # @ stub TpDisablePoolCallbackChecks
-# @ stub TpDisassociateCallback
+@ stdcall TpDisassociateCallback(ptr)
 # @ stub TpIsTimerSet
 # @ stub TpPostWork
 # @ stub TpQueryPoolStackInformation
 # @ stub TpReleaseAlpcCompletion
-# @ stub TpReleaseCleanupGroup
-# @ stub TpReleaseCleanupGroupMembers
+@ stdcall TpReleaseCleanupGroup(ptr)
+@ stdcall TpReleaseCleanupGroupMembers(ptr long ptr)
 # @ stub TpReleaseIoCompletion
 # @ stub TpReleaseJobNotification
-# @ stub TpReleasePool
+@ stdcall TpReleasePool(ptr)
 # @ stub TpReleaseTimer
 # @ stub TpReleaseWait
 # @ stub TpReleaseWork
 # @ stub TpSetDefaultPoolMaxThreads
 # @ stub TpSetDefaultPoolStackInformation
-# @ stub TpSetPoolMaxThreads
+@ stdcall TpSetPoolMaxThreads(ptr long)
 # @ stub TpSetPoolMaxThreadsSoftLimit
-# @ stub TpSetPoolMinThreads
+@ stdcall TpSetPoolMinThreads(ptr long)
 # @ stub TpSetPoolStackInformation
 # @ stub TpSetPoolThreadBasePriority
 # @ stub TpSetPoolWorkerThreadIdleTimeout
@@ -1019,7 +1019,7 @@
 # @ stub TpSetTimerEx
 # @ stub TpSetWait
 # @ stub TpSetWaitEx
-# @ stub TpSimpleTryPost
+@ stdcall TpSimpleTryPost(ptr ptr ptr)
 # @ stub TpStartAsyncIoOperation
 # @ stub TpTimerOutstandingCallbackCount
 # @ stub TpTrimPools
