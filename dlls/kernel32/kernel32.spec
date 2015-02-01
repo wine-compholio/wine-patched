@@ -204,7 +204,7 @@
 @ stdcall BuildCommDCBAndTimeoutsA(str ptr ptr)
 @ stdcall BuildCommDCBAndTimeoutsW(wstr ptr ptr)
 @ stdcall BuildCommDCBW(wstr ptr)
-# @ stub CallbackMayRunLong
+@ stdcall CallbackMayRunLong(ptr) ntdll.TpCallbackMayRunLong
 @ stdcall CallNamedPipeA(str ptr long ptr long ptr long)
 @ stdcall CallNamedPipeW(wstr ptr long ptr long ptr long)
 @ stub CancelDeviceWakeupRequest
@@ -228,13 +228,13 @@
 # @ stub ClosePrivateNamespace
 @ stdcall CloseProfileUserMapping()
 @ stub CloseSystemHandle
-# @ stub CloseThreadpool
-# @ stub CloseThreadpoolCleanupGroup
-# @ stub CloseThreadpoolCleanupGroupMembers
+@ stdcall CloseThreadpool(ptr) ntdll.TpReleasePool
+@ stdcall CloseThreadpoolCleanupGroup(ptr) ntdll.TpReleaseCleanupGroup
+@ stdcall CloseThreadpoolCleanupGroupMembers(ptr long ptr) ntdll.TpReleaseCleanupGroupMembers
 # @ stub CloseThreadpoolIo
-# @ stub CloseThreadpoolTimer
+@ stdcall CloseThreadpoolTimer(ptr) ntdll.TpReleaseTimer
 # @ stub CloseThreadpoolWait
-# @ stub CloseThreadpoolWork
+@ stdcall CloseThreadpoolWork(ptr) ntdll.TpReleaseWork
 @ stdcall CmdBatNotification(long)
 @ stdcall CommConfigDialogA(str long ptr)
 @ stdcall CommConfigDialogW(wstr long ptr)
@@ -331,12 +331,12 @@
 @ stdcall CreateSymbolicLinkW(wstr wstr long)
 @ stdcall CreateTapePartition(long long long long)
 @ stdcall CreateThread(ptr long ptr long long ptr)
-# @ stub CreateThreadpool
-# @ stub CreateThreadpoolCleanupGroup
+@ stdcall CreateThreadpool(ptr)
+@ stdcall CreateThreadpoolCleanupGroup()
 # @ stub CreateThreadpoolIo
-# @ stub CreateThreadpoolTimer
+@ stdcall CreateThreadpoolTimer(ptr ptr ptr)
 # @ stub CreateThreadpoolWait
-# @ stub CreateThreadpoolWork
+@ stdcall CreateThreadpoolWork(ptr ptr ptr)
 @ stdcall CreateTimerQueue ()
 @ stdcall CreateTimerQueueTimer(ptr long ptr ptr long long long)
 @ stdcall CreateToolhelp32Snapshot(long long)
@@ -369,7 +369,7 @@
 @ stdcall DeleteFileW(wstr)
 # @ stub DeleteProcThreadAttributeList
 # @ stub DisableThreadProfiling
-# @ stub DisassociateCurrentThreadFromCallback
+@ stdcall DisassociateCurrentThreadFromCallback(ptr) ntdll.TpDisassociateCallback
 @ stdcall DeleteTimerQueue(long)
 @ stdcall DeleteTimerQueueEx (long long)
 @ stdcall DeleteTimerQueueTimer(long long long)
@@ -495,7 +495,6 @@
 @ stdcall FindFirstVolumeMountPointA(str ptr long)
 @ stdcall FindFirstVolumeMountPointW(wstr ptr long)
 @ stdcall FindFirstVolumeW(ptr long)
-# @ stub FreeLibraryWhenCallbackReturns
 @ stdcall FindNextChangeNotification(long)
 @ stdcall FindNextFileA(long ptr)
 # @ stub FindNextFileNameW
@@ -533,6 +532,7 @@
 @ stub -i386 FreeLSCallback
 @ stdcall FreeLibrary(long)
 @ stdcall FreeLibraryAndExitThread(long long)
+@ stdcall FreeLibraryWhenCallbackReturns(ptr ptr) ntdll.TpCallbackUnloadDllOnCompletion
 @ stdcall FreeResource(long)
 @ stdcall -i386 -private FreeSLCallback(long) krnl386.exe16.FreeSLCallback
 @ stub FreeUserPhysicalPages
@@ -980,7 +980,7 @@
 @ stub -i386 IsSLCallback
 @ stdcall IsSystemResumeAutomatic()
 @ stdcall IsThreadAFiber()
-# @ stub IsThreadpoolTimerSet
+@ stdcall IsThreadpoolTimerSet(ptr) ntdll.TpIsTimerSet
 # @ stub IsTimeZoneRedirectionEnabled
 # @ stub IsValidCalDateTime
 @ stdcall IsValidCodePage(long)
@@ -1034,7 +1034,7 @@
 @ stdcall LZSeek(long long long)
 @ stdcall LZStart()
 @ stdcall LeaveCriticalSection(ptr) ntdll.RtlLeaveCriticalSection
-# @ stub LeaveCriticalSectionWhenCallbackReturns
+@ stdcall LeaveCriticalSectionWhenCallbackReturns(ptr ptr) ntdll.TpCallbackLeaveCriticalSectionOnCompletion
 # @ stub LoadAppInitDlls
 @ stdcall LoadLibraryA(str)
 @ stdcall LoadLibraryExA( str long long)
@@ -1251,9 +1251,9 @@
 @ stdcall ReinitializeCriticalSection(ptr)
 @ stdcall ReleaseActCtx(ptr)
 @ stdcall ReleaseMutex(long)
-# @ stub ReleaseMutexWhenCallbackReturns
+@ stdcall ReleaseMutexWhenCallbackReturns(ptr long) ntdll.TpCallbackReleaseMutexOnCompletion
 @ stdcall ReleaseSemaphore(long long ptr)
-# @ stub ReleaseSemaphoreWhenCallbackReturns
+@ stdcall ReleaseSemaphoreWhenCallbackReturns(ptr long long) ntdll.TpCallbackReleaseSemaphoreOnCompletion
 @ stdcall ReleaseSRWLockExclusive(ptr) ntdll.RtlReleaseSRWLockExclusive
 @ stdcall ReleaseSRWLockShared(ptr) ntdll.RtlReleaseSRWLockShared
 @ stdcall RemoveDirectoryA(str)
@@ -1384,7 +1384,7 @@
 @ stdcall SetEnvironmentVariableW(wstr wstr)
 @ stdcall SetErrorMode(long)
 @ stdcall SetEvent(long)
-# @ stub SetEventWhenCallbackReturns
+@ stdcall SetEventWhenCallbackReturns(ptr long) ntdll.TpCallbackSetEventOnCompletion
 @ stdcall SetFileApisToANSI()
 @ stdcall SetFileApisToOEM()
 @ stdcall SetFileAttributesA(str long)
@@ -1453,9 +1453,9 @@
 # @ stub SetThreadToken
 @ stdcall SetThreadUILanguage(long)
 # @ stub SetThreadpoolStackInformation
-# @ stub SetThreadpoolThreadMaximum
-# @ stub SetThreadpoolThreadMinimum
-# @ stub SetThreadpoolTimer
+@ stdcall SetThreadpoolThreadMaximum(ptr long) ntdll.TpSetPoolMaxThreads
+@ stdcall SetThreadpoolThreadMinimum(ptr long) ntdll.TpSetPoolMinThreads
+@ stdcall SetThreadpoolTimer(ptr ptr long long)
 # @ stub SetThreadpoolWait
 @ stdcall SetTimeZoneInformation(ptr)
 @ stub SetTimerQueueTimer
@@ -1481,7 +1481,7 @@
 # @ stub SortCloseHandle
 # @ stub SortGetHandle
 # @ stub StartThreadpoolIo
-# @ stub SubmitThreadpoolWork
+@ stdcall SubmitThreadpoolWork(ptr) ntdll.TpPostWork
 @ stdcall SuspendThread(long)
 @ stdcall SwitchToFiber(ptr)
 @ stdcall SwitchToThread()
@@ -1508,7 +1508,7 @@
 @ stdcall TryAcquireSRWLockExclusive(ptr) ntdll.RtlTryAcquireSRWLockExclusive
 @ stdcall TryAcquireSRWLockShared(ptr) ntdll.RtlTryAcquireSRWLockShared
 @ stdcall TryEnterCriticalSection(ptr) ntdll.RtlTryEnterCriticalSection
-# @ stub TrySubmitThreadpoolCallback
+@ stdcall TrySubmitThreadpoolCallback(ptr ptr ptr) ntdll.TpSimpleTryPost
 @ stdcall TzSpecificLocalTimeToSystemTime(ptr ptr ptr)
 # @ stub TzSpecificLocalTimeToSystemTimeEx
 # @ stub -arch=x86_64 uaw_lstrcmpW
@@ -1570,9 +1570,9 @@
 @ stdcall WaitForSingleObject(long long)
 @ stdcall WaitForSingleObjectEx(long long long)
 # @ stub WaitForThreadpoolIoCallbacks
-# @ stub WaitForThreadpoolTimerCallbacks
+@ stdcall WaitForThreadpoolTimerCallbacks(ptr long) ntdll.TpWaitForTimer
 # @ stub WaitForThreadpoolWaitCallbacks
-# @ stub WaitForThreadpoolWorkCallbacks
+@ stdcall WaitForThreadpoolWorkCallbacks(ptr long) ntdll.TpWaitForWork
 @ stdcall WaitNamedPipeA (str long)
 @ stdcall WaitNamedPipeW (wstr long)
 @ stdcall WakeAllConditionVariable(ptr) ntdll.RtlWakeAllConditionVariable
