@@ -1798,6 +1798,16 @@ VOID WINAPI MmLockPagableSectionByHandle(PVOID ImageSectionHandle)
     FIXME("stub %p\n", ImageSectionHandle);
 }
 
+ /***********************************************************************
+ *           MmMapLockedPages   (NTOSKRNL.EXE.@)
+ */
+PVOID WINAPI MmMapLockedPages(PMDL MemoryDescriptorList, KPROCESSOR_MODE AccessMode)
+{
+    TRACE("%p %d\n", MemoryDescriptorList, AccessMode);
+    return MemoryDescriptorList->MappedSystemVa;
+}
+
+
 /***********************************************************************
  *           MmMapLockedPagesSpecifyCache  (NTOSKRNL.EXE.@)
  */
@@ -1861,6 +1871,17 @@ VOID WINAPI MmUnmapIoSpace( PVOID BaseAddress, SIZE_T NumberOfBytes )
 {
     FIXME( "stub: %p, %lu\n", BaseAddress, NumberOfBytes );
 }
+
+
+/***********************************************************************
+ *           MmUnmapLockedPages   (NTOSKRNL.EXE.@)
+ */
+void WINAPI MmUnmapLockedPages(PVOID BaseAddress, PMDLX MemoryDescriptorList)
+{
+    TRACE("%p %p\n", BaseAddress, MemoryDescriptorList);
+    /* Nothing to do */
+}
+
 
 /***********************************************************************
  *           ObfReferenceObject   (NTOSKRNL.EXE.@)
