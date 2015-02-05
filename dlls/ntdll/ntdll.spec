@@ -974,7 +974,7 @@
 # @ stub TpAllocJobNotification
 @ stdcall TpAllocPool(ptr ptr)
 @ stdcall TpAllocTimer(ptr ptr ptr)
-# @ stub TpAllocWait
+@ stdcall TpAllocWait(ptr ptr ptr ptr)
 @ stdcall TpAllocWork(ptr ptr ptr ptr)
 # @ stub TpAlpcRegisterCompletionList
 # @ stub TpAlpcUnregisterCompletionList
@@ -1005,7 +1005,7 @@
 # @ stub TpReleaseJobNotification
 @ stdcall TpReleasePool(ptr)
 @ stdcall TpReleaseTimer(ptr)
-# @ stub TpReleaseWait
+@ stdcall TpReleaseWait(ptr)
 @ stdcall TpReleaseWork(ptr)
 # @ stub TpSetDefaultPoolMaxThreads
 # @ stub TpSetDefaultPoolStackInformation
@@ -1017,7 +1017,7 @@
 # @ stub TpSetPoolWorkerThreadIdleTimeout
 @ stdcall TpSetTimer(ptr ptr long long)
 # @ stub TpSetTimerEx
-# @ stub TpSetWait
+@ stdcall TpSetWait(ptr long ptr)
 # @ stub TpSetWaitEx
 @ stdcall TpSimpleTryPost(ptr ptr ptr)
 # @ stub TpStartAsyncIoOperation
@@ -1027,7 +1027,7 @@
 # @ stub TpWaitForIoCompletion
 # @ stub TpWaitForJobNotification
 @ stdcall TpWaitForTimer(ptr long)
-# @ stub TpWaitForWait
+@ stdcall TpWaitForWait(ptr long)
 @ stdcall TpWaitForWork(ptr long)
 @ stdcall -ret64 VerSetConditionMask(int64 long long)
 @ stdcall ZwAcceptConnectPort(ptr long ptr long long ptr) NtAcceptConnectPort
