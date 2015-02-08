@@ -47,6 +47,7 @@ static const IAudioEndpointVolumeExVtbl AEVImpl_Vtbl;
 typedef struct AEVImpl {
     IAudioEndpointVolumeEx IAudioEndpointVolumeEx_iface;
     LONG ref;
+    float level;
 } AEVImpl;
 
 static inline AEVImpl *impl_from_IAudioEndpointVolumeEx(IAudioEndpointVolumeEx *iface)
@@ -63,6 +64,7 @@ HRESULT AudioEndpointVolume_Create(MMDevice *parent, IAudioEndpointVolume **ppv)
         return E_OUTOFMEMORY;
     This->IAudioEndpointVolumeEx_iface.lpVtbl = &AEVImpl_Vtbl;
     This->ref = 1;
+    This->level = 1.0f;
     return S_OK;
 }
 
@@ -136,9 +138,13 @@ static HRESULT WINAPI AEV_GetChannelCount(IAudioEndpointVolumeEx *iface, UINT *c
 
 static HRESULT WINAPI AEV_SetMasterVolumeLevel(IAudioEndpointVolumeEx *iface, float leveldb, const GUID *ctx)
 {
-    TRACE("(%p)->(%f,%s)\n", iface, leveldb, debugstr_guid(ctx));
-    FIXME("stub\n");
-    return E_NOTIMPL;
+    AEVImpl *This = impl_from_IAudioEndpointVolumeEx(iface);
+
+    FIXME("(%p)->(%f,%s): stub\n", iface, leveldb, debugstr_guid(ctx));
+
+    This->level = leveldb;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI AEV_SetMasterVolumeLevelScalar(IAudioEndpointVolumeEx *iface, float level, const GUID *ctx)
@@ -150,11 +156,16 @@ static HRESULT WINAPI AEV_SetMasterVolumeLevelScalar(IAudioEndpointVolumeEx *ifa
 
 static HRESULT WINAPI AEV_GetMasterVolumeLevel(IAudioEndpointVolumeEx *iface, float *leveldb)
 {
-    TRACE("(%p)->(%p)\n", iface, leveldb);
+    AEVImpl *This = impl_from_IAudioEndpointVolumeEx(iface);
+
+    FIXME("(%p)->(%p): stub\n", iface, leveldb);
+
     if (!leveldb)
         return E_POINTER;
-    FIXME("stub\n");
-    return E_NOTIMPL;
+
+    *leveldb = This->level;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI AEV_GetMasterVolumeLevelScalar(IAudioEndpointVolumeEx *iface, float *level)
