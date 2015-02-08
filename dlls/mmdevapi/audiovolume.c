@@ -232,11 +232,16 @@ static HRESULT WINAPI AEV_QueryHardwareSupport(IAudioEndpointVolumeEx *iface, DW
 
 static HRESULT WINAPI AEV_GetVolumeRange(IAudioEndpointVolumeEx *iface, float *mindb, float *maxdb, float *inc)
 {
-    TRACE("(%p)->(%p,%p,%p)\n", iface, mindb, maxdb, inc);
+    FIXME("(%p)->(%p,%p,%p): stub\n", iface, mindb, maxdb, inc);
+
     if (!mindb || !maxdb || !inc)
         return E_POINTER;
-    FIXME("stub\n");
-    return E_NOTIMPL;
+
+    *mindb = 0.0f;
+    *maxdb = 1.0f;
+    *inc = 0.1f;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI AEV_GetVolumeRangeChannel(IAudioEndpointVolumeEx *iface, UINT chan, float *mindb, float *maxdb, float *inc)
