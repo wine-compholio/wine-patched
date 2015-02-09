@@ -2206,7 +2206,7 @@ static UINT get_shader_semantics(const DWORD *byte_code, D3DXSEMANTIC *semantics
     {
         if (*ptr & (1 << 31))
         {
-            FIXME("Opcode expected\n");
+            FIXME("Opcode expected but got %#x\n", *ptr);
             return 0;
         }
         else if ((*ptr & D3DSI_OPCODE_MASK) == D3DSIO_DCL)
@@ -2220,7 +2220,7 @@ static UINT get_shader_semantics(const DWORD *byte_code, D3DXSEMANTIC *semantics
             TRACE("D3DSIO_DCL param1: %#x, param2: %#x, usage: %u, usage_index: %u, reg_type: %u\n",
                    param1, param2, usage, usage_index, reg_type);
 
-            if (input && (reg_type == D3DSPR_INPUT))
+            if ((input && (reg_type == D3DSPR_INPUT)) || (!input && (reg_type == D3DSPR_OUTPUT)))
             {
                 if (semantics)
                 {
@@ -2229,10 +2229,7 @@ static UINT get_shader_semantics(const DWORD *byte_code, D3DXSEMANTIC *semantics
                 }
                 i++;
             }
-            else
-            {
-                /* FIXME: Support for output semantics */
-            }
+
             ptr++;
         }
         else
@@ -2254,6 +2251,24 @@ HRESULT WINAPI D3DXGetShaderInputSemantics(const DWORD *byte_code, D3DXSEMANTIC 
         return D3DERR_INVALIDCALL;
 
     nb_semantics = get_shader_semantics(byte_code, semantics, TRUE);
+
+    if (count)
+        *count = nb_semantics;
+
+    return D3D_OK;
+}
+
+
+HRESULT WINAPI D3DXGetShaderOutputSemantics(const DWORD *byte_code, D3DXSEMANTIC *semantics, UINT *count)
+{
+    UINT nb_semantics;
+
+    TRACE("byte_code %p, semantics %p, count %p\n", byte_code, semantics, count);
+
+    if (!byte_code)
+        return D3DERR_INVALIDCALL;
+
+    nb_semantics = get_shader_semantics(byte_code, semantics, FALSE);
 
     if (count)
         *count = nb_semantics;
