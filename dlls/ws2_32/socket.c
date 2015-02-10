@@ -362,6 +362,7 @@ typedef struct ws2_accept_async
     int                 local_len;
     int                 remote_len;
     struct ws2_async    *read;
+    char                name_buf[1];
 } ws2_accept_async;
 
 /****************************************************************/
@@ -2065,7 +2066,6 @@ static NTSTATUS WS2_async_accept( void *arg, IO_STATUS_BLOCK *iosb, NTSTATUS sta
 {
     struct ws2_accept_async *wsa = arg;
     int len;
-    char *addr;
 
     TRACE("status: 0x%x listen: %p, accept: %p\n", status, wsa->listen_socket, wsa->accept_socket);
 
@@ -2095,17 +2095,29 @@ static NTSTATUS WS2_async_accept( void *arg, IO_STATUS_BLOCK *iosb, NTSTATUS sta
         goto finish;
 
     /* WS2 Spec says size param is extra 16 bytes long...what do we put in it? */
-    addr = ((char *)wsa->buf) + wsa->data_len;
     len = wsa->local_len - sizeof(int);
     WS_getsockname(HANDLE2SOCKET(wsa->accept_socket),
-                   (struct WS_sockaddr *)(addr + sizeof(int)), &len);
-    *(int *)addr = len;
+                   (struct WS_sockaddr *)(wsa->name_buf + sizeof(int)), &len);
+    *(int *)wsa->name_buf = len;
 
-    addr += wsa->local_len;
+    if (wine_uninterrupted_write_memory( (char *)wsa->buf + wsa->data_len,
+                                         wsa->name_buf, sizeof(int) + len ) < sizeof(int) + len)
+    {
+        status = STATUS_ACCESS_VIOLATION;
+        goto finish;
+    }
+
     len = wsa->remote_len - sizeof(int);
     WS_getpeername(HANDLE2SOCKET(wsa->accept_socket),
-                   (struct WS_sockaddr *)(addr + sizeof(int)), &len);
-    *(int *)addr = len;
+                   (struct WS_sockaddr *)(wsa->name_buf + sizeof(int)), &len);
+    *(int *)wsa->name_buf = len;
+
+    if (wine_uninterrupted_write_memory( (char *)wsa->buf + wsa->data_len + wsa->local_len,
+                                         wsa->name_buf, sizeof(int) + len ) < sizeof(int) + len)
+    {
+        status = STATUS_ACCESS_VIOLATION;
+        goto finish;
+    }
 
     if (!wsa->read)
         goto finish;
@@ -2433,7 +2445,8 @@ static BOOL WINAPI WS2_AcceptEx(SOCKET listener, SOCKET acceptor, PVOID dest, DW
     }
     release_sock_fd( acceptor, fd );
 
-    wsa = HeapAlloc( GetProcessHeap(), 0, sizeof(*wsa) );
+    wsa = HeapAlloc( GetProcessHeap(), 0, FIELD_OFFSET(struct ws2_accept_async,
+                     name_buf[max( local_addr_len, rem_addr_len )]) );
     if(!wsa)
     {
         SetLastError(WSAEFAULT);
