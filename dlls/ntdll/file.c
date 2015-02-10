@@ -614,6 +614,10 @@ static NTSTATUS FILE_AsyncReadService( void *user, IO_STATUS_BLOCK *iosb,
         {
             if (errno == EAGAIN || errno == EINTR)
                 status = STATUS_PENDING;
+            else if (errno == EFAULT)
+                status = (wine_uninterrupted_write_memory( &fileio->buffer[fileio->already], NULL,
+                          fileio->count - fileio->already ) >= (fileio->count - fileio->already)) ?
+                         STATUS_PENDING : STATUS_ACCESS_VIOLATION;
             else /* check to see if the transfer is complete */
                 status = FILE_GetNtStatus();
         }
@@ -975,6 +979,13 @@ NTSTATUS WINAPI NtReadFile(HANDLE hFile, HANDLE hEvent,
             /* async I/O doesn't make sense on regular files */
             while ((result = pread( unix_handle, buffer, length, offset->QuadPart )) == -1)
             {
+                if (errno == EFAULT)
+                {
+                    if (virtual_check_buffer_for_write( buffer, length ) >= length)
+                        continue;
+                    else
+                        errno = EFAULT;
+                }
                 if (errno != EINTR)
                 {
                     status = FILE_GetNtStatus();
@@ -1049,6 +1060,13 @@ NTSTATUS WINAPI NtReadFile(HANDLE hFile, HANDLE hEvent,
         else if (errno != EAGAIN)
         {
             if (errno == EINTR) continue;
+            if (errno == EFAULT)
+            {
+                if (wine_uninterrupted_write_memory( (char *)buffer + total, NULL, length - total ) >= (length - total))
+                    continue;
+                else
+                    errno = EFAULT;
+            }
             if (!total) status = FILE_GetNtStatus();
             goto done;
         }
