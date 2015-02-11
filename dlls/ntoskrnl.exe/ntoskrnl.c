@@ -1494,6 +1494,16 @@ NTSTATUS WINAPI ExInitializeResourceLite(PERESOURCE Resource)
 
 
 /***********************************************************************
+ *           ExAcquireResourceExclusiveLite   (NTOSKRNL.EXE.@)
+ */
+BOOLEAN WINAPI ExAcquireResourceExclusiveLite(PERESOURCE resource, BOOLEAN wait)
+{
+    FIXME("(%p, %u): stub\n", resource, wait);
+    return TRUE;
+}
+
+
+/***********************************************************************
  *           ExInitializeNPagedLookasideList   (NTOSKRNL.EXE.@)
  */
 void WINAPI ExInitializeNPagedLookasideList(PNPAGED_LOOKASIDE_LIST Lookaside,
