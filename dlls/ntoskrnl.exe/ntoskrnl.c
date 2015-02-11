@@ -2214,6 +2214,16 @@ VOID WINAPI KeInitializeDpc(PRKDPC Dpc, PKDEFERRED_ROUTINE DeferredRoutine, PVOI
     FIXME("stub\n");
 }
 
+
+/***********************************************************************
+ *           ExReleaseResourceForThreadLite   (NTOSKRNL.EXE.@)
+ */
+VOID WINAPI ExReleaseResourceForThreadLite(PERESOURCE Resource, ERESOURCE_THREAD ResourceThreadId)
+{
+    FIXME("(%p, %08lx): stub\n", Resource, ResourceThreadId);
+}
+
+
 /***********************************************************************
  *           READ_REGISTER_BUFFER_UCHAR   (NTOSKRNL.EXE.@)
  */
