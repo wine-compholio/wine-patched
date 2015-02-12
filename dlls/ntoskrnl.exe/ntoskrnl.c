@@ -1510,6 +1510,16 @@ BOOLEAN WINAPI ExAcquireResourceExclusiveLite(PERESOURCE resource, BOOLEAN wait)
 
 
 /***********************************************************************
+ *           ExDeleteResourceLite   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI ExDeleteResourceLite(PERESOURCE resource)
+{
+    FIXME("(%p): stub\n", resource);
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+
+/***********************************************************************
  *           ExInitializeNPagedLookasideList   (NTOSKRNL.EXE.@)
  */
 void WINAPI ExInitializeNPagedLookasideList(PNPAGED_LOOKASIDE_LIST Lookaside,
