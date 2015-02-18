@@ -892,30 +892,33 @@ static HRESULT WINAPI ApplicationAssociationRegistration_QueryCurrentDefault(IAp
 
     TRACE("(%p)->(%s, %d, %d, %p)\n", This, debugstr_w(query), type, level, association);
 
-    if(!association)
+    if (!query || !association)
         return E_INVALIDARG;
 
     *association = NULL;
 
-    if((type == AT_URLPROTOCOL || type == AT_FILEEXTENSION) && !lstrlenW(query))
-        return E_INVALIDARG;
-    else if(type == AT_FILEEXTENSION && query[0] != '.')
-        return E_INVALIDARG;
-
-    if(type == AT_FILEEXTENSION)
+    if (type == AT_FILEEXTENSION)
     {
+        if (query[0] != '.')
+            return E_INVALIDARG;
+
         ret = RegOpenKeyExW(HKEY_CLASSES_ROOT, query, 0, KEY_READ, &hkey);
-        if(ret == ERROR_SUCCESS)
+        if (ret == ERROR_SUCCESS)
         {
             ret = RegGetValueW(hkey, NULL, NULL, RRF_RT_REG_SZ, &keytype, NULL, &size);
-            if(ret == ERROR_SUCCESS)
+            if (ret == ERROR_SUCCESS)
             {
                 *association = CoTaskMemAlloc(size);
-                if(*association)
+                if (*association)
                 {
                     ret = RegGetValueW(hkey, NULL, NULL, RRF_RT_REG_SZ, &keytype, *association, &size);
-                    if(ret == ERROR_SUCCESS)
+                    if (ret == ERROR_SUCCESS)
                         hr = S_OK;
+                    else
+                    {
+                        CoTaskMemFree(*association);
+                        *association = NULL;
+                    }
                 }
                 else
                     hr = E_OUTOFMEMORY;
@@ -924,12 +927,15 @@ static HRESULT WINAPI ApplicationAssociationRegistration_QueryCurrentDefault(IAp
     }
     else
     {
+        if (type == AT_URLPROTOCOL && !query[0])
+            return E_INVALIDARG;
+
         ret = RegOpenKeyExW(HKEY_CURRENT_USER, assocations, 0, KEY_READ, &hkey);
-        if(ret == ERROR_SUCCESS)
+        if (ret == ERROR_SUCCESS)
         {
-            if(type == AT_URLPROTOCOL)
+            if (type == AT_URLPROTOCOL)
                 lstrcpyW(path, urlassoc);
-            else if(type == AT_MIMETYPE)
+            else if (type == AT_MIMETYPE)
                 lstrcpyW(path, mimeassoc);
             else
             {
@@ -944,14 +950,19 @@ static HRESULT WINAPI ApplicationAssociationRegistration_QueryCurrentDefault(IAp
             lstrcatW(path, choice);
 
             ret = RegGetValueW(hkey, path, propid, RRF_RT_REG_SZ, &keytype, NULL, &size);
-            if(ret == ERROR_SUCCESS)
+            if (ret == ERROR_SUCCESS)
             {
                 *association = CoTaskMemAlloc(size);
-                if(*association)
+                if (*association)
                 {
                     ret = RegGetValueW(hkey, path, propid, RRF_RT_REG_SZ, &keytype, *association, &size);
-                    if(ret == ERROR_SUCCESS)
+                    if (ret == ERROR_SUCCESS)
                         hr = S_OK;
+                    else
+                    {
+                        CoTaskMemFree(*association);
+                        *association = NULL;
+                    }
                 }
                 else
                     hr = E_OUTOFMEMORY;
@@ -960,7 +971,6 @@ static HRESULT WINAPI ApplicationAssociationRegistration_QueryCurrentDefault(IAp
     }
 
     RegCloseKey(hkey);
-
     return hr;
 }
 
