@@ -558,6 +558,8 @@ obj_handle_t sock_ioctl( struct fd *fd, ioctl_code_t code, const async_data_t *a
             close_handle( current->process, wait_handle );
             return 0;
         }
+        if ((sock->state & FD_WINE_NONBLOCKING) && !blocking)
+            set_error( STATUS_CANT_WAIT );
         return wait_handle;
     default:
         set_error( STATUS_NOT_SUPPORTED );
