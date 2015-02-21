@@ -49,10 +49,26 @@ static void csmt_set(BOOL status)
     set_reg_key(config_key, keypath("DllRedirects"), "wined3d", status ? "wined3d-csmt.dll" : NULL);
 }
 
+/*
+ * DXVA2
+ */
+static BOOL vaapi_get(void)
+{
+    BOOL ret;
+    char *value = get_reg_key(config_key, keypath("DXVA2"), "backend", NULL);
+    ret = (value && !strcmp(value, "va"));
+    HeapFree(GetProcessHeap(), 0, value);
+    return ret;
+}
+static void vaapi_set(BOOL status)
+{
+    set_reg_key(config_key, keypath("DXVA2"), "backend", status ? "va" : NULL);
+}
 
 static void load_staging_settings(HWND dialog)
 {
     CheckDlgButton(dialog, IDC_ENABLE_CSMT, csmt_get() ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(dialog, IDC_ENABLE_VAAPI, vaapi_get() ? BST_CHECKED : BST_UNCHECKED);
 }
 
 INT_PTR CALLBACK StagingDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -80,6 +96,10 @@ INT_PTR CALLBACK StagingDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
         {
         case IDC_ENABLE_CSMT:
             csmt_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_CSMT) == BST_CHECKED);
+            SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
+            return TRUE;
+        case IDC_ENABLE_VAAPI:
+            vaapi_set(IsDlgButtonChecked(hDlg, IDC_ENABLE_VAAPI) == BST_CHECKED);
             SendMessageW(GetParent(hDlg), PSM_CHANGED, 0, 0);
             return TRUE;
         }
