@@ -1619,9 +1619,9 @@ DWORD WINAPI VerInstallFileW(
  */
 DWORD WINAPI GetFileVersionInfoSizeExA(DWORD flags, LPCSTR filename, LPDWORD handle)
 {
-    FIXME("stub: %u %s %p\n", flags, wine_dbgstr_a(filename), handle);
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return 0;
+    FIXME("semi-stub: %u %s %p\n", flags, wine_dbgstr_a(filename), handle);
+    return GetFileVersionInfoSizeA(filename, handle);
+
 }
 
 /******************************************************************************
@@ -1629,9 +1629,8 @@ DWORD WINAPI GetFileVersionInfoSizeExA(DWORD flags, LPCSTR filename, LPDWORD han
  */
 DWORD WINAPI GetFileVersionInfoSizeExW(DWORD flags, LPCWSTR filename, LPDWORD handle)
 {
-    FIXME("stub: %u %s %p\n", flags, wine_dbgstr_w(filename), handle);
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return 0;
+    FIXME("semi-stub: %u %s %p\n", flags, wine_dbgstr_w(filename), handle);
+    return GetFileVersionInfoSizeW(filename, handle);
 }
 
 /******************************************************************************
