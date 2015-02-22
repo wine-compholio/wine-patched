@@ -380,6 +380,7 @@ HEADER_SRCS = \
 	dxerr8.h \
 	dxerr9.h \
 	dxfile.h \
+	dxva.h \
 	errorrep.h \
 	errors.h \
 	evcode.h \
