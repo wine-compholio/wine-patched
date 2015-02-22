@@ -348,6 +348,7 @@ HEADER_SRCS = \
 	dxfile.h \
 	dxgiformat.h \
 	dxgitype.h \
+	dxva.h \
 	errorrep.h \
 	errors.h \
 	evcode.h \
