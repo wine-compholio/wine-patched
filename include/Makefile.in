@@ -327,6 +327,7 @@ SRCDIR_INCLUDES = \
 	dxfile.h \
 	dxgiformat.h \
 	dxgitype.h \
+	dxva.h \
 	dyngraph.idl \
 	errorrep.h \
 	errors.h \
