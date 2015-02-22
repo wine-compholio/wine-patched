@@ -10,5 +10,6 @@ C_SRCS = \
 	main.c \
 	softwareprocessor.c \
 	vaapi.c \
+	vaapi-h264.c \
 	vaapi-mpeg2.c \
 	videoservices.c \
