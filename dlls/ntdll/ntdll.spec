@@ -968,6 +968,9 @@
 @ stdcall RtlxOemStringToUnicodeSize(ptr) RtlOemStringToUnicodeSize
 @ stdcall RtlxUnicodeStringToAnsiSize(ptr) RtlUnicodeStringToAnsiSize
 @ stdcall RtlxUnicodeStringToOemSize(ptr) RtlUnicodeStringToOemSize
+@ stdcall TpAllocPool(ptr ptr)
+@ stdcall TpReleasePool(ptr)
+@ stdcall TpSimpleTryPost(ptr ptr ptr)
 @ stdcall -ret64 VerSetConditionMask(int64 long long)
 @ stdcall ZwAcceptConnectPort(ptr long ptr long long ptr) NtAcceptConnectPort
 @ stdcall ZwAccessCheck(ptr long long ptr ptr ptr ptr ptr) NtAccessCheck
