@@ -207,6 +207,7 @@ void *alloc_object( const struct object_ops *ops )
     if (obj)
     {
         obj->refcount = 1;
+        obj->handlecount = 0;
         obj->ops      = ops;
         obj->name     = NULL;
         obj->sd       = NULL;
@@ -306,6 +307,7 @@ void release_object( void *ptr )
     assert( obj->refcount );
     if (!--obj->refcount)
     {
+        assert( !obj->handlecount );
         /* if the refcount is 0, nobody can be in the wait queue */
         assert( list_empty( &obj->wait_queue ));
         obj->ops->destroy( obj );
