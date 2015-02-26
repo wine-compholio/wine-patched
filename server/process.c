@@ -141,6 +141,7 @@ static void job_dump( struct object *obj, int verbose );
 static struct object_type *job_get_type( struct object *obj );
 static int job_signaled( struct object *obj, struct wait_queue_entry *entry );
 static unsigned int job_map_access( struct object *obj, unsigned int access );
+static int job_close_handle( struct object *, struct process *process, obj_handle_t handle );
 static void job_destroy( struct object *obj );
 
 struct job
@@ -171,7 +172,7 @@ static const struct object_ops job_ops =
     default_set_sd,                /* set_sd */
     no_lookup_name,                /* lookup_name */
     no_open_file,                  /* open_file */
-    no_close_handle,               /* close_handle */
+    job_close_handle,              /* close_handle */
     job_destroy                    /* destroy */
 };
 
@@ -286,6 +287,20 @@ static void terminate_job( struct job *job, int exit_code )
     job->terminating = 0;
     job->signaled = 1;
     wake_up( &job->obj, 0 );
+}
+
+static int job_close_handle( struct object *obj, struct process *process, obj_handle_t handle )
+{
+    struct job *job = (struct job *)obj;
+    assert( obj->ops == &job_ops );
+
+    /* If this is the last handle and JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE is set,
+     * then terminate all associcated processes. We can't use the refcount because
+     * processes have a reference to the job object. */
+    if (obj->handle_count == 1 && (job->limit_flags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE))
+        terminate_job( job, 0 );
+
+    return 1;
 }
 
 static void job_destroy( struct object *obj )
