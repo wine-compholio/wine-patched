@@ -714,6 +714,12 @@ struct rawinput_device
     unsigned int limit_flags;
 @END
 
+@REQ(job_set_completion)
+    obj_handle_t handle;
+    obj_handle_t port;
+    client_ptr_t key;
+@END
+
 /* Retrieve information about a newly started process */
 @REQ(get_new_process_info)
     obj_handle_t info;           /* info handle returned from new_process_request */
