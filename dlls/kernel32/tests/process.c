@@ -2468,7 +2468,7 @@ static HANDLE test_LimitActiveProcesses(void)
     char buffer[MAX_PATH] = "";
     DWORD dwret;
     HANDLE job;
-    BOOL ret;
+    BOOL ret, out;
 
     job = pCreateJobObjectW(NULL, NULL);
     ok(job != NULL, "CreateJobObject error %u\n", GetLastError());
@@ -2549,6 +2549,33 @@ static HANDLE test_LimitActiveProcesses(void)
     CloseHandle(pi[0].hProcess);
     CloseHandle(pi[0].hThread);
 
+    /* remove quota again */
+    limit_info.LimitFlags = 0;
+    ret = pSetInformationJobObject(job, JobObjectBasicLimitInformation, &limit_info, sizeof(limit_info));
+    ok(ret, "SetInformationJobObject error %u\n", GetLastError());
+
+    if (!pIsProcessInJob)
+    {
+        win_skip("IsProcessInJob not available.\n");
+        goto out;
+    }
+
+    ret = CreateProcessA(NULL, buffer, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi[0]);
+    ok(ret, "CreateProcessA error %u\n", GetLastError());
+
+    out = FALSE;
+    ret = pIsProcessInJob(pi[0].hProcess, job, &out);
+    ok(ret, "IsProcessInJob error %u\n", GetLastError());
+    todo_wine
+    ok(out, "IsProcessInJob returned out=%u\n", out);
+
+    dwret = WaitForSingleObject(pi[0].hProcess, 500);
+    ok(dwret == WAIT_OBJECT_0, "WaitForSingleObject returned %u\n", dwret);
+
+    CloseHandle(pi[0].hProcess);
+    CloseHandle(pi[0].hThread);
+
+out:
     return job;
 }
 
