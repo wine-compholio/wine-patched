@@ -1094,6 +1094,9 @@ BOOL WINAPI CopyFileExW(LPCWSTR source, LPCWSTR dest,
     DWORD count;
     BOOL ret = FALSE;
     char *buffer;
+    LARGE_INTEGER size;
+    LARGE_INTEGER transferred;
+    DWORD cbret;
 
     if (!source || !dest)
     {
@@ -1108,7 +1111,13 @@ BOOL WINAPI CopyFileExW(LPCWSTR source, LPCWSTR dest,
 
     TRACE("%s -> %s, %x\n", debugstr_w(source), debugstr_w(dest), flags);
 
-    if ((h1 = CreateFileW(source, GENERIC_READ,
+    if (flags & COPY_FILE_RESTARTABLE)
+        FIXME("COPY_FILE_RESTARTABLE is not supported\n");
+    if (flags & COPY_FILE_COPY_SYMLINK)
+        FIXME("COPY_FILE_COPY_SYMLINK is not supported\n");
+
+    if ((h1 = CreateFileW(source, (flags & COPY_FILE_OPEN_SOURCE_FOR_WRITE) ?
+                     GENERIC_WRITE | GENERIC_READ : GENERIC_READ,
                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                      NULL, OPEN_EXISTING, 0, 0)) == INVALID_HANDLE_VALUE)
     {
@@ -1144,7 +1153,7 @@ BOOL WINAPI CopyFileExW(LPCWSTR source, LPCWSTR dest,
         }
     }
 
-    if ((h2 = CreateFileW( dest, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+    if ((h2 = CreateFileW( dest, GENERIC_WRITE | DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                              (flags & COPY_FILE_FAIL_IF_EXISTS) ? CREATE_NEW : CREATE_ALWAYS,
                              info.dwFileAttributes, h1 )) == INVALID_HANDLE_VALUE)
     {
@@ -1152,6 +1161,31 @@ BOOL WINAPI CopyFileExW(LPCWSTR source, LPCWSTR dest,
         HeapFree( GetProcessHeap(), 0, buffer );
         CloseHandle( h1 );
         return FALSE;
+    }
+
+    size.u.LowPart = info.nFileSizeLow;
+    size.u.HighPart = info.nFileSizeHigh;
+    transferred.QuadPart = 0;
+
+    if (progress)
+    {
+        cbret = progress( size, transferred, size, transferred, 1,
+                          CALLBACK_STREAM_SWITCH, h1, h2, param );
+        if (cbret == PROGRESS_QUIET)
+            progress = NULL;
+        else if (cbret == PROGRESS_STOP)
+        {
+            SetLastError( ERROR_REQUEST_ABORTED );
+            goto done;
+        }
+        else if (cbret == PROGRESS_CANCEL)
+        {
+            FILE_DISPOSITION_INFO disp;
+            disp.DoDeleteFile = TRUE;
+            SetFileInformationByHandle( h2, FileDispositionInfo, &disp, sizeof(disp) );
+            SetLastError( ERROR_REQUEST_ABORTED );
+            goto done;
+        }
     }
 
     while (ReadFile( h1, buffer, buffer_size, &count, NULL ) && count)
@@ -1163,6 +1197,28 @@ BOOL WINAPI CopyFileExW(LPCWSTR source, LPCWSTR dest,
             if (!WriteFile( h2, p, count, &res, NULL ) || !res) goto done;
             p += res;
             count -= res;
+
+            if (progress)
+            {
+                transferred.QuadPart += res;
+                cbret = progress( size, transferred, size, transferred, 1,
+                                  CALLBACK_CHUNK_FINISHED, h1, h2, param );
+                if (cbret == PROGRESS_QUIET)
+                    progress = NULL;
+                else if (cbret == PROGRESS_STOP)
+                {
+                    SetLastError( ERROR_REQUEST_ABORTED );
+                    goto done;
+                }
+                else if (cbret == PROGRESS_CANCEL)
+                {
+                    FILE_DISPOSITION_INFO disp;
+                    disp.DoDeleteFile = TRUE;
+                    SetFileInformationByHandle( h2, FileDispositionInfo, &disp, sizeof(disp) );
+                    SetLastError( ERROR_REQUEST_ABORTED );
+                    goto done;
+                }
+            }
         }
     }
     ret =  TRUE;
