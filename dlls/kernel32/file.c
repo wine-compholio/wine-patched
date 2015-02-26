@@ -48,6 +48,22 @@
 #include "wine/unicode.h"
 #include "wine/debug.h"
 
+C_ASSERT(sizeof(FILE_BASIC_INFO) == sizeof(FILE_BASIC_INFORMATION));
+C_ASSERT(sizeof(FILE_STANDARD_INFO) == sizeof(FILE_STANDARD_INFORMATION));
+C_ASSERT(sizeof(FILE_NAME_INFO) == sizeof(FILE_NAME_INFORMATION));
+C_ASSERT(FIELD_OFFSET(FILE_RENAME_INFO, RootDirectory) == FIELD_OFFSET(FILE_RENAME_INFORMATION, RootDir));
+C_ASSERT(sizeof(FILE_RENAME_INFO) == sizeof(FILE_RENAME_INFORMATION));
+C_ASSERT(sizeof(FILE_DISPOSITION_INFO) == sizeof(FILE_DISPOSITION_INFORMATION));
+C_ASSERT(sizeof(FILE_ALLOCATION_INFO) == sizeof(FILE_ALLOCATION_INFORMATION));
+C_ASSERT(sizeof(FILE_END_OF_FILE_INFO) == sizeof(FILE_END_OF_FILE_INFORMATION));
+C_ASSERT(sizeof(FILE_STREAM_INFO) == sizeof(FILE_STREAM_INFORMATION));
+/* C_ASSERT(sizeof(FILE_COMPRESSION_INFO) == sizeof(FILE_COMPRESSION_INFORMATION)); */
+C_ASSERT(sizeof(FILE_ATTRIBUTE_TAG_INFO) == sizeof(FILE_ATTRIBUTE_TAG_INFORMATION));
+/* C_ASSERT(sizeof(FILE_ID_BOTH_DIR_INFO) == sizeof(FILE_ID_BOTH_DIR_INFORMATION)); */
+/* C_ASSERT(sizeof(FILE_IO_PRIORITY_HINT_INFO) == sizeof(FILE_IO_PRIORITY_HINT_INFORMATION)); */
+C_ASSERT(sizeof(FILE_FULL_DIR_INFO) == sizeof(FILE_FULL_DIR_INFORMATION));
+/* C_ASSERT(sizeof(FILE_ALIGNMENT_INFO) == sizeof(FILE_ALIGNMENT_INFORMATION)); */
+
 WINE_DEFAULT_DEBUG_CHANNEL(file);
 
 /* info structure for FindFirstFile handle */
@@ -1051,7 +1067,91 @@ BOOL WINAPI SetFileCompletionNotificationModes( HANDLE file, UCHAR flags )
 
 BOOL WINAPI SetFileInformationByHandle( HANDLE file, FILE_INFO_BY_HANDLE_CLASS class, VOID *info, DWORD size )
 {
-    FIXME("%p %u %p %u - stub\n", file, class, info, size);
+    IO_STATUS_BLOCK io;
+    FILE_INFORMATION_CLASS ntclass;
+    NTSTATUS status;
+
+    TRACE("%p %u %p %u\n", file, class, info, size);
+
+    switch (class)
+    {
+        /* make sure that the kernel32 and NT structures are identical */
+        case FileBasicInfo:
+            /* FILE_BASIC_INFO matches FILE_BASIC_INFORMATION */
+            ntclass = FileBasicInformation;
+            break;
+        case FileStandardInfo:
+            /* FILE_STANDARD_INFO matches FILE_STANDARD_INFORMATION */
+            ntclass = FileStandardInformation;
+            break;
+        case FileNameInfo:
+            /* FILE_NAME_INFO matches FILE_NAME_INFORMATION */
+            ntclass = FileNameInformation;
+            break;
+        case FileRenameInfo:
+            /* FILE_RENAME_INFO matches FILE_RENAME_INFORMATION,
+             * except BOOL <-> BOOLEAN. */
+            ntclass = FileRenameInformation;
+            break;
+        case FileDispositionInfo:
+            /* FILE_DISPOSITION_INFO matches FILE_DISPOSITION_INFORMATION,
+             * except BOOL <-> BOOLEAN. */
+            ntclass = FileDispositionInformation;
+            break;
+        case FileAllocationInfo:
+            /* FILE_ALLOCATION_INFO matches FILE_ALLOCATION_INFORMATION */
+            ntclass = FileAllocationInformation;
+            break;
+        case FileEndOfFileInfo:
+            /* FILE_END_OF_FILE_INFO matches FILE_END_OF_FILE_INFORMATION */
+            ntclass = FileEndOfFileInformation;
+            break;
+        case FileStreamInfo:
+            /* FILE_STREAM_INFO matches FILE_STREAM_INFORMATION */
+            ntclass = FileStreamInformation;
+            break;
+        case FileCompressionInfo:
+            /* FILE_COMPRESSION_INFO matches FILE_COMPRESSION_INFORMATION */
+            ntclass = FileCompressionInformation;
+            break;
+        case FileAttributeTagInfo:
+            /* FILE_ATTRIBUTE_TAG_INFO matches FILE_ATTRIBUTE_TAG_INFORMATION */
+            ntclass = FileAttributeTagInformation;
+            break;
+        case FileIdBothDirectoryInfo:
+            /* FILE_ID_BOTH_DIR_INFO matches FILE_ID_BOTH_DIR_INFORMATION */
+            ntclass = FileIdBothDirectoryInformation;
+            break;
+        case FileIoPriorityHintInfo:
+            /* FILE_IO_PRIORITY_HINT_INFO  matches FILE_IO_PRIORITY_HINT_INFORMATION */
+            ntclass = FileIoPriorityHintInformation;
+            break;
+        case FileFullDirectoryInfo:
+            /* FILE_FULL_DIR_INFO matches FILE_FULL_DIR_INFORMATION */
+            ntclass = FileFullDirectoryInformation;
+            break;
+        case FileAlignmentInfo:
+            /* FILE_ALIGNMENT_INFO matches FILE_ALIGNMENT_INFORMATION */
+            ntclass = FileAlignmentInformation;
+            break;
+
+        /* do not have a NT equivalent with same structure */
+        case FileFullDirectoryRestartInfo:
+        case FileIdBothDirectoryRestartInfo:
+        case FileIdExtdDirectoryInfo:
+        case FileIdInfo:
+        case FileRemoteProtocolInfo:
+        case FileStorageInfo:
+        default:
+            FIXME("unsupported class: %u\n", class);
+            SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+            return FALSE;
+    }
+
+    status = NtSetInformationFile( file, &io, info, size, ntclass );
+
+    if (status == STATUS_SUCCESS) return TRUE;
+    SetLastError( RtlNtStatusToDosError(status) );
     return FALSE;
 }
 
