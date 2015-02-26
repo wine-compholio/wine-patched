@@ -26,6 +26,7 @@
 struct atom_table;
 struct handle_table;
 struct startup_info;
+struct job;
 
 /* process startup state */
 enum startup_state { STARTUP_IN_PROGRESS, STARTUP_DONE, STARTUP_ABORTED };
@@ -76,6 +77,8 @@ struct process
     unsigned int         debug_children:1;/* also debug all child processes */
     unsigned int         is_terminating:1;/* is process terminating? */
     unsigned int         is_terminated:1; /* is process terminated? */
+    struct job          *job;             /* job object ascoicated with this process */
+    struct list          job_entry;       /* list entry for job object */
     struct list          locks;           /* list of file locks owned by the process */
     struct list          classes;         /* window classes owned by the process */
     struct console_input*console;         /* console input */

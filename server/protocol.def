@@ -686,6 +686,33 @@ struct rawinput_device
     obj_handle_t thandle;        /* thread handle (in the current process) */
 @END
 
+@REQ(create_job)
+    unsigned int access;        /* wanted access rights */
+    unsigned int attributes;    /* object attributes */
+    VARARG(objattr,object_attributes); /* object attributes */
+@REPLY
+    obj_handle_t handle;        /* handle to the job */
+@END
+
+@REQ(terminate_job)
+    obj_handle_t handle;
+    int          status;
+@END
+
+@REQ(process_in_job)
+    obj_handle_t job_handle;
+    obj_handle_t process_handle;
+@END
+
+@REQ(job_assign)
+    obj_handle_t job_handle;
+    obj_handle_t process_handle;
+@END
+
+@REQ(job_set_limits)
+    obj_handle_t handle;
+    unsigned int limit_flags;
+@END
 
 /* Retrieve information about a newly started process */
 @REQ(get_new_process_info)
