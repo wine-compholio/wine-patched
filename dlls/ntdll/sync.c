@@ -56,6 +56,7 @@
 #include "wine/server.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
+#include "winnt.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
 
@@ -613,8 +614,19 @@ NTSTATUS WINAPI NtOpenJobObject( PHANDLE handle, ACCESS_MASK access, const OBJEC
  */
 NTSTATUS WINAPI NtTerminateJobObject( HANDLE handle, NTSTATUS status )
 {
-    FIXME( "stub: %p %x\n", handle, status );
-    return STATUS_SUCCESS;
+    NTSTATUS ret;
+
+    TRACE( "(%p, %d)\n", handle, status );
+
+    SERVER_START_REQ( terminate_job )
+    {
+        req->handle = wine_server_obj_handle( handle );
+        req->status = status;
+        ret = wine_server_call( req );
+    }
+    SERVER_END_REQ;
+
+    return ret;
 }
 
 /******************************************************************************
@@ -624,8 +636,17 @@ NTSTATUS WINAPI NtTerminateJobObject( HANDLE handle, NTSTATUS status )
 NTSTATUS WINAPI NtQueryInformationJobObject( HANDLE handle, JOBOBJECTINFOCLASS class, PVOID info,
                                              ULONG len, PULONG ret_len )
 {
-    FIXME( "stub: %p %u %p %u %p\n", handle, class, info, len, ret_len );
-    return STATUS_NOT_IMPLEMENTED;
+    TRACE( "%p %u %p %u %p\n", handle, class, info, len, ret_len );
+
+    if (class >= MaxJobObjectInfoClass)
+        return STATUS_INVALID_PARAMETER;
+
+    switch (class)
+    {
+    default:
+        FIXME( "stub: %p %u %p %u %p\n", handle, class, info, len, ret_len );
+        return STATUS_NOT_IMPLEMENTED;
+    }
 }
 
 /******************************************************************************

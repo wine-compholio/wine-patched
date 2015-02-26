@@ -3560,6 +3560,13 @@ enum coords_relative
 @END
 
 
+/* Terminate all processes associated with the job  */
+@REQ(terminate_job)
+    obj_handle_t handle;          /* handle to the job */
+    int          status;          /* exitcode of the process */
+@END
+
+
 /* Set limit flags on a job */
 @REQ(set_job_limits)
     obj_handle_t handle;          /* handle to the job */
