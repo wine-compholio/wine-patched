@@ -2783,27 +2783,28 @@ DECL_HANDLER(get_key_state)
     struct desktop *desktop;
     data_size_t size = min( 256, get_reply_max_size() );
 
-    if (!req->tid)  /* get global async key state */
-    {
-        if (!(desktop = get_thread_desktop( current, 0 ))) return;
-        if (req->key >= 0)
-        {
-            reply->state = desktop->keystate[req->key & 0xff];
-            desktop->keystate[req->key & 0xff] &= ~0x40;
-        }
-        set_reply_data( desktop->keystate, size );
-        release_object( desktop );
-    }
-    else
+    if (req->tid)
     {
         if (!(thread = get_thread_from_id( req->tid ))) return;
         if (thread->queue)
         {
             if (req->key >= 0) reply->state = thread->queue->input->keystate[req->key & 0xff];
             set_reply_data( thread->queue->input->keystate, size );
+            release_object( thread );
+            return;
         }
         release_object( thread );
     }
+
+    /* get global async key state */
+    if (!(desktop = get_thread_desktop( current, 0 ))) return;
+    if (req->key >= 0)
+    {
+        reply->state = desktop->keystate[req->key & 0xff];
+        desktop->keystate[req->key & 0xff] &= ~0x40;
+    }
+    set_reply_data( desktop->keystate, size );
+    release_object( desktop );
 }
 
 
