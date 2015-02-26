@@ -149,6 +149,9 @@ struct job
     struct list process_list;      /* list of all processes */
     int num_processes;             /* count of running processes */
     int limit_flags;               /* limit flags */
+    int terminating;               /* job is terminating */
+    struct completion *completion_port;
+    apc_param_t completion_key;
 };
 
 static const struct object_ops job_ops =
@@ -188,6 +191,9 @@ static struct job *create_job_object( struct directory *root, const struct unico
             list_init( &job->process_list );
             job->num_processes = 0;
             job->limit_flags = 0;
+            job->terminating = 0;
+            job->completion_port = NULL;
+            job->completion_key = 0;
         }
     }
     return job;
@@ -214,6 +220,12 @@ static unsigned int job_map_access( struct object *obj, unsigned int access )
     return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
 }
 
+static void add_job_completion( struct job *job, apc_param_t msg, apc_param_t pid )
+{
+    if (job->completion_port)
+        add_completion(job->completion_port, job->completion_key, pid, STATUS_SUCCESS, msg);
+}
+
 static int add_job_process( struct job *job, struct process *process )
 {
     assert( job->obj.ops == &job_ops );
@@ -233,6 +245,7 @@ static int add_job_process( struct job *job, struct process *process )
     list_add_tail( &job->process_list, &process->job_entry );
     job->num_processes++;
 
+    add_job_completion( job, JOB_OBJECT_MSG_NEW_PROCESS, get_process_id(process) );
     return 1;
 }
 
@@ -247,10 +260,20 @@ static void release_job_process( struct process *process )
     assert( job->obj.ops == &job_ops );
     assert( job->num_processes );
     job->num_processes--;
+
+    if (!job->terminating)
+        add_job_completion( job, JOB_OBJECT_MSG_EXIT_PROCESS, get_process_id(process) );
+
+    if (!job->num_processes)
+        add_job_completion( job, JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO, 0 );
 }
 
 static void terminate_job( struct job *job, int exit_code )
 {
+    /* Windows doesn't report completion events for processes
+     * terminated by TerminateProcess, we do the same */
+    job->terminating = 1;
+
     for (;;)  /* restart from the beginning of the list every time */
     {
         struct process *process;
@@ -264,6 +287,8 @@ static void terminate_job( struct job *job, int exit_code )
         assert( process->job == job );
         terminate_process( process, NULL, exit_code );
     }
+
+    job->terminating = 0;
 }
 
 static void job_destroy( struct object *obj )
@@ -273,6 +298,9 @@ static void job_destroy( struct object *obj )
 
     assert( !job->num_processes );
     assert( list_empty(&job->process_list) );
+
+    if (job->completion_port)
+        release_object(job->completion_port);
 }
 
 static void job_dump( struct object *obj, int verbose )
@@ -1665,6 +1693,22 @@ DECL_HANDLER(job_set_limits)
     if (job)
     {
         job->limit_flags = req->limit_flags;
+        release_object( job );
+    }
+}
+
+DECL_HANDLER(job_set_completion)
+{
+    struct job *job = get_job_obj( current->process, req->handle, JOB_OBJECT_SET_ATTRIBUTES );
+
+    if (job)
+    {
+        if (!job->completion_port)
+        {
+            job->completion_port = get_completion_obj( current->process, req->port, IO_COMPLETION_MODIFY_STATE );
+            job->completion_key = req->key;
+        }
+        else set_error( STATUS_INVALID_PARAMETER );
         release_object( job );
     }
 }
