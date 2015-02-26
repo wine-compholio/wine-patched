@@ -2460,7 +2460,6 @@ static void test_KillOnJobClose(void)
     CloseHandle(job);
 
     dwret = WaitForSingleObject(pi.hProcess, 500);
-    todo_wine
     ok(dwret == WAIT_OBJECT_0, "WaitForSingleObject returned %u\n", dwret);
     if (dwret == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 0);
 
