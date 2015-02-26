@@ -58,6 +58,7 @@
 #include "wine/server.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
+#include "winnt.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
 
@@ -567,9 +568,36 @@ NTSTATUS WINAPI NtQueryMutant(IN HANDLE handle,
  */
 NTSTATUS WINAPI NtCreateJobObject( PHANDLE handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr )
 {
-    FIXME( "stub: %p %x %s\n", handle, access, attr ? debugstr_us(attr->ObjectName) : "" );
-    *handle = (HANDLE)0xdead;
-    return STATUS_SUCCESS;
+    DWORD len = attr && attr->ObjectName ? attr->ObjectName->Length : 0;
+    NTSTATUS ret;
+    struct security_descriptor *sd = NULL;
+    struct object_attributes objattr;
+
+    if (len >= MAX_PATH * sizeof(WCHAR)) return STATUS_NAME_TOO_LONG;
+
+    objattr.rootdir = wine_server_obj_handle( attr ? attr->RootDirectory : 0 );
+    objattr.sd_len = 0;
+    objattr.name_len = len;
+    if (attr)
+    {
+        ret = NTDLL_create_struct_sd( attr->SecurityDescriptor, &sd, &objattr.sd_len );
+        if (ret != STATUS_SUCCESS) return ret;
+    }
+
+    SERVER_START_REQ( create_job )
+    {
+        req->access = access;
+        req->attributes = attr ? attr->Attributes : 0;
+        wine_server_add_data( req, &objattr, sizeof(objattr) );
+        if (objattr.sd_len) wine_server_add_data( req, sd, objattr.sd_len );
+        if (len) wine_server_add_data( req, attr->ObjectName->Buffer, len );
+        ret = wine_server_call( req );
+        *handle = wine_server_ptr_handle( reply->handle );
+    }
+    SERVER_END_REQ;
+
+    NTDLL_free_struct_sd( sd );
+    return ret;
 }
 
 /******************************************************************************
@@ -588,8 +616,19 @@ NTSTATUS WINAPI NtOpenJobObject( PHANDLE handle, ACCESS_MASK access, const OBJEC
  */
 NTSTATUS WINAPI NtTerminateJobObject( HANDLE handle, NTSTATUS status )
 {
-    FIXME( "stub: %p %x\n", handle, status );
-    return STATUS_SUCCESS;
+    NTSTATUS ret;
+
+    TRACE( "(%p, %d)\n", handle, status );
+
+    SERVER_START_REQ( terminate_job )
+    {
+        req->handle = wine_server_obj_handle( handle );
+        req->status = status;
+        ret = wine_server_call( req );
+    }
+    SERVER_END_REQ;
+
+    return ret;
 }
 
 /******************************************************************************
@@ -599,8 +638,17 @@ NTSTATUS WINAPI NtTerminateJobObject( HANDLE handle, NTSTATUS status )
 NTSTATUS WINAPI NtQueryInformationJobObject( HANDLE handle, JOBOBJECTINFOCLASS class, PVOID info,
                                              ULONG len, PULONG ret_len )
 {
-    FIXME( "stub: %p %u %p %u %p\n", handle, class, info, len, ret_len );
-    return STATUS_NOT_IMPLEMENTED;
+    TRACE( "%p %u %p %u %p\n", handle, class, info, len, ret_len );
+
+    if (class >= MaxJobObjectInfoClass)
+        return STATUS_INVALID_PARAMETER;
+
+    switch (class)
+    {
+    default:
+        FIXME( "stub: %p %u %p %u %p\n", handle, class, info, len, ret_len );
+        return STATUS_NOT_IMPLEMENTED;
+    }
 }
 
 /******************************************************************************
@@ -609,8 +657,51 @@ NTSTATUS WINAPI NtQueryInformationJobObject( HANDLE handle, JOBOBJECTINFOCLASS c
  */
 NTSTATUS WINAPI NtSetInformationJobObject( HANDLE handle, JOBOBJECTINFOCLASS class, PVOID info, ULONG len )
 {
-    FIXME( "stub: %p %u %p %u\n", handle, class, info, len );
-    return STATUS_SUCCESS;
+    JOBOBJECT_BASIC_LIMIT_INFORMATION *basic_limit;
+    NTSTATUS status = STATUS_SUCCESS;
+
+    TRACE( "(%p, %u, %p, %u)\n", handle, class, info, len );
+
+    if (class >= MaxJobObjectInfoClass)
+        return STATUS_INVALID_PARAMETER;
+
+    switch (class)
+    {
+
+    case JobObjectExtendedLimitInformation:
+        if (len != sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION))
+            return STATUS_INVALID_PARAMETER;
+
+        basic_limit = &(((JOBOBJECT_EXTENDED_LIMIT_INFORMATION *)info)->BasicLimitInformation);
+        if (basic_limit->LimitFlags & ~JOB_OBJECT_EXTENDED_LIMIT_VALID_FLAGS)
+            return STATUS_INVALID_PARAMETER;
+
+        goto set_basic_limits;
+
+    case JobObjectBasicLimitInformation:
+        if (len != sizeof(JOBOBJECT_BASIC_LIMIT_INFORMATION))
+            return STATUS_INVALID_PARAMETER;
+
+        basic_limit = info;
+        if (basic_limit->LimitFlags & ~JOB_OBJECT_BASIC_LIMIT_VALID_FLAGS)
+            return STATUS_INVALID_PARAMETER;
+
+    set_basic_limits:
+        SERVER_START_REQ( job_set_limits )
+        {
+            req->handle = wine_server_obj_handle( handle );
+            req->limit_flags = basic_limit->LimitFlags;
+            status = wine_server_call( req );
+        }
+        SERVER_END_REQ;
+        break;
+
+    default:
+        FIXME( "stub: %p %u %p %u\n", handle, class, info, len );
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    return status;
 }
 
 /******************************************************************************
@@ -619,8 +710,19 @@ NTSTATUS WINAPI NtSetInformationJobObject( HANDLE handle, JOBOBJECTINFOCLASS cla
  */
 NTSTATUS WINAPI NtIsProcessInJob( HANDLE process, HANDLE job )
 {
-    FIXME( "stub: %p %p\n", process, job );
-    return STATUS_PROCESS_NOT_IN_JOB;
+    NTSTATUS status;
+
+    TRACE( "(%p %p)\n", job, process );
+
+    SERVER_START_REQ( process_in_job )
+    {
+        req->process_handle = wine_server_obj_handle( process );
+        req->job_handle = wine_server_obj_handle( job );
+        status = wine_server_call( req );
+    }
+    SERVER_END_REQ;
+
+    return status;
 }
 
 /******************************************************************************
@@ -629,8 +731,19 @@ NTSTATUS WINAPI NtIsProcessInJob( HANDLE process, HANDLE job )
  */
 NTSTATUS WINAPI NtAssignProcessToJobObject( HANDLE job, HANDLE process )
 {
-    FIXME( "stub: %p %p\n", job, process );
-    return STATUS_SUCCESS;
+    NTSTATUS status;
+
+    TRACE( "(%p %p)\n", job, process );
+
+    SERVER_START_REQ( job_assign )
+    {
+        req->job_handle = wine_server_obj_handle( job );
+        req->process_handle = wine_server_obj_handle( process );
+        status = wine_server_call( req );
+    }
+    SERVER_END_REQ;
+
+    return status;
 }
 
 /*

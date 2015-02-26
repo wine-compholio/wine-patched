@@ -2246,7 +2246,6 @@ static void test_IsProcessInJob(void)
     out = FALSE;
     ret = pIsProcessInJob(pi.hProcess, job, &out);
     ok(ret, "IsProcessInJob error %u\n", GetLastError());
-    todo_wine
     ok(out, "IsProcessInJob returned out=%u\n", out);
 
     TerminateProcess(pi.hProcess, 0);
@@ -2257,7 +2256,6 @@ static void test_IsProcessInJob(void)
     out = FALSE;
     ret = pIsProcessInJob(pi.hProcess, job, &out);
     ok(ret, "IsProcessInJob error %u\n", GetLastError());
-    todo_wine
     ok(out, "IsProcessInJob returned out=%u\n", out);
 
     CloseHandle(pi.hProcess);
@@ -2271,9 +2269,7 @@ static void test_IsProcessInJob(void)
 
     SetLastError(0xdeadbeef);
     ret = pAssignProcessToJobObject(job, pi.hProcess);
-    todo_wine
     ok(!ret, "AssignProcessToJobObject unexpectedly succeeded\n");
-    todo_wine
     expect_eq_d(ERROR_ACCESS_DENIED, GetLastError());
 
     CloseHandle(pi.hProcess);
@@ -2301,13 +2297,11 @@ static void test_TerminateJobObject(void)
     ok(ret, "TerminateJobObject error %u\n", GetLastError());
 
     dwret = WaitForSingleObject(pi.hProcess, 500);
-    todo_wine
     ok(dwret == WAIT_OBJECT_0, "WaitForSingleObject returned %u\n", dwret);
     if (dwret == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 0);
 
     ret = GetExitCodeProcess(pi.hProcess, &dwret);
     ok(ret, "GetExitCodeProcess error %u\n", GetLastError());
-    todo_wine
     ok(dwret == 123 || broken(dwret == 0) /* randomly fails on Win 2000 / XP */,
        "wrong exitcode %u\n", dwret);
 
@@ -2416,6 +2410,7 @@ static void test_CompletionPort(void)
     port_info.CompletionKey = job;
     port_info.CompletionPort = port;
     ret = pSetInformationJobObject(job, JobObjectAssociateCompletionPortInformation, &port_info, sizeof(port_info));
+    todo_wine
     ok(ret, "SetInformationJobObject error %u\n", GetLastError());
 
     create_process("wait", &pi);
@@ -2583,7 +2578,6 @@ static HANDLE test_LimitActiveProcesses(void)
     out = FALSE;
     ret = pIsProcessInJob(pi[0].hProcess, job, &out);
     ok(ret, "IsProcessInJob error %u\n", GetLastError());
-    todo_wine
     ok(out, "IsProcessInJob returned out=%u\n", out);
 
     dwret = WaitForSingleObject(pi[0].hProcess, 500);
@@ -2614,9 +2608,7 @@ static void test_BreakawayOk(HANDLE job)
     snprintf(buffer, MAX_PATH, "\"%s\" tests/process.c %s", selfname, "exit");
 
     ret = CreateProcessA(NULL, buffer, NULL, NULL, FALSE, CREATE_BREAKAWAY_FROM_JOB, NULL, NULL, &si, &pi);
-    todo_wine
     ok(!ret, "CreateProcessA expected failure\n");
-    todo_wine
     expect_eq_d(ERROR_ACCESS_DENIED, GetLastError());
 
     if (ret)
