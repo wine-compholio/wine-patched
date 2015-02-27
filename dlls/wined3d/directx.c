@@ -4443,7 +4443,12 @@ HRESULT CDECL wined3d_check_device_multisample_type(const struct wined3d *wined3
 
     if (quality_levels)
     {
-        if (multisample_type == WINED3D_MULTISAMPLE_NON_MASKABLE)
+        if (wined3d_settings.msaa_quality_levels)
+        {
+            *quality_levels = wined3d_settings.msaa_quality_levels;
+            TRACE("Overriding MSAA quality levels to %i\n", *quality_levels);
+        }
+        else if (multisample_type == WINED3D_MULTISAMPLE_NON_MASKABLE)
             *quality_levels = gl_info->limits.samples;
         else
             *quality_levels = 1;
