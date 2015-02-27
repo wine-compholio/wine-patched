@@ -1116,6 +1116,7 @@ HDC WINAPI GetWindowDC( HWND hwnd )
  */
 INT WINAPI ReleaseDC( HWND hwnd, HDC hdc )
 {
+    flush_window_surfaces( FALSE );
     return release_dc( hwnd, hdc, FALSE );
 }
 
