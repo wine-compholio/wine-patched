@@ -268,6 +268,7 @@ struct wined3d_settings
     unsigned short pci_vendor_id;
     unsigned short pci_device_id;
     /* Memory tracking and object counting. */
+    unsigned int msaa_quality_levels;
     UINT64 emulated_textureram;
     char *logo;
     int allow_multisampling;
