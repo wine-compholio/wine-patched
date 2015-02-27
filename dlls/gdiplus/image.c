@@ -152,6 +152,13 @@ static INT ipicture_pixel_width(IPicture *pic)
     return x;
 }
 
+GpStatus WINGDIPAPI GdipCreateEffect(const GUID guid, CGpEffect **effect)
+{
+    FIXME("(%s, %p): stub\n", debugstr_guid(&guid), effect);
+    *effect = NULL;
+    return NotImplemented;
+}
+
 GpStatus WINGDIPAPI GdipBitmapApplyEffect(GpBitmap* bitmap, CGpEffect* effect,
     RECT* roi, BOOL useAuxData, VOID** auxData, INT* auxDataSize)
 {
