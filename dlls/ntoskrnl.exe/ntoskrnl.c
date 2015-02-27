@@ -2454,3 +2454,11 @@ PLIST_ENTRY WINAPI ExfInterlockedRemoveHeadList(PLIST_ENTRY head, PKSPIN_LOCK lo
     FIXME("(%p %p) stub\n", head, lock);
     return ExInterlockedRemoveHeadList( head, lock );
 }
+
+/***********************************************************************
+ *           ProbeForRead   (NTOSKRNL.EXE.@)
+ */
+VOID WINAPI ProbeForRead(PVOID address, SIZE_T length, ULONG alignment)
+{
+    FIXME("%p %lu %u\n", address, length, alignment);
+}
