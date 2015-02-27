@@ -77,6 +77,7 @@ struct wined3d_settings wined3d_settings =
     ORM_FBO,        /* Use FBOs to do offscreen rendering */
     PCI_VENDOR_NONE,/* PCI Vendor ID */
     PCI_DEVICE_NONE,/* PCI Device ID */
+    0,              /* Multisampling AA Quality Levels */
     0,              /* The default of memory is set in init_driver_info */
     NULL,           /* No wine logo by default */
     TRUE,           /* Multisampling enabled by default. */
@@ -260,6 +261,17 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
                 TRACE("Using PCI Vendor ID %04x\n", pci_vendor_id);
                 wined3d_settings.pci_vendor_id = pci_vendor_id;
             }
+        }
+        if (!get_config_key( hkey, appkey, "MultisamplingAAQualityLevels", buffer, size ))
+        {
+            int quality_levels = atoi(buffer);
+            if(quality_levels > 0)
+            {
+                wined3d_settings.msaa_quality_levels = quality_levels;
+                TRACE("Setting MultisamplingAAQualityLevels to %i\n", quality_levels);
+            }
+            else
+                ERR("MultisamplingAAQualityLevels is %i but must be >0\n", quality_levels);
         }
         if ( !get_config_key( hkey, appkey, "VideoMemorySize", buffer, size) )
         {
