@@ -2262,6 +2262,23 @@ static void test_IsProcessInJob(void)
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+
+    /* Test adding an already terminated process to a job object */
+    create_process("exit", &pi);
+
+    dwret = WaitForSingleObject(pi.hProcess, 500);
+    ok(dwret == WAIT_OBJECT_0, "WaitForSingleObject returned %u\n", dwret);
+
+    SetLastError(0xdeadbeef);
+    ret = pAssignProcessToJobObject(job, pi.hProcess);
+    todo_wine
+    ok(!ret, "AssignProcessToJobObject unexpectedly succeeded\n");
+    todo_wine
+    expect_eq_d(ERROR_ACCESS_DENIED, GetLastError());
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
     CloseHandle(job);
 }
 
