@@ -151,6 +151,7 @@ struct job
     int num_processes;             /* count of running processes */
     unsigned int limit_flags;      /* limit flags */
     int terminating;               /* job is terminating */
+    int signaled;                  /* job is signaled */
     struct completion *completion_port; /* associated completion port */
     apc_param_t completion_key;    /* key to send with completion messages */
 };
@@ -193,6 +194,7 @@ static struct job *create_job_object( struct directory *root, const struct unico
             job->num_processes = 0;
             job->limit_flags = 0;
             job->terminating = 0;
+            job->signaled = 0;
             job->completion_port = NULL;
             job->completion_key = 0;
         }
@@ -284,6 +286,8 @@ static void terminate_job( struct job *job, int exit_code )
     }
 
     job->terminating = 0;
+    job->signaled = 1;
+    wake_up( &job->obj, 0 );
 }
 
 static int job_close_handle( struct object *obj, struct process *process, obj_handle_t handle )
@@ -320,7 +324,8 @@ static void job_dump( struct object *obj, int verbose )
 
 static int job_signaled( struct object *obj, struct wait_queue_entry *entry )
 {
-    return 0;
+    struct job *job = (struct job *)obj;
+    return job->signaled;
 }
 
 struct ptid_entry

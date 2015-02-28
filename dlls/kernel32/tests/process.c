@@ -2482,7 +2482,6 @@ static void test_WaitForJobObject(void)
     ok(ret, "TerminateJobObject error %u\n", GetLastError());
 
     dwret = WaitForSingleObject(job, 500);
-    todo_wine
     ok(dwret == WAIT_OBJECT_0 || broken(dwret == WAIT_TIMEOUT),
        "WaitForSingleObject returned %u\n", dwret);
 
@@ -2491,7 +2490,6 @@ static void test_WaitForJobObject(void)
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
         CloseHandle(job);
-        todo_wine
         win_skip("TerminateJobObject doesn't signal job, skipping tests\n");
         return;
     }
