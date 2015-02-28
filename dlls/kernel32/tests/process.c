@@ -2240,11 +2240,21 @@ static void test_IsProcessInJob(void)
     ok(ret, "IsProcessInJob error %u\n", GetLastError());
     ok(!out, "IsProcessInJob returned out=%u\n", out);
 
+    out = TRUE;
+    ret = pIsProcessInJob(pi.hProcess, NULL, &out);
+    ok(ret, "IsProcessInJob error %u\n", GetLastError());
+    ok(!out, "IsProcessInJob returned out=%u\n", out);
+
     ret = pAssignProcessToJobObject(job, pi.hProcess);
     ok(ret, "AssignProcessToJobObject error %u\n", GetLastError());
 
     out = FALSE;
     ret = pIsProcessInJob(pi.hProcess, job, &out);
+    ok(ret, "IsProcessInJob error %u\n", GetLastError());
+    ok(out, "IsProcessInJob returned out=%u\n", out);
+
+    out = FALSE;
+    ret = pIsProcessInJob(pi.hProcess, NULL, &out);
     ok(ret, "IsProcessInJob error %u\n", GetLastError());
     ok(out, "IsProcessInJob returned out=%u\n", out);
 

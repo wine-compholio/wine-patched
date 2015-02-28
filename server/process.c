@@ -1675,16 +1675,20 @@ DECL_HANDLER(job_assign)
 DECL_HANDLER(process_in_job)
 {
     struct process *process;
-    struct job *job = get_job_obj( current->process, req->job_handle, JOB_OBJECT_ASSIGN_PROCESS );
+    struct job *job;
 
-    if (job)
+    if ((process = get_process_from_handle( req->process_handle, PROCESS_QUERY_INFORMATION )))
     {
-        if ((process = get_process_from_handle( req->process_handle, PROCESS_QUERY_INFORMATION )))
+        if (!req->job_handle)
+        {
+            set_error( (process->job) ? STATUS_PROCESS_IN_JOB : STATUS_PROCESS_NOT_IN_JOB );
+        }
+        else if ((job = get_job_obj( current->process, req->job_handle, JOB_OBJECT_QUERY )))
         {
             set_error( (process->job == job) ? STATUS_PROCESS_IN_JOB : STATUS_PROCESS_NOT_IN_JOB );
-            release_object( process );
+            release_object( job );
         }
-        release_object(job);
+        release_object( process );
     }
 }
 
