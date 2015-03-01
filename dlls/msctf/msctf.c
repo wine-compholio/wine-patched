@@ -445,6 +445,7 @@ HRESULT activate_textservices(ITfThreadMgr *tm)
     if (activated > 1)
         return S_OK;
 
+    InterlockedIncrement(&MSCTF_refCount);
     LIST_FOR_EACH_ENTRY(ats, &AtsList, AtsEntry, entry)
     {
         hr = activate_given_ts(ats->ats, tm);
@@ -462,8 +463,11 @@ HRESULT deactivate_textservices(void)
         activated --;
 
     if (activated == 0)
+    {
         LIST_FOR_EACH_ENTRY(ats, &AtsList, AtsEntry, entry)
             deactivate_given_ts(ats->ats);
+        InterlockedDecrement(&MSCTF_refCount);
+    }
 
     return S_OK;
 }
