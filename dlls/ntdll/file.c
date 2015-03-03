@@ -352,6 +352,7 @@ struct async_fileio
 {
     async_callback_t    *callback; /* must be the first field */
     struct async_fileio *next;
+    DWORD                size;
     HANDLE               handle;
 };
 
@@ -396,18 +397,29 @@ static struct async_fileio *alloc_fileio( DWORD size, async_callback_t callback,
 {
     /* first free remaining previous fileinfos */
 
-    struct async_fileio *io = interlocked_xchg_ptr( (void **)&fileio_freelist, NULL );
+    struct async_fileio *old_io = interlocked_xchg_ptr( (void **)&fileio_freelist, NULL );
+    struct async_fileio *io = NULL;
 
-    while (io)
+    while (old_io)
     {
-        struct async_fileio *next = io->next;
-        RtlFreeHeap( GetProcessHeap(), 0, io );
-        io = next;
+        if (!io && old_io->size >= size && old_io->size <= max(4096, 4 * size))
+        {
+            io     = old_io;
+            size   = old_io->size;
+            old_io = old_io->next;
+        }
+        else
+        {
+            struct async_fileio *next = old_io->next;
+            RtlFreeHeap( GetProcessHeap(), 0, old_io );
+            old_io = next;
+        }
     }
 
-    if ((io = RtlAllocateHeap( GetProcessHeap(), 0, size )))
+    if (io || (io = RtlAllocateHeap( GetProcessHeap(), 0, size )))
     {
         io->callback = callback;
+        io->size     = size;
         io->handle   = handle;
     }
     return io;
