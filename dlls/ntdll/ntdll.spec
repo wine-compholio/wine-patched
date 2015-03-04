@@ -970,12 +970,16 @@
 @ stdcall RtlxUnicodeStringToOemSize(ptr) RtlUnicodeStringToOemSize
 @ stdcall TpAllocCleanupGroup(ptr)
 @ stdcall TpAllocPool(ptr ptr)
+@ stdcall TpAllocWork(ptr ptr ptr ptr)
+@ stdcall TpPostWork(ptr)
 @ stdcall TpReleaseCleanupGroup(ptr)
 @ stdcall TpReleaseCleanupGroupMembers(ptr long ptr)
 @ stdcall TpReleasePool(ptr)
+@ stdcall TpReleaseWork(ptr)
 @ stdcall TpSetPoolMaxThreads(ptr long)
 @ stdcall TpSetPoolMinThreads(ptr long)
 @ stdcall TpSimpleTryPost(ptr ptr ptr)
+@ stdcall TpWaitForWork(ptr long)
 @ stdcall -ret64 VerSetConditionMask(int64 long long)
 @ stdcall ZwAcceptConnectPort(ptr long ptr long long ptr) NtAcceptConnectPort
 @ stdcall ZwAccessCheck(ptr long long ptr ptr ptr ptr ptr) NtAccessCheck
