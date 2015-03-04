@@ -203,6 +203,15 @@ struct threadpool_instance
     DWORD                   threadid;
     BOOL                    disassociated;
     BOOL                    may_run_long;
+    struct
+    {
+        CRITICAL_SECTION    *critical_section;
+        HANDLE              mutex;
+        HANDLE              semaphore;
+        LONG                semaphore_count;
+        HANDLE              event;
+        HMODULE             library;
+    } cleanup;
 };
 
 /* internal threadpool group representation */
@@ -1513,7 +1522,49 @@ static void tp_instance_initialize( struct threadpool_instance *instance, struct
     instance->threadid                  = GetCurrentThreadId();
     instance->disassociated             = FALSE;
     instance->may_run_long              = object->may_run_long;
+    instance->cleanup.critical_section  = NULL;
+    instance->cleanup.mutex             = NULL;
+    instance->cleanup.semaphore         = NULL;
+    instance->cleanup.semaphore_count   = 0;
+    instance->cleanup.event             = NULL;
+    instance->cleanup.library           = NULL;
 }
+
+static NTSTATUS tp_instance_cleanup( struct threadpool_instance *instance )
+{
+    NTSTATUS status;
+
+    if (instance->cleanup.critical_section)
+    {
+        RtlLeaveCriticalSection( instance->cleanup.critical_section );
+    }
+    if (instance->cleanup.mutex)
+    {
+        status = NtReleaseMutant( instance->cleanup.mutex, NULL );
+        if (status != STATUS_SUCCESS)
+            return status;
+    }
+    if (instance->cleanup.semaphore)
+    {
+        status = NtReleaseSemaphore( instance->cleanup.semaphore, instance->cleanup.semaphore_count, NULL );
+        if (status != STATUS_SUCCESS)
+            return status;
+    }
+    if (instance->cleanup.event)
+    {
+        status = NtSetEvent( instance->cleanup.event, NULL );
+        if (status != STATUS_SUCCESS)
+            return status;
+    }
+    if (instance->cleanup.library)
+    {
+        status = LdrUnloadDll( instance->cleanup.library );
+        if (status != STATUS_SUCCESS)
+            return status;
+    }
+
+    return STATUS_SUCCESS;
+ }
 
 /* disassociates the current thread from the threadpool object */
 static void tp_instance_disassociate_thread( struct threadpool_instance *instance )
@@ -1643,6 +1694,7 @@ static void CALLBACK threadpool_worker_proc( void *param )
                 TRACE( "callback %p returned\n", object->finalization_callback );
             }
 
+            tp_instance_cleanup( &instance );
             RtlEnterCriticalSection( &pool->cs );
             pool->num_busy_workers--;
             if (!instance.disassociated)
@@ -1728,6 +1780,26 @@ NTSTATUS WINAPI TpAllocWork( TP_WORK **out, PTP_WORK_CALLBACK callback, PVOID us
 }
 
 /***********************************************************************
+ *           TpCallbackLeaveCriticalSectionOnCompletion    (NTDLL.@)
+ */
+VOID WINAPI TpCallbackLeaveCriticalSectionOnCompletion( TP_CALLBACK_INSTANCE *instance, CRITICAL_SECTION *crit )
+{
+    struct threadpool_instance *this = impl_from_TP_CALLBACK_INSTANCE( instance );
+    TRACE("%p %p\n", instance, crit);
+
+    if (!this)
+        return;
+
+    if (this->cleanup.critical_section)
+    {
+        FIXME("attempt to set multiple cleanup critical sections\n");
+        return;
+    }
+
+    this->cleanup.critical_section = crit;
+}
+
+/***********************************************************************
  *           TpCallbackMayRunLong    (NTDLL.@)
  */
 NTSTATUS WINAPI TpCallbackMayRunLong( TP_CALLBACK_INSTANCE *instance )
@@ -1739,6 +1811,87 @@ NTSTATUS WINAPI TpCallbackMayRunLong( TP_CALLBACK_INSTANCE *instance )
         return STATUS_ACCESS_VIOLATION;
 
     return tp_instance_may_run_long( this );
+}
+
+/***********************************************************************
+ *           TpCallbackReleaseMutexOnCompletion    (NTDLL.@)
+ */
+VOID WINAPI TpCallbackReleaseMutexOnCompletion( TP_CALLBACK_INSTANCE *instance, HANDLE mutex )
+{
+    struct threadpool_instance *this = impl_from_TP_CALLBACK_INSTANCE( instance );
+    TRACE("%p %p\n", instance, mutex);
+
+    if (!this)
+        return;
+
+    if (this->cleanup.mutex)
+    {
+        FIXME("attempt to set multiple cleanup mutexes\n");
+        return;
+    }
+
+    this->cleanup.mutex = mutex;
+}
+
+/***********************************************************************
+ *           TpCallbackReleaseSemaphoreOnCompletion    (NTDLL.@)
+ */
+VOID WINAPI TpCallbackReleaseSemaphoreOnCompletion( TP_CALLBACK_INSTANCE *instance, HANDLE semaphore, DWORD count )
+{
+    struct threadpool_instance *this = impl_from_TP_CALLBACK_INSTANCE( instance );
+    TRACE("%p %p %u\n", instance, semaphore, count);
+
+    if (!this)
+        return;
+
+    if (this->cleanup.semaphore)
+    {
+        FIXME("attempt to set multiple cleanup semaphores\n");
+        return;
+    }
+
+    this->cleanup.semaphore = semaphore;
+    this->cleanup.semaphore_count = count;
+}
+
+/***********************************************************************
+ *           TpCallbackSetEventOnCompletion    (NTDLL.@)
+ */
+VOID WINAPI TpCallbackSetEventOnCompletion( TP_CALLBACK_INSTANCE *instance, HANDLE event )
+{
+    struct threadpool_instance *this = impl_from_TP_CALLBACK_INSTANCE( instance );
+    TRACE("%p %p\n", instance, event);
+
+    if (!this)
+        return;
+
+    if (this->cleanup.event)
+    {
+        FIXME("attempt to set multiple cleanup events\n");
+        return;
+    }
+
+    this->cleanup.event = event;
+}
+
+/***********************************************************************
+ *           TpCallbackUnloadDllOnCompletion    (NTDLL.@)
+ */
+VOID WINAPI TpCallbackUnloadDllOnCompletion( TP_CALLBACK_INSTANCE *instance, HMODULE module )
+{
+    struct threadpool_instance *this = impl_from_TP_CALLBACK_INSTANCE( instance );
+    TRACE("%p %p\n", instance, module);
+
+    if (!this)
+        return;
+
+    if (this->cleanup.library)
+    {
+        FIXME("attempt to set multiple cleanup libraries\n");
+        return;
+    }
+
+    this->cleanup.library = module;
 }
 
 /***********************************************************************
