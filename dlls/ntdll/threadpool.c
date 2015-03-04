@@ -201,6 +201,7 @@ struct threadpool_instance
 {
     struct threadpool_object *object;
     DWORD                   threadid;
+    BOOL                    disassociated;
     BOOL                    may_run_long;
 };
 
@@ -1510,7 +1511,35 @@ static void tp_instance_initialize( struct threadpool_instance *instance, struct
 {
     instance->object                    = object;
     instance->threadid                  = GetCurrentThreadId();
+    instance->disassociated             = FALSE;
     instance->may_run_long              = object->may_run_long;
+}
+
+/* disassociates the current thread from the threadpool object */
+static void tp_instance_disassociate_thread( struct threadpool_instance *instance )
+{
+    struct threadpool_object *object;
+    struct threadpool *pool;
+
+    if (instance->threadid != GetCurrentThreadId())
+    {
+        ERR("called from wrong thread, ignoring\n");
+        return;
+    }
+
+    if (instance->disassociated)
+        return;
+
+    object = instance->object;
+    pool   = object->pool;
+    RtlEnterCriticalSection( &pool->cs );
+
+    object->num_running_callbacks--;
+    if (!object->num_pending_callbacks && !object->num_running_callbacks)
+        RtlWakeAllConditionVariable( &object->finished_event );
+
+    RtlLeaveCriticalSection( &pool->cs );
+    instance->disassociated = TRUE;
 }
 
 /* hint for the threadpool that the execution might take long, spawn additional workers */
@@ -1616,9 +1645,12 @@ static void CALLBACK threadpool_worker_proc( void *param )
 
             RtlEnterCriticalSection( &pool->cs );
             pool->num_busy_workers--;
-            object->num_running_callbacks--;
-            if (!object->num_pending_callbacks && !object->num_running_callbacks)
-                RtlWakeAllConditionVariable( &object->finished_event );
+            if (!instance.disassociated)
+            {
+                object->num_running_callbacks--;
+                if (!object->num_pending_callbacks && !object->num_running_callbacks)
+                    RtlWakeAllConditionVariable( &object->finished_event );
+            }
             tp_object_release( object );
         }
 
@@ -1707,6 +1739,20 @@ NTSTATUS WINAPI TpCallbackMayRunLong( TP_CALLBACK_INSTANCE *instance )
         return STATUS_ACCESS_VIOLATION;
 
     return tp_instance_may_run_long( this );
+}
+
+/***********************************************************************
+ *           TpDisassociateCallback    (NTDLL.@)
+ */
+VOID WINAPI TpDisassociateCallback( TP_CALLBACK_INSTANCE *instance )
+{
+    struct threadpool_instance *this = impl_from_TP_CALLBACK_INSTANCE( instance );
+    TRACE("%p\n", instance);
+
+    if (this)
+    {
+        tp_instance_disassociate_thread( this );
+    }
 }
 
 /***********************************************************************
