@@ -2835,13 +2835,45 @@ static NTSTATUS WS2_transmitfile_base( int fd, struct ws2_transmitfile_async *ws
     status = WS2_transmitfile_getbuffer( fd, wsa );
     if (status == STATUS_PENDING)
     {
+        IO_STATUS_BLOCK *iosb = (IO_STATUS_BLOCK *)wsa->write.user_overlapped;
         int n;
 
         n = WS2_send( fd, &wsa->write, convert_flags(wsa->write.flags) );
-        if (n == -1 && errno != EAGAIN)
+        if (n >= 0)
+        {
+            if (iosb) iosb->Information += n;
+        }
+        else if (errno != EAGAIN)
             return wsaErrStatus();
     }
 
+    return status;
+}
+
+/***********************************************************************
+ *     WS2_async_transmitfile           (INTERNAL)
+ *
+ * Asynchronous callback for overlapped TransmitFile operations.
+ */
+static NTSTATUS WS2_async_transmitfile( void *user, IO_STATUS_BLOCK *iosb,
+                                        NTSTATUS status, void **apc, void **arg )
+{
+    struct ws2_transmitfile_async *wsa = user;
+    int fd;
+
+    if (status == STATUS_ALERTED)
+    {
+        if (!(status = wine_server_handle_to_fd( wsa->write.hSocket, FILE_WRITE_DATA, &fd, NULL )))
+        {
+            status = WS2_transmitfile_base( fd, wsa );
+            wine_server_release_fd( wsa->write.hSocket, fd );
+        }
+        if (status == STATUS_PENDING)
+            return status;
+    }
+
+    iosb->u.Status = status;
+    release_async_io( &wsa->io );
     return status;
 }
 
@@ -2852,19 +2884,12 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD file_bytes, DWORD
                                      LPOVERLAPPED overlapped, LPTRANSMIT_FILE_BUFFERS buffers,
                                      DWORD flags )
 {
+    IO_STATUS_BLOCK *iosb = (IO_STATUS_BLOCK *)overlapped;
     union generic_unix_sockaddr uaddr;
     unsigned int uaddrlen = sizeof(uaddr);
     struct ws2_transmitfile_async *wsa;
     NTSTATUS status;
     int fd;
-
-    if (overlapped)
-    {
-        FIXME("(%lx, %p, %d, %d, %p, %p, %d): stub !\n", s, h, file_bytes, bytes_per_send,
-               overlapped, buffers, flags);
-        WSASetLastError( WSAEOPNOTSUPP );
-        return FALSE;
-    }
 
     TRACE("(%lx, %p, %d, %d, %p, %p, %d)\n", s, h, file_bytes, bytes_per_send, overlapped,
             buffers, flags );
@@ -2912,7 +2937,37 @@ static BOOL WINAPI WS2_TransmitFile( SOCKET s, HANDLE h, DWORD file_bytes, DWORD
     wsa->write.control         = NULL;
     wsa->write.n_iovecs        = 0;
     wsa->write.first_iovec     = 0;
-    wsa->write.user_overlapped = NULL;
+    wsa->write.user_overlapped = overlapped;
+
+    if (overlapped)
+    {
+        LARGE_INTEGER offset;
+        int status;
+
+        /* set the file offset to the desired point */
+        offset.u.LowPart = overlapped->u.s.Offset;
+        offset.u.HighPart = overlapped->u.s.OffsetHigh;
+        SetFilePointerEx( wsa->file, offset, NULL, FILE_BEGIN );
+
+        iosb->u.Status = STATUS_PENDING;
+        iosb->Information = 0;
+        SERVER_START_REQ( register_async )
+        {
+            req->type           = ASYNC_TYPE_WRITE;
+            req->async.handle   = wine_server_obj_handle( SOCKET2HANDLE(s) );
+            req->async.event    = wine_server_obj_handle( overlapped->hEvent );
+            req->async.callback = wine_server_client_ptr( WS2_async_transmitfile );
+            req->async.iosb     = wine_server_client_ptr( iosb );
+            req->async.arg      = wine_server_client_ptr( wsa );
+            status = wine_server_call( req );
+        }
+        SERVER_END_REQ;
+
+        if(status != STATUS_PENDING) HeapFree( GetProcessHeap(), 0, wsa );
+        release_sock_fd( s, fd );
+        WSASetLastError( NtStatusToWSAError(status) );
+        return FALSE;
+    }
 
     do
     {
