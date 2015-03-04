@@ -156,7 +156,8 @@ struct threadpool
 
 enum threadpool_objtype
 {
-    TP_OBJECT_TYPE_SIMPLE
+    TP_OBJECT_TYPE_SIMPLE,
+    TP_OBJECT_TYPE_WORK
 };
 
 /* internal threadpool object representation */
@@ -184,6 +185,10 @@ struct threadpool_object
         {
             PTP_SIMPLE_CALLBACK callback;
         } simple;
+        struct
+        {
+            PTP_WORK_CALLBACK callback;
+        } work;
     } u;
 };
 
@@ -200,6 +205,13 @@ struct threadpool_group
 static inline struct threadpool *impl_from_TP_POOL( TP_POOL *pool )
 {
     return (struct threadpool *)pool;
+}
+
+static inline struct threadpool_object *impl_from_TP_WORK( TP_WORK *work )
+{
+    struct threadpool_object *object = (struct threadpool_object *)work;
+    assert( !object || object->type == TP_OBJECT_TYPE_WORK );
+    return object;
 }
 
 static inline struct threadpool_group *impl_from_TP_CLEANUP_GROUP( TP_CLEANUP_GROUP *group )
@@ -1485,6 +1497,15 @@ static void CALLBACK threadpool_worker_proc( void *param )
                     break;
                 }
 
+                case TP_OBJECT_TYPE_WORK:
+                {
+                    TRACE( "executing work callback %p(NULL, %p, %p)\n",
+                           object->u.work.callback, object->userdata, object );
+                    object->u.work.callback( NULL, object->userdata, (TP_WORK *)object );
+                    TRACE( "callback %p returned\n", object->u.work.callback );
+                    break;
+                }
+
                 default:
                     assert(0);
                     break;
@@ -1543,6 +1564,46 @@ NTSTATUS WINAPI TpAllocPool( TP_POOL **out, PVOID reserved )
         return STATUS_ACCESS_VIOLATION;
 
     return tp_threadpool_alloc( (struct threadpool **)out );
+}
+
+/***********************************************************************
+ *           TpAllocWork    (NTDLL.@)
+ */
+NTSTATUS WINAPI TpAllocWork( TP_WORK **out, PTP_WORK_CALLBACK callback, PVOID userdata,
+                             TP_CALLBACK_ENVIRON *environment )
+{
+    struct threadpool_object *object;
+    struct threadpool *pool;
+
+    TRACE("%p %p %p %p\n", out, callback, userdata, environment);
+
+    if (!(pool = get_threadpool( environment )))
+        return STATUS_NO_MEMORY;
+
+    object = RtlAllocateHeap( GetProcessHeap(), 0, sizeof(*object) );
+    if (!object)
+        return STATUS_NO_MEMORY;
+
+    object->type = TP_OBJECT_TYPE_WORK;
+    object->u.work.callback = callback;
+    tp_object_initialize( object, pool, userdata, environment );
+
+    *out = (TP_WORK *)object;
+    return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           TpPostWork    (NTDLL.@)
+ */
+VOID WINAPI TpPostWork( TP_WORK *work )
+{
+    struct threadpool_object *this = impl_from_TP_WORK( work );
+    TRACE("%p\n", work);
+
+    if (this)
+    {
+        tp_object_submit( this );
+    }
 }
 
 /***********************************************************************
@@ -1640,6 +1701,21 @@ VOID WINAPI TpReleasePool( TP_POOL *pool )
 }
 
 /***********************************************************************
+ *           TpReleaseWork    (NTDLL.@)
+ */
+VOID WINAPI TpReleaseWork( TP_WORK *work )
+{
+    struct threadpool_object *this = impl_from_TP_WORK( work );
+    TRACE("%p\n", work);
+
+    if (this)
+    {
+        tp_object_shutdown( this );
+        tp_object_release( this );
+    }
+}
+
+/***********************************************************************
  *           TpSetPoolMaxThreads    (NTDLL.@)
  */
 VOID WINAPI TpSetPoolMaxThreads( TP_POOL *pool, DWORD maximum )
@@ -1697,4 +1773,20 @@ NTSTATUS WINAPI TpSimpleTryPost( PTP_SIMPLE_CALLBACK callback, PVOID userdata,
     tp_object_initialize( object, pool, userdata, environment );
 
     return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           TpWaitForWork    (NTDLL.@)
+ */
+VOID WINAPI TpWaitForWork( TP_WORK *work, BOOL cancel_pending )
+{
+    struct threadpool_object *this = impl_from_TP_WORK( work );
+    TRACE("%p %d\n", work, cancel_pending);
+
+    if (this)
+    {
+        if (cancel_pending)
+            tp_object_cancel( this );
+        tp_object_wait( this );
+    }
 }
