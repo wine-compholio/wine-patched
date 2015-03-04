@@ -969,24 +969,67 @@
 @ stdcall RtlxOemStringToUnicodeSize(ptr) RtlOemStringToUnicodeSize
 @ stdcall RtlxUnicodeStringToAnsiSize(ptr) RtlUnicodeStringToAnsiSize
 @ stdcall RtlxUnicodeStringToOemSize(ptr) RtlUnicodeStringToOemSize
+# @ stub TpAllocAlpcCompletion
+# @ stub TpAllocAlpcCompletionEx
 @ stdcall TpAllocCleanupGroup(ptr)
+# @ stub TpAllocIoCompletion
+# @ stub TpAllocJobNotification
 @ stdcall TpAllocPool(ptr ptr)
+# @ stub TpAllocTimer
+# @ stub TpAllocWait
 @ stdcall TpAllocWork(ptr ptr ptr ptr)
+# @ stub TpAlpcRegisterCompletionList
+# @ stub TpAlpcUnregisterCompletionList
+# @ stub TpCallbackDetectedUnrecoverableError
+# @ stub TpCallbackIndependent
 @ stdcall TpCallbackLeaveCriticalSectionOnCompletion(ptr ptr)
 @ stdcall TpCallbackMayRunLong(ptr)
 @ stdcall TpCallbackReleaseMutexOnCompletion(ptr long)
 @ stdcall TpCallbackReleaseSemaphoreOnCompletion(ptr long long)
+# @ stub TpCallbackSendAlpcMessageOnCompletion
+# @ stub TpCallbackSendPendingAlpcMessage
 @ stdcall TpCallbackSetEventOnCompletion(ptr long)
 @ stdcall TpCallbackUnloadDllOnCompletion(ptr long)
+# @ stub TpCancelAsyncIoOperation
+# @ stub TpCaptureCaller
+# @ stub TpCheckTerminateWorker
+# @ stub TpDbgDumpHeapUsage
+# @ stub TpDbgSetLogRoutine
+# @ stub TpDisablePoolCallbackChecks
 @ stdcall TpDisassociateCallback(ptr)
+# @ stub TpIsTimerSet
 @ stdcall TpPostWork(ptr)
+# @ stub TpQueryPoolStackInformation
+# @ stub TpReleaseAlpcCompletion
 @ stdcall TpReleaseCleanupGroup(ptr)
 @ stdcall TpReleaseCleanupGroupMembers(ptr long ptr)
+# @ stub TpReleaseIoCompletion
+# @ stub TpReleaseJobNotification
 @ stdcall TpReleasePool(ptr)
+# @ stub TpReleaseTimer
+# @ stub TpReleaseWait
 @ stdcall TpReleaseWork(ptr)
+# @ stub TpSetDefaultPoolMaxThreads
+# @ stub TpSetDefaultPoolStackInformation
 @ stdcall TpSetPoolMaxThreads(ptr long)
+# @ stub TpSetPoolMaxThreadsSoftLimit
 @ stdcall TpSetPoolMinThreads(ptr long)
+# @ stub TpSetPoolStackInformation
+# @ stub TpSetPoolThreadBasePriority
+# @ stub TpSetPoolWorkerThreadIdleTimeout
+# @ stub TpSetTimer
+# @ stub TpSetTimerEx
+# @ stub TpSetWait
+# @ stub TpSetWaitEx
 @ stdcall TpSimpleTryPost(ptr ptr ptr)
+# @ stub TpStartAsyncIoOperation
+# @ stub TpTimerOutstandingCallbackCount
+# @ stub TpTrimPools
+# @ stub TpWaitForAlpcCompletion
+# @ stub TpWaitForIoCompletion
+# @ stub TpWaitForJobNotification
+# @ stub TpWaitForTimer
+# @ stub TpWaitForWait
 @ stdcall TpWaitForWork(ptr long)
 @ stdcall -ret64 VerSetConditionMask(int64 long long)
 @ stdcall WinSqmIsOptedIn()
