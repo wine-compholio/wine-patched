@@ -830,7 +830,7 @@ int PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, INT nCmdSh
         break;
     case from_process_name:
         {
-            WCHAR           buffer[256];
+            static WCHAR buffer[4096];
 
             MultiByteToWideChar(CP_ACP, 0, wci.ptr, -1, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
