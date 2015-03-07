@@ -3107,6 +3107,7 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
                                 ULONG_PTR unknown3, ULONG_PTR unknown4 )
 {
     static const WCHAR globalflagW[] = {'G','l','o','b','a','l','F','l','a','g',0};
+    LARGE_INTEGER timeout;
     NTSTATUS status;
     WINE_MODREF *wm;
     LPCWSTR load_path;
@@ -3154,6 +3155,10 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
 
     virtual_release_address_space();
     virtual_clear_thread_stack();
+
+    timeout.QuadPart = 0;
+    NtDelayExecution( TRUE, &timeout );
+
     if (context.ContextFlags) NtSetContextThread( GetCurrentThread(), &context );
     wine_switch_to_stack( start_process, wm->ldr.EntryPoint, NtCurrentTeb()->Tib.StackBase );
 
