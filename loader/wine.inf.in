@@ -2502,6 +2502,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 12,,fltmgr.sys,-
 12,,mountmgr.sys,-
 12,,ndis.sys,-
+12,,null.sys,-
 ; skip .NET fake dlls in Wine Mono package
 11,,aspnet_regiis.exe,-
 11,,ngen.exe,-
@@ -2541,6 +2542,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 12,,fltmgr.sys
 12,,mountmgr.sys
 12,,ndis.sys
+12,,null.sys
 ; skip .NET fake dlls in Wine Mono package
 11,,aspnet_regiis.exe,-
 11,,ngen.exe,-
