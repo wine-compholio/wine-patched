@@ -5,6 +5,7 @@ C_SRCS = \
 	devinst.c \
 	diskspace.c \
 	install.c \
+	log.c \
 	misc.c \
 	parser.c \
 	query.c \

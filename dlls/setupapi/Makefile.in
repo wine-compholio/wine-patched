@@ -11,6 +11,7 @@ C_SRCS = \
 	diskspace.c \
 	fakedll.c \
 	install.c \
+	log.c \
 	misc.c \
 	parser.c \
 	query.c \
