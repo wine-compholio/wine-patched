@@ -429,6 +429,7 @@ NTSTATUS WINAPI DriverEntry( DRIVER_OBJECT *driver, UNICODE_STRING *path )
     static const WCHAR devicemapW[] = {'H','A','R','D','W','A','R','E','\\','D','E','V','I','C','E','M','A','P',0};
     static const WCHAR parallelW[] = {'P','A','R','A','L','L','E','L',' ','P','O','R','T','S',0};
     static const WCHAR serialW[] = {'S','E','R','I','A','L','C','O','M','M',0};
+    static const WCHAR nullW[] = {'N','u','l','l',0};
 
     UNICODE_STRING nameW, linkW;
     DEVICE_OBJECT *device;
@@ -466,6 +467,12 @@ NTSTATUS WINAPI DriverEntry( DRIVER_OBJECT *driver, UNICODE_STRING *path )
 
     RtlInitUnicodeString( &nameW, harddiskW );
     status = IoCreateDriver( &nameW, harddisk_driver_entry );
+
+    if (!status)
+    {
+        RtlInitUnicodeString( &nameW, nullW );
+        status = IoCreateDriver( &nameW, null_driver_entry );
+    }
 
     initialize_dbus();
     initialize_diskarbitration();
