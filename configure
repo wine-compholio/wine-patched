@@ -830,6 +830,7 @@ with_pulse
 with_sane
 with_tiff
 with_v4l
+with_xattr
 with_xcomposite
 with_xcursor
 with_xinerama
@@ -1260,6 +1261,7 @@ enable_winemapi
 enable_winemp3_acm
 enable_wineoss_drv
 enable_wineps_drv
+enable_winepulse_drv
 enable_wineqtdecoder
 enable_winex11_drv
 enable_wing32
@@ -2092,6 +2094,7 @@ Optional Packages:
   --without-sane          do not use SANE (scanner support)
   --without-tiff          do not use TIFF
   --without-v4l           do not use v4l1 (v4l support)
+  --without-xattr         do not use xattr (security attributes support)
   --without-xcomposite    do not use the Xcomposite extension
   --without-xcursor       do not use the Xcursor extension
   --without-xinerama      do not use Xinerama (multi-monitor support)
@@ -3351,6 +3354,12 @@ fi
 # Check whether --with-v4l was given.
 if test "${with_v4l+set}" = set; then :
   withval=$with_v4l;
+fi
+
+
+# Check whether --with-xattr was given.
+if test "${with_xattr+set}" = set; then :
+  withval=$with_xattr;
 fi
 
 
@@ -6901,6 +6910,34 @@ fi
 
 done
 
+
+if test "x$with_xattr" != "xno"
+then
+  for ac_header in attr/xattr.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "attr/xattr.h" "ac_cv_header_attr_xattr_h" "$ac_includes_default"
+if test "x$ac_cv_header_attr_xattr_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTR_XATTR_H 1
+_ACEOF
+ HAVE_XATTR=1
+fi
+
+done
+
+fi
+if test "x$with_xattr" == "xyes"
+then
+  if test "x$HAVE_XATTR" = "x"; then :
+  case "x$with_xattr" in
+  xno) ;;
+  *)   as_fn_error $? "xattr ${notice_platform}development files not \
+found. Wine will be built without extended attribute support, which probably isn't what you want. \
+You will need to install ${notice_platform}development packages of libacl at the very least.
+Use the --without-xattr option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+fi
 
 
 dlldir="\${libdir}/wine"
