@@ -1691,6 +1691,11 @@ static void dump_accept_into_socket_request( const struct accept_into_socket_req
     fprintf( stderr, ", ahandle=%04x", req->ahandle );
 }
 
+static void dump_reuse_socket_request( const struct reuse_socket_request *req )
+{
+    fprintf( stderr, " handle=%04x", req->handle );
+}
+
 static void dump_set_socket_event_request( const struct set_socket_event_request *req )
 {
     fprintf( stderr, " handle=%04x", req->handle );
@@ -4130,6 +4135,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_create_socket_request,
     (dump_func)dump_accept_socket_request,
     (dump_func)dump_accept_into_socket_request,
+    (dump_func)dump_reuse_socket_request,
     (dump_func)dump_set_socket_event_request,
     (dump_func)dump_get_socket_event_request,
     (dump_func)dump_get_socket_info_request,
@@ -4388,6 +4394,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_accept_socket_reply,
     NULL,
     NULL,
+    NULL,
     (dump_func)dump_get_socket_event_reply,
     (dump_func)dump_get_socket_info_reply,
     NULL,
@@ -4644,6 +4651,7 @@ static const char * const req_names[REQ_NB_REQUESTS] = {
     "create_socket",
     "accept_socket",
     "accept_into_socket",
+    "reuse_socket",
     "set_socket_event",
     "get_socket_event",
     "get_socket_info",
