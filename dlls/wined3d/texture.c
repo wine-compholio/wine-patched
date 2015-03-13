@@ -74,8 +74,10 @@ static HRESULT wined3d_texture_init(struct wined3d_texture *texture, const struc
     {
         ERR("Failed to allocate sub-resource array.\n");
         resource_cleanup(&texture->resource);
+#if defined(STAGING_CSMT)
         if (wined3d_settings.cs_multithreaded)
             texture->resource.device->cs->ops->finish(texture->resource.device->cs);
+#endif /* STAGING_CSMT */
         return E_OUTOFMEMORY;
     }
 
@@ -131,6 +133,7 @@ static void wined3d_texture_unload_gl_texture(struct wined3d_texture *texture)
     resource_unload(&texture->resource);
 }
 
+#if defined(STAGING_CSMT)
 void wined3d_texture_cleanup_cs(struct wined3d_texture *texture)
 {
     wined3d_texture_unload_gl_texture(texture);
@@ -143,6 +146,12 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
     UINT sub_count = texture->level_count * texture->layer_count;
     UINT i;
     struct wined3d_device *device = texture->resource.device;
+#else  /* STAGING_CSMT */
+static void wined3d_texture_cleanup(struct wined3d_texture *texture)
+{
+    UINT sub_count = texture->level_count * texture->layer_count;
+    UINT i;
+#endif /* STAGING_CSMT */
 
     TRACE("texture %p.\n", texture);
 
@@ -154,8 +163,14 @@ static void wined3d_texture_cleanup(struct wined3d_texture *texture)
             texture->texture_ops->texture_sub_resource_cleanup(sub_resource);
     }
 
+#if defined(STAGING_CSMT)
     resource_cleanup(&texture->resource);
     wined3d_cs_emit_texture_cleanup(device->cs, texture);
+#else  /* STAGING_CSMT */
+    wined3d_texture_unload_gl_texture(texture);
+    HeapFree(GetProcessHeap(), 0, texture->sub_resources);
+    resource_cleanup(&texture->resource);
+#endif /* STAGING_CSMT */
 }
 
 void wined3d_texture_set_swapchain(struct wined3d_texture *texture, struct wined3d_swapchain *swapchain)
@@ -522,10 +537,16 @@ ULONG CDECL wined3d_texture_decref(struct wined3d_texture *texture)
 
     if (!refcount)
     {
+#if defined(STAGING_CSMT)
         void *parent = texture->resource.parent;
         const struct wined3d_parent_ops *parent_ops = texture->resource.parent_ops;
         wined3d_texture_cleanup(texture);
         parent_ops->wined3d_object_destroyed(parent);
+#else  /* STAGING_CSMT */
+        wined3d_texture_cleanup(texture);
+        texture->resource.parent_ops->wined3d_object_destroyed(texture->resource.parent);
+        HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
     }
 
     return refcount;
@@ -573,8 +594,15 @@ void wined3d_texture_load(struct wined3d_texture *texture,
 
 void CDECL wined3d_texture_preload(struct wined3d_texture *texture)
 {
+#if defined(STAGING_CSMT)
     const struct wined3d_device *device = texture->resource.device;
     wined3d_cs_emit_texture_preload(device->cs, texture);
+#else  /* STAGING_CSMT */
+    struct wined3d_context *context;
+    context = context_acquire(texture->resource.device, NULL);
+    wined3d_texture_load(texture, context, texture->flags & WINED3D_TEXTURE_IS_SRGB);
+    context_release(context);
+#endif /* STAGING_CSMT */
 }
 
 void * CDECL wined3d_texture_get_parent(const struct wined3d_texture *texture)
@@ -603,6 +631,7 @@ DWORD CDECL wined3d_texture_set_lod(struct wined3d_texture *texture, DWORD lod)
 
     if (texture->lod != lod)
     {
+#if defined(STAGING_CSMT)
         if (wined3d_settings.cs_multithreaded)
         {
             struct wined3d_device *device = texture->resource.device;
@@ -610,6 +639,7 @@ DWORD CDECL wined3d_texture_set_lod(struct wined3d_texture *texture, DWORD lod)
             device->cs->ops->finish(device->cs);
         }
 
+#endif /* STAGING_CSMT */
         texture->lod = lod;
 
         texture->texture_rgb.states[WINED3DTEXSTA_MAXMIPLEVEL] = ~0U;
@@ -669,12 +699,14 @@ HRESULT CDECL wined3d_texture_set_color_key(struct wined3d_texture *texture,
         return WINED3DERR_INVALIDCALL;
     }
 
+#if defined(STAGING_CSMT)
     if (wined3d_settings.cs_multithreaded)
     {
         FIXME("waiting for cs\n");
         texture->resource.device->cs->ops->finish(texture->resource.device->cs);
     }
 
+#endif /* STAGING_CSMT */
     if (color_key)
     {
         switch (flags & ~WINEDDCKEY_COLORSPACE)
@@ -762,10 +794,14 @@ HRESULT CDECL wined3d_texture_update_desc(struct wined3d_texture *texture, UINT 
     }
 
     if (device->d3d_initialized)
+#if defined(STAGING_CSMT)
     {
         wined3d_cs_emit_evict_resource(device->cs, &surface->resource);
         device->cs->ops->finish(device->cs);
     }
+#else  /* STAGING_CSMT */
+        texture->resource.resource_ops->resource_unload(&texture->resource);
+#endif /* STAGING_CSMT */
 
     texture->resource.format = format;
     texture->resource.multisample_type = multisample_type;
@@ -843,6 +879,7 @@ HRESULT CDECL wined3d_texture_add_dirty_region(struct wined3d_texture *texture,
 static void texture2d_sub_resource_load(struct wined3d_resource *sub_resource,
         struct wined3d_context *context, BOOL srgb)
 {
+#if defined(STAGING_CSMT)
     surface_load(surface_from_resource(sub_resource), context, srgb);
 }
 
@@ -857,6 +894,19 @@ static void texture2d_sub_resource_add_dirty_region(struct wined3d_resource *sub
     wined3d_resource_load_location(&surface->resource, context, surface->resource.map_binding);
     context_release(context);
     wined3d_resource_invalidate_location(&surface->resource, ~surface->resource.map_binding);
+#else  /* STAGING_CSMT */
+    surface_load(surface_from_resource(sub_resource), srgb);
+}
+
+static void texture2d_sub_resource_add_dirty_region(struct wined3d_resource *sub_resource,
+        const struct wined3d_box *dirty_region)
+{
+    struct wined3d_surface *surface = surface_from_resource(sub_resource);
+
+    surface_prepare_map_memory(surface);
+    surface_load_location(surface, surface->resource.map_binding);
+    surface_invalidate_location(surface, ~surface->resource.map_binding);
+#endif /* STAGING_CSMT */
 }
 
 static void texture2d_sub_resource_cleanup(struct wined3d_resource *sub_resource)
@@ -868,7 +918,13 @@ static void texture2d_sub_resource_cleanup(struct wined3d_resource *sub_resource
 
 static void texture2d_sub_resource_invalidate_location(struct wined3d_resource *sub_resource, DWORD location)
 {
+#if defined(STAGING_CSMT)
     wined3d_resource_invalidate_location(sub_resource, location);
+#else  /* STAGING_CSMT */
+    struct wined3d_surface *surface = surface_from_resource(sub_resource);
+
+    surface_invalidate_location(surface, location);
+#endif /* STAGING_CSMT */
 }
 
 /* Context activation is done by the caller. */
@@ -927,6 +983,7 @@ static void texture2d_prepare_texture(struct wined3d_texture *texture, struct wi
 
         if (gl_info->supported[APPLE_CLIENT_STORAGE])
         {
+#if defined(STAGING_CSMT)
             if (surface->flags & (SFLAG_NONPOW2)
                     || texture->flags & WINED3D_TEXTURE_CONVERTED)
             {
@@ -935,12 +992,26 @@ static void texture2d_prepare_texture(struct wined3d_texture *texture, struct wi
                  * WINED3D_TEXTURE_CONVERTED: The conversion destination memory is freed after loading the surface
                  * heap_memory == NULL: Not defined in the extension. Seems to disable client storage effectively
                  */
+#else  /* STAGING_CSMT */
+            if (surface->flags & (SFLAG_NONPOW2 | SFLAG_DIBSECTION)
+                    || texture->flags & WINED3D_TEXTURE_CONVERTED
+                    || !surface->resource.heap_memory)
+            {
+                /* In some cases we want to disable client storage.
+                 * SFLAG_NONPOW2 has a bigger opengl texture than the client memory, and different pitches
+                 * SFLAG_DIBSECTION: Dibsections may have read / write protections on the memory. Avoid issues...
+                 * WINED3D_TEXTURE_CONVERTED: The conversion destination memory is freed after loading the surface
+                 * heap_memory == NULL: Not defined in the extension. Seems to disable client storage effectively
+                 */
+#endif /* STAGING_CSMT */
                 surface->flags &= ~SFLAG_CLIENT;
             }
             else
             {
+#if defined(STAGING_CSMT)
                 wined3d_resource_prepare_system_memory(&surface->resource);
 
+#endif /* STAGING_CSMT */
                 surface->flags |= SFLAG_CLIENT;
                 mem = surface->resource.heap_memory;
 
@@ -1008,6 +1079,7 @@ static void wined3d_texture_unload(struct wined3d_resource *resource)
     wined3d_texture_unload_gl_texture(texture);
 }
 
+#if defined(STAGING_CSMT)
 static void wined3d_texture_load_location_invalidated(struct wined3d_resource *resource, DWORD location)
 {
     ERR("Should not be called on textures.\n");
@@ -1027,6 +1099,13 @@ static const struct wined3d_resource_ops texture_resource_ops =
     wined3d_texture_unload,
     wined3d_texture_load_location_invalidated,
     wined3d_texture_load_location,
+#else  /* STAGING_CSMT */
+static const struct wined3d_resource_ops texture_resource_ops =
+{
+    texture_resource_incref,
+    texture_resource_decref,
+    wined3d_texture_unload,
+#endif /* STAGING_CSMT */
 };
 
 static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wined3d_resource_desc *desc,
@@ -1043,6 +1122,7 @@ static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wi
     if (WINED3DFMT_UNKNOWN >= desc->format)
     {
         WARN("(%p) : Texture cannot be created with a format of WINED3DFMT_UNKNOWN.\n", texture);
+#if defined(STAGING_CSMT)
         HeapFree(GetProcessHeap(), 0, texture);
         return WINED3DERR_INVALIDCALL;
     }
@@ -1051,6 +1131,14 @@ static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wi
     {
         WARN("(%p) : Tried to create not supported cube texture.\n", texture);
         HeapFree(GetProcessHeap(), 0, texture);
+#else  /* STAGING_CSMT */
+        return WINED3DERR_INVALIDCALL;
+    }
+
+    if (!gl_info->supported[ARB_TEXTURE_CUBE_MAP] && desc->pool != WINED3D_POOL_SCRATCH)
+    {
+        WARN("(%p) : Tried to create not supported cube texture.\n", texture);
+#endif /* STAGING_CSMT */
         return WINED3DERR_INVALIDCALL;
     }
 
@@ -1060,6 +1148,7 @@ static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wi
         if (!gl_info->supported[SGIS_GENERATE_MIPMAP])
         {
             WARN("No mipmap generation support, returning D3DERR_INVALIDCALL.\n");
+#if defined(STAGING_CSMT)
             HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
@@ -1068,6 +1157,14 @@ static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wi
         {
             WARN("D3DUSAGE_AUTOGENMIPMAP is set, and level count > 1, returning D3DERR_INVALIDCALL.\n");
             HeapFree(GetProcessHeap(), 0, texture);
+#else  /* STAGING_CSMT */
+            return WINED3DERR_INVALIDCALL;
+        }
+
+        if (levels > 1)
+        {
+            WARN("D3DUSAGE_AUTOGENMIPMAP is set, and level count > 1, returning D3DERR_INVALIDCALL.\n");
+#endif /* STAGING_CSMT */
             return WINED3DERR_INVALIDCALL;
         }
 
@@ -1095,7 +1192,9 @@ static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wi
             else
             {
                 WARN("Attempted to create a NPOT cube texture (edge length %u) without GL support.\n", desc->width);
+#if defined(STAGING_CSMT)
                 HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
                 return WINED3DERR_INVALIDCALL;
             }
         }
@@ -1105,7 +1204,9 @@ static HRESULT cubetexture_init(struct wined3d_texture *texture, const struct wi
             surface_flags, device, parent, parent_ops, &texture_resource_ops)))
     {
         WARN("Failed to initialize texture, returning %#x\n", hr);
+#if defined(STAGING_CSMT)
         HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
         return hr;
     }
 
@@ -1168,7 +1269,9 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
     if (WINED3DFMT_UNKNOWN >= desc->format)
     {
         WARN("(%p) : Texture cannot be created with a format of WINED3DFMT_UNKNOWN.\n", texture);
+#if defined(STAGING_CSMT)
         HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
         return WINED3DERR_INVALIDCALL;
     }
 
@@ -1199,7 +1302,9 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
                 else
                 {
                     WARN("Attempted to create a mipmapped NPOT texture without unconditional NPOT support.\n");
+#if defined(STAGING_CSMT)
                     HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
                     return WINED3DERR_INVALIDCALL;
                 }
             }
@@ -1212,6 +1317,7 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
         if (!gl_info->supported[SGIS_GENERATE_MIPMAP])
         {
             WARN("No mipmap generation support, returning WINED3DERR_INVALIDCALL.\n");
+#if defined(STAGING_CSMT)
             HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
@@ -1220,6 +1326,14 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
         {
             WARN("D3DUSAGE_AUTOGENMIPMAP is set, and level count > 1, returning WINED3DERR_INVALIDCALL.\n");
             HeapFree(GetProcessHeap(), 0, texture);
+#else  /* STAGING_CSMT */
+            return WINED3DERR_INVALIDCALL;
+        }
+
+        if (levels > 1)
+        {
+            WARN("D3DUSAGE_AUTOGENMIPMAP is set, and level count > 1, returning WINED3DERR_INVALIDCALL.\n");
+#endif /* STAGING_CSMT */
             return WINED3DERR_INVALIDCALL;
         }
 
@@ -1235,7 +1349,9 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
             surface_flags, device, parent, parent_ops, &texture_resource_ops)))
     {
         WARN("Failed to initialize texture, returning %#x.\n", hr);
+#if defined(STAGING_CSMT)
         HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
         return hr;
     }
 
@@ -1333,7 +1449,13 @@ static void texture3d_sub_resource_cleanup(struct wined3d_resource *sub_resource
 
 static void texture3d_sub_resource_invalidate_location(struct wined3d_resource *sub_resource, DWORD location)
 {
+#if defined(STAGING_CSMT)
     wined3d_resource_invalidate_location(sub_resource, location);
+#else  /* STAGING_CSMT */
+    struct wined3d_volume *volume = volume_from_resource(sub_resource);
+
+    wined3d_volume_invalidate_location(volume, location);
+#endif /* STAGING_CSMT */
 }
 
 static void texture3d_prepare_texture(struct wined3d_texture *texture, struct wined3d_context *context, BOOL srgb)
@@ -1351,7 +1473,11 @@ static void texture3d_prepare_texture(struct wined3d_texture *texture, struct wi
         void *mem = NULL;
 
         if (gl_info->supported[APPLE_CLIENT_STORAGE] && !format->convert
+#if defined(STAGING_CSMT)
                 && wined3d_resource_prepare_system_memory(&volume->resource))
+#else  /* STAGING_CSMT */
+                && volume_prepare_system_memory(volume))
+#endif /* STAGING_CSMT */
         {
             TRACE("Enabling GL_UNPACK_CLIENT_STORAGE_APPLE for volume %p\n", volume);
             gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
@@ -1396,6 +1522,7 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
     if (WINED3DFMT_UNKNOWN >= desc->format)
     {
         WARN("(%p) : Texture cannot be created with a format of WINED3DFMT_UNKNOWN.\n", texture);
+#if defined(STAGING_CSMT)
         HeapFree(GetProcessHeap(), 0, texture);
         return WINED3DERR_INVALIDCALL;
     }
@@ -1404,6 +1531,14 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
     {
         WARN("(%p) : Texture cannot be created - no volume texture support.\n", texture);
         HeapFree(GetProcessHeap(), 0, texture);
+#else  /* STAGING_CSMT */
+        return WINED3DERR_INVALIDCALL;
+    }
+
+    if (!gl_info->supported[EXT_TEXTURE3D])
+    {
+        WARN("(%p) : Texture cannot be created - no volume texture support.\n", texture);
+#endif /* STAGING_CSMT */
         return WINED3DERR_INVALIDCALL;
     }
 
@@ -1413,6 +1548,7 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
         if (!gl_info->supported[SGIS_GENERATE_MIPMAP])
         {
             WARN("No mipmap generation support, returning D3DERR_INVALIDCALL.\n");
+#if defined(STAGING_CSMT)
             HeapFree(GetProcessHeap(), 0, texture);
             return WINED3DERR_INVALIDCALL;
         }
@@ -1421,6 +1557,14 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
         {
             WARN("D3DUSAGE_AUTOGENMIPMAP is set, and level count > 1, returning D3DERR_INVALIDCALL.\n");
             HeapFree(GetProcessHeap(), 0, texture);
+#else  /* STAGING_CSMT */
+            return WINED3DERR_INVALIDCALL;
+        }
+
+        if (levels > 1)
+        {
+            WARN("D3DUSAGE_AUTOGENMIPMAP is set, and level count > 1, returning D3DERR_INVALIDCALL.\n");
+#endif /* STAGING_CSMT */
             return WINED3DERR_INVALIDCALL;
         }
 
@@ -1455,7 +1599,9 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
             {
                 WARN("Attempted to create a NPOT volume texture (%u, %u, %u) without GL support.\n",
                         desc->width, desc->height, desc->depth);
+#if defined(STAGING_CSMT)
                 HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
                 return WINED3DERR_INVALIDCALL;
             }
         }
@@ -1465,7 +1611,9 @@ static HRESULT volumetexture_init(struct wined3d_texture *texture, const struct 
             0, device, parent, parent_ops, &texture_resource_ops)))
     {
         WARN("Failed to initialize texture, returning %#x.\n", hr);
+#if defined(STAGING_CSMT)
         HeapFree(GetProcessHeap(), 0, texture);
+#endif /* STAGING_CSMT */
         return hr;
     }
 
@@ -1536,6 +1684,9 @@ HRESULT CDECL wined3d_texture_create(struct wined3d_device *device, const struct
     if (FAILED(hr))
     {
         WARN("Failed to initialize texture, returning %#x.\n", hr);
+#if !defined(STAGING_CSMT)
+        HeapFree(GetProcessHeap(), 0, object);
+#endif /* STAGING_CSMT */
         return hr;
     }
 
