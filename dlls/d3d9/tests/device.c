@@ -8583,7 +8583,13 @@ static void test_surface_blocks(void)
                     break;
 
                 default:
+                    hr = E_FAIL;
                     break;
+            }
+            if (FAILED(hr))
+            {
+                skip("Failed to create surface, skipping tests.\n");
+                continue;
             }
 
             if (formats[i].block_width > 1)
@@ -9534,6 +9540,11 @@ static void test_volume_blocks(void)
         hr = IDirect3DDevice9_CreateVolumeTexture(device, 24, 8, 8, 1, 0,
                 formats[i].fmt, D3DPOOL_SCRATCH, &texture, NULL);
         ok(SUCCEEDED(hr), "Failed to create volume texture, hr %#x.\n", hr);
+        if (FAILED(hr))
+        {
+            skip("Failed to create texture, skipping tests.\n");
+            continue;
+        }
 
         /* Test lockrect offset */
         for (j = 0; j < ARRAY_SIZE(offset_tests); j++)
