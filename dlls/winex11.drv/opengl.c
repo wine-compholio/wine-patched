@@ -1987,7 +1987,9 @@ static void wglFinish(void)
     escape.code = X11DRV_FLUSH_GL_DRAWABLE;
     escape.gl_drawable = 0;
 
+#if defined(STAGING_CSMT)
     ERR("glFinish\n");
+#endif /* STAGING_CSMT */
     if ((gl = get_gl_drawable( WindowFromDC( ctx->hdc ), 0 )))
     {
         switch (gl->type)
@@ -2013,7 +2015,9 @@ static void wglFlush(void)
     escape.code = X11DRV_FLUSH_GL_DRAWABLE;
     escape.gl_drawable = 0;
 
+#if defined(STAGING_CSMT)
     ERR("glFlush\n");
+#endif /* STAGING_CSMT */
     if ((gl = get_gl_drawable( WindowFromDC( ctx->hdc ), 0 )))
     {
         switch (gl->type)
