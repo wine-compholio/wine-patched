@@ -155,6 +155,7 @@ DECL_HANDLER(unlock_file);
 DECL_HANDLER(create_socket);
 DECL_HANDLER(accept_socket);
 DECL_HANDLER(accept_into_socket);
+DECL_HANDLER(reuse_socket);
 DECL_HANDLER(set_socket_event);
 DECL_HANDLER(get_socket_event);
 DECL_HANDLER(get_socket_info);
@@ -415,6 +416,7 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
     (req_handler)req_create_socket,
     (req_handler)req_accept_socket,
     (req_handler)req_accept_into_socket,
+    (req_handler)req_reuse_socket,
     (req_handler)req_set_socket_event,
     (req_handler)req_get_socket_event,
     (req_handler)req_get_socket_info,
@@ -660,8 +662,11 @@ C_ASSERT( FIELD_OFFSET(struct new_process_request, process_attr) == 32 );
 C_ASSERT( FIELD_OFFSET(struct new_process_request, thread_access) == 36 );
 C_ASSERT( FIELD_OFFSET(struct new_process_request, thread_attr) == 40 );
 C_ASSERT( FIELD_OFFSET(struct new_process_request, cpu) == 44 );
-C_ASSERT( FIELD_OFFSET(struct new_process_request, info_size) == 48 );
-C_ASSERT( sizeof(struct new_process_request) == 56 );
+C_ASSERT( FIELD_OFFSET(struct new_process_request, process_sd_size) == 48 );
+C_ASSERT( FIELD_OFFSET(struct new_process_request, thread_sd_size) == 52 );
+C_ASSERT( FIELD_OFFSET(struct new_process_request, info_size) == 56 );
+C_ASSERT( FIELD_OFFSET(struct new_process_request, env_size) == 60 );
+C_ASSERT( sizeof(struct new_process_request) == 64 );
 C_ASSERT( FIELD_OFFSET(struct new_process_reply, info) == 8 );
 C_ASSERT( FIELD_OFFSET(struct new_process_reply, pid) == 12 );
 C_ASSERT( FIELD_OFFSET(struct new_process_reply, phandle) == 16 );
@@ -968,6 +973,8 @@ C_ASSERT( sizeof(struct accept_socket_reply) == 16 );
 C_ASSERT( FIELD_OFFSET(struct accept_into_socket_request, lhandle) == 12 );
 C_ASSERT( FIELD_OFFSET(struct accept_into_socket_request, ahandle) == 16 );
 C_ASSERT( sizeof(struct accept_into_socket_request) == 24 );
+C_ASSERT( FIELD_OFFSET(struct reuse_socket_request, handle) == 12 );
+C_ASSERT( sizeof(struct reuse_socket_request) == 16 );
 C_ASSERT( FIELD_OFFSET(struct set_socket_event_request, handle) == 12 );
 C_ASSERT( FIELD_OFFSET(struct set_socket_event_request, mask) == 16 );
 C_ASSERT( FIELD_OFFSET(struct set_socket_event_request, event) == 20 );

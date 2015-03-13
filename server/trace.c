@@ -1098,9 +1098,14 @@ static void dump_new_process_request( const struct new_process_request *req )
     fprintf( stderr, ", thread_access=%08x", req->thread_access );
     fprintf( stderr, ", thread_attr=%08x", req->thread_attr );
     dump_cpu_type( ", cpu=", &req->cpu );
+    fprintf( stderr, ", process_sd_size=%u", req->process_sd_size );
+    fprintf( stderr, ", thread_sd_size=%u", req->thread_sd_size );
     fprintf( stderr, ", info_size=%u", req->info_size );
+    fprintf( stderr, ", env_size=%u", req->env_size );
+    dump_varargs_security_descriptor( ", process_sd=", min(cur_size,req->process_sd_size) );
+    dump_varargs_security_descriptor( ", thread_sd=", min(cur_size,req->thread_sd_size) );
     dump_varargs_startup_info( ", info=", min(cur_size,req->info_size) );
-    dump_varargs_unicode_str( ", env=", cur_size );
+    dump_varargs_unicode_str( ", env=", min(cur_size,req->env_size) );
 }
 
 static void dump_new_process_reply( const struct new_process_reply *req )
@@ -1689,6 +1694,11 @@ static void dump_accept_into_socket_request( const struct accept_into_socket_req
 {
     fprintf( stderr, " lhandle=%04x", req->lhandle );
     fprintf( stderr, ", ahandle=%04x", req->ahandle );
+}
+
+static void dump_reuse_socket_request( const struct reuse_socket_request *req )
+{
+    fprintf( stderr, " handle=%04x", req->handle );
 }
 
 static void dump_set_socket_event_request( const struct set_socket_event_request *req )
@@ -4130,6 +4140,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_create_socket_request,
     (dump_func)dump_accept_socket_request,
     (dump_func)dump_accept_into_socket_request,
+    (dump_func)dump_reuse_socket_request,
     (dump_func)dump_set_socket_event_request,
     (dump_func)dump_get_socket_event_request,
     (dump_func)dump_get_socket_info_request,
@@ -4388,6 +4399,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_accept_socket_reply,
     NULL,
     NULL,
+    NULL,
     (dump_func)dump_get_socket_event_reply,
     (dump_func)dump_get_socket_info_reply,
     NULL,
@@ -4644,6 +4656,7 @@ static const char * const req_names[REQ_NB_REQUESTS] = {
     "create_socket",
     "accept_socket",
     "accept_into_socket",
+    "reuse_socket",
     "set_socket_event",
     "get_socket_event",
     "get_socket_info",

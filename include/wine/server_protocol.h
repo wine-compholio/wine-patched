@@ -656,10 +656,14 @@ struct new_process_request
     unsigned int thread_access;
     unsigned int thread_attr;
     cpu_type_t   cpu;
+    data_size_t  process_sd_size;
+    data_size_t  thread_sd_size;
     data_size_t  info_size;
+    data_size_t  env_size;
+    /* VARARG(process_sd,security_descriptor,process_sd_size); */
+    /* VARARG(thread_sd,security_descriptor,thread_sd_size); */
     /* VARARG(info,startup_info,info_size); */
-    /* VARARG(env,unicode_str); */
-    char __pad_52[4];
+    /* VARARG(env,unicode_str,env_size); */
 };
 struct new_process_reply
 {
@@ -1489,6 +1493,18 @@ struct accept_into_socket_request
     char __pad_20[4];
 };
 struct accept_into_socket_reply
+{
+    struct reply_header __header;
+};
+
+
+
+struct reuse_socket_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct reuse_socket_reply
 {
     struct reply_header __header;
 };
@@ -5107,6 +5123,7 @@ enum request
     REQ_create_socket,
     REQ_accept_socket,
     REQ_accept_into_socket,
+    REQ_reuse_socket,
     REQ_set_socket_event,
     REQ_get_socket_event,
     REQ_get_socket_info,
@@ -5368,6 +5385,7 @@ union generic_request
     struct create_socket_request create_socket_request;
     struct accept_socket_request accept_socket_request;
     struct accept_into_socket_request accept_into_socket_request;
+    struct reuse_socket_request reuse_socket_request;
     struct set_socket_event_request set_socket_event_request;
     struct get_socket_event_request get_socket_event_request;
     struct get_socket_info_request get_socket_info_request;
@@ -5627,6 +5645,7 @@ union generic_reply
     struct create_socket_reply create_socket_reply;
     struct accept_socket_reply accept_socket_reply;
     struct accept_into_socket_reply accept_into_socket_reply;
+    struct reuse_socket_reply reuse_socket_reply;
     struct set_socket_event_reply set_socket_event_reply;
     struct get_socket_event_reply get_socket_event_reply;
     struct get_socket_info_reply get_socket_info_reply;
@@ -5834,6 +5853,6 @@ union generic_reply
     struct set_suspend_context_reply set_suspend_context_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 456
+#define SERVER_PROTOCOL_VERSION 457
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
