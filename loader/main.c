@@ -79,6 +79,12 @@ static inline void reserve_area( void *addr, size_t size )
 
 #endif  /* __APPLE__ */
 
+struct wine_patch {
+    const char *hash;
+    const char *author;
+    const char *title;
+};
+
 /***********************************************************************
  *           check_command_line
  *
@@ -89,7 +95,8 @@ static void check_command_line( int argc, char *argv[] )
     static const char usage[] =
         "Usage: wine PROGRAM [ARGUMENTS...]   Run the specified program\n"
         "       wine --help                   Display this help and exit\n"
-        "       wine --version                Output version information and exit";
+        "       wine --version                Output version information and exit\n"
+        "       wine --patches                Output patch information and exit";
 
     if (argc <= 1)
     {
@@ -104,6 +111,16 @@ static void check_command_line( int argc, char *argv[] )
     if (!strcmp( argv[1], "--version" ))
     {
         printf( "%s\n", wine_get_build_id() );
+        exit(0);
+    }
+    if (!strcmp( argv[1], "--patches" ))
+    {
+        const struct wine_patch *wine_patch_data = wine_get_patches();
+        for(; wine_patch_data->hash != NULL; wine_patch_data++)
+        {
+            printf( "%s :: %s :: %s\n", wine_patch_data->hash, wine_patch_data->author,
+                    wine_patch_data->title );
+        }
         exit(0);
     }
 }
