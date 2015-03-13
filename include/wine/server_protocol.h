@@ -657,9 +657,13 @@ struct new_process_request
     unsigned int thread_attr;
     cpu_type_t   cpu;
     data_size_t  info_size;
+    data_size_t  env_size;
+    data_size_t  process_sd_size;
     /* VARARG(info,startup_info,info_size); */
-    /* VARARG(env,unicode_str); */
-    char __pad_52[4];
+    /* VARARG(env,unicode_str,env_size); */
+    /* VARARG(process_sd,security_descriptor,process_sd_size); */
+    /* VARARG(thread_sd,security_descriptor); */
+    char __pad_60[4];
 };
 struct new_process_reply
 {
@@ -832,6 +836,22 @@ struct set_process_info_reply
 };
 #define SET_PROCESS_INFO_PRIORITY 0x01
 #define SET_PROCESS_INFO_AFFINITY 0x02
+
+
+
+struct get_thread_times_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct get_thread_times_reply
+{
+    struct reply_header __header;
+    timeout_t    creation_time;
+    timeout_t    exit_time;
+    int          unix_pid;
+    int          unix_tid;
+};
 
 
 
@@ -1445,6 +1465,19 @@ struct unlock_file_reply
 
 
 
+struct set_file_info_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+    int          unlink;
+    char __pad_20[4];
+};
+struct set_file_info_reply
+{
+    struct reply_header __header;
+};
+
+
 struct create_socket_request
 {
     struct request_header __header;
@@ -1489,6 +1522,18 @@ struct accept_into_socket_request
     char __pad_20[4];
 };
 struct accept_into_socket_reply
+{
+    struct reply_header __header;
+};
+
+
+
+struct reuse_socket_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct reuse_socket_reply
 {
     struct reply_header __header;
 };
@@ -1542,6 +1587,7 @@ struct get_socket_info_reply
     int type;
     int protocol;
     char __pad_20[4];
+    timeout_t connect_time;
 };
 
 
@@ -2100,8 +2146,16 @@ struct get_mapping_info_reply
     int          protect;
     int          header_size;
     client_ptr_t base;
+    client_ptr_t entry;
+    short int    subsystem;
+    short int    major_subsystem;
+    short int    minor_subsystem;
+    short int    characteristics;
+    short int    dll_characteristics;
+    short int    machine;
     obj_handle_t mapping;
     obj_handle_t shared_file;
+    char __pad_60[4];
 };
 
 
@@ -3159,8 +3213,8 @@ struct create_named_pipe_request
 struct create_named_pipe_reply
 {
     struct reply_header __header;
+    unsigned int   flags;
     obj_handle_t   handle;
-    char __pad_12[4];
 };
 
 
@@ -5078,6 +5132,7 @@ enum request
     REQ_terminate_thread,
     REQ_get_process_info,
     REQ_set_process_info,
+    REQ_get_thread_times,
     REQ_get_thread_info,
     REQ_set_thread_info,
     REQ_get_dll_info,
@@ -5114,9 +5169,11 @@ enum request
     REQ_flush_file,
     REQ_lock_file,
     REQ_unlock_file,
+    REQ_set_file_info,
     REQ_create_socket,
     REQ_accept_socket,
     REQ_accept_into_socket,
+    REQ_reuse_socket,
     REQ_set_socket_event,
     REQ_get_socket_event,
     REQ_get_socket_info,
@@ -5340,6 +5397,7 @@ union generic_request
     struct terminate_thread_request terminate_thread_request;
     struct get_process_info_request get_process_info_request;
     struct set_process_info_request set_process_info_request;
+    struct get_thread_times_request get_thread_times_request;
     struct get_thread_info_request get_thread_info_request;
     struct set_thread_info_request set_thread_info_request;
     struct get_dll_info_request get_dll_info_request;
@@ -5376,9 +5434,11 @@ union generic_request
     struct flush_file_request flush_file_request;
     struct lock_file_request lock_file_request;
     struct unlock_file_request unlock_file_request;
+    struct set_file_info_request set_file_info_request;
     struct create_socket_request create_socket_request;
     struct accept_socket_request accept_socket_request;
     struct accept_into_socket_request accept_into_socket_request;
+    struct reuse_socket_request reuse_socket_request;
     struct set_socket_event_request set_socket_event_request;
     struct get_socket_event_request get_socket_event_request;
     struct get_socket_info_request get_socket_info_request;
@@ -5600,6 +5660,7 @@ union generic_reply
     struct terminate_thread_reply terminate_thread_reply;
     struct get_process_info_reply get_process_info_reply;
     struct set_process_info_reply set_process_info_reply;
+    struct get_thread_times_reply get_thread_times_reply;
     struct get_thread_info_reply get_thread_info_reply;
     struct set_thread_info_reply set_thread_info_reply;
     struct get_dll_info_reply get_dll_info_reply;
@@ -5636,9 +5697,11 @@ union generic_reply
     struct flush_file_reply flush_file_reply;
     struct lock_file_reply lock_file_reply;
     struct unlock_file_reply unlock_file_reply;
+    struct set_file_info_reply set_file_info_reply;
     struct create_socket_reply create_socket_reply;
     struct accept_socket_reply accept_socket_reply;
     struct accept_into_socket_reply accept_into_socket_reply;
+    struct reuse_socket_reply reuse_socket_reply;
     struct set_socket_event_reply set_socket_event_reply;
     struct get_socket_event_reply get_socket_event_reply;
     struct get_socket_info_reply get_socket_info_reply;
@@ -5847,6 +5910,6 @@ union generic_reply
     struct set_suspend_context_reply set_suspend_context_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 458
+#define SERVER_PROTOCOL_VERSION 459
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
