@@ -3152,6 +3152,7 @@ void set_texture_matrix(const struct wined3d_gl_info *gl_info, const float *smat
                 /* case WINED3D_TTFF_COUNT1: Won't ever get here. */
                 case WINED3D_TTFF_COUNT2:
                     mat[2] = mat[6] = mat[10] = mat[14] = 0;
+#if defined(STAGING_CSMT)
                 /* OpenGL divides the first 3 vertex coord by the 4th by default,
                 * which is essentially the same as D3DTTFF_PROJECTED. Make sure that
                 * the 4th coord evaluates to 1.0 to eliminate that.
@@ -3164,6 +3165,20 @@ void set_texture_matrix(const struct wined3d_gl_info *gl_info, const float *smat
                 * A more serious problem occurs if the app passes 4 coordinates in, and the
                 * 4th is != 1.0(opengl default). This would have to be fixed in draw_strided_slow
                 * or a replacement shader. */
+#else  /* STAGING_CSMT */
+                /* OpenGL divides the first 3 vertex coord by the 4th by default,
+                * which is essentially the same as D3DTTFF_PROJECTED. Make sure that
+                * the 4th coord evaluates to 1.0 to eliminate that.
+                *
+                * If the fixed function pipeline is used, the 4th value remains unused,
+                * so there is no danger in doing this. With vertex shaders we have a
+                * problem. Should an app hit that problem, the code here would have to
+                * check for pixel shaders, and the shader has to undo the default gl divide.
+                *
+                * A more serious problem occurs if the app passes 4 coordinates in, and the
+                * 4th is != 1.0(opengl default). This would have to be fixed in drawStridedSlow
+                * or a replacement shader. */
+#endif /* STAGING_CSMT */
                 default:
                     mat[3] = mat[7] = mat[11] = 0; mat[15] = 1;
             }
@@ -3430,7 +3445,11 @@ void gen_ffp_frag_op(const struct wined3d_context *context, const struct wined3d
     unsigned int i;
     DWORD ttff;
     DWORD cop, aop, carg0, carg1, carg2, aarg0, aarg1, aarg2;
+#if defined(STAGING_CSMT)
     const struct wined3d_format *rt_format = state->fb.render_targets[0]->format;
+#else  /* STAGING_CSMT */
+    const struct wined3d_format *rt_format = state->fb->render_targets[0]->format;
+#endif /* STAGING_CSMT */
     const struct wined3d_gl_info *gl_info = context->gl_info;
     const struct wined3d_d3d_info *d3d_info = context->d3d_info;
 
