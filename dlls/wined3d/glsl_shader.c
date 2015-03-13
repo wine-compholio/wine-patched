@@ -950,8 +950,15 @@ static void shader_generate_glsl_declarations(const struct wined3d_context *cont
         const struct wined3d_shader_reg_maps *reg_maps, const struct shader_glsl_ctx_priv *ctx_priv)
 {
     const struct wined3d_shader_version *version = &reg_maps->shader_version;
+#if defined(STAGING_CSMT)
     const struct ps_compile_args *ps_args = ctx_priv->cur_ps_args;
     const struct wined3d_gl_info *gl_info = context->gl_info;
+#else  /* STAGING_CSMT */
+    const struct wined3d_state *state = &shader->device->state;
+    const struct ps_compile_args *ps_args = ctx_priv->cur_ps_args;
+    const struct wined3d_gl_info *gl_info = context->gl_info;
+    const struct wined3d_fb_state *fb = &shader->device->fb;
+#endif /* STAGING_CSMT */
     unsigned int i, extra_constants_needed = 0;
     const struct wined3d_shader_lconst *lconst;
     const char *prefix;
@@ -1189,7 +1196,11 @@ static void shader_generate_glsl_declarations(const struct wined3d_context *cont
         {
             UINT in_count = min(vec4_varyings(version->major, gl_info), shader->limits->packed_input);
 
+#if defined(STAGING_CSMT)
             if (ps_args->vp_mode == vertexshader)
+#else  /* STAGING_CSMT */
+            if (use_vs(state))
+#endif /* STAGING_CSMT */
                 shader_addline(buffer, "varying vec4 %s_link[%u];\n", prefix, in_count);
             shader_addline(buffer, "vec4 %s_in[%u];\n", prefix, in_count);
         }
@@ -1230,6 +1241,7 @@ static void shader_generate_glsl_declarations(const struct wined3d_context *cont
             }
             else
             {
+#if defined(STAGING_CSMT)
                 /* This happens because we do not have proper tracking of the
                  * constant registers that are actually used, only the max
                  * limit of the shader version.
@@ -1238,6 +1250,23 @@ static void shader_generate_glsl_declarations(const struct wined3d_context *cont
                  * it and just create the uniform.
                  */
                 FIXME("Cannot find a free uniform for vpos correction params\n");
+#else  /* STAGING_CSMT */
+                float ycorrection[] =
+                {
+                    context->render_offscreen ? 0.0f : fb->render_targets[0]->height,
+                    context->render_offscreen ? 1.0f : -1.0f,
+                    0.0f,
+                    0.0f,
+                };
+
+                /* This happens because we do not have proper tracking of the
+                 * constant registers that are actually used, only the max
+                 * limit of the shader version. */
+                FIXME("Cannot find a free uniform for vpos correction params\n");
+                shader_addline(buffer, "const vec4 ycorrection = ");
+                shader_glsl_append_imm_vec4(buffer, ycorrection);
+                shader_addline(buffer, ";\n");
+#endif /* STAGING_CSMT */
             }
             shader_addline(buffer, "vec4 vpos;\n");
         }

@@ -5340,9 +5340,15 @@ static void WINE_GLAPI invalid_texcoord_func(GLenum unit, const void *data)
     DebugBreak();
 }
 
+#if defined(STAGING_CSMT)
 /* Helper functions for providing vertex data to opengl. The arrays are initialized based on
  * the extension detection and are used in draw_strided_slow
  */
+#else  /* STAGING_CSMT */
+/* Helper functions for providing vertex data to opengl. The arrays are initialized based on
+ * the extension detection and are used in drawStridedSlow
+ */
+#endif /* STAGING_CSMT */
 static void WINE_GLAPI position_d3dcolor(const void *data)
 {
     DWORD pos = *((const DWORD *)data);
