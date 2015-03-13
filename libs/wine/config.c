@@ -478,6 +478,29 @@ const char *wine_get_version(void)
     return PACKAGE_VERSION;
 }
 
+struct wine_patch {
+    const char *hash;
+    const char *author;
+    const char *title;
+} wine_patch_data[] = {
+    { "8a366b6d-8ad6-4581-8aa9-66a03590a57b:1", "Erich E. Hoover", "Implement SIO_ADDRESS_LIST_CHANGE." },
+    { "92938b89-506b-430a-ba50-32de8b286e56:1", "Erich E. Hoover", "Store and return security attributes with extended file attributes." },
+    { "9cb0f665-bf7c-485f-89cc-554adcdf8880:1", "Erich E. Hoover", "Allow string comparison with linguistic casing." },
+    { "59bd38b7-bbdc-4cfd-9ccd-1c72c4ed84c0:1", "Sebastian Lackner", "Implement X11DRV_FLUSH_GDI_DISPLAY ExtEscape command." },
+    { "5d6bb7b5-ec88-4ed3-907d-9ad2173a2f88:1", "Sebastian Lackner", "Enable/disable windows when they are (un)mapped by foreign applications." },
+    { "94186fff-6dbf-44d0-8eb1-2463d1608a0f:1", "Sebastian Lackner", "Update gl_drawable for embedded windows." },
+    { "cbe240e8-2c58-430a-b61c-7fbb9d0e1e11:1", "Sebastian Lackner", "Change return value of stub SetNamedPipeHandleState to TRUE." },
+    { "00273da7-72f8-4025-9e96-0c2bc95dacdb:1", "Maarten Lankhorst", "Winepulse patches extracted from https://launchpad.net/~mlankhorst/+archive/ppa/+files/wine1.7_1.7.7-0ubuntu2~saucy1.debian.tar.gz." },
+    { "eec5dea8-879d-417b-9f97-364deaae6576:1", "Sebastian Lackner", "Add tests for IVMRMonitorConfig." },
+    { NULL, NULL, NULL }
+};
+
+/* return the applied non-standard patches */
+const void * wine_get_patches(void)
+{
+    return &wine_patch_data[0];
+}
+
 /* return the build id string */
 const char *wine_get_build_id(void)
 {
