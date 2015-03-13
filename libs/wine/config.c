@@ -569,6 +569,94 @@ const char *wine_get_version(void)
     return PACKAGE_VERSION;
 }
 
+struct wine_patch {
+    const char *hash;
+    const char *author;
+    const char *title;
+} wine_patch_data[] = {
+    { "Miscellaneous", "Erich E. Hoover", "Appease the blessed version of gcc (4.5) when -Werror is enabled." },
+    { "Miscellaneous", "Erich E. Hoover", "wined3d: Silence repeated resource_check_usage FIXME. [rev 2]" },
+    { "Miscellaneous", "Sebastian Lackner", "Appease the Archlinux version of gcc (4.9.1) when -Werror is enabled." },
+    { "Miscellaneous", "Sebastian Lackner", "kernel32: Silence repeated CompareStringEx FIXME." },
+    { "Miscellaneous", "Sebastian Lackner", "usp10: Silence repeated GSUB_apply_ChainContext[Subst|Pos] FIXMEs." },
+    { "Miscellaneous", "Sebastian Lackner", "wined3d: Silence repeated wined3d_swapchain_present FIXME." },
+    { "Pipelight", "Michael Müller", "Allow changing strict draw ordering through an exported function." },
+    { "Pipelight", "Michael Müller", "Decrease minimum SetTimer interval to 5 ms. [rev 2]" },
+    { "Pipelight", "Michael Müller", "Indicate direct rendering through OpenGL extension." },
+    { "Pipelight", "Sebastian Lackner", "Implement X11DRV_FLUSH_GDI_DISPLAY ExtEscape command." },
+    { "atl-IOCS_Property", "Qian Hong", "Store IOCS data in a property instead of GWLP_USERDATA." },
+    { "comctl32-ImageList", "Sebastian Lackner", "Fix issue that dragimage in ImageList only works for first four elements." },
+    { "comctl32-LoadIconMetric", "Michael Müller", "Implement LoadIconMetric function." },
+    { "configure-Absolute_RPATH", "Sebastian Lackner", "Also add the absolute RPATH when linking against libwine." },
+    { "configure-Detect_Gnutls", "Sebastian Lackner", "Fix detection of gnutls on Ubuntu 14.10. [rev 3]" },
+    { "dbghelp-KdHelp", "Sebastian Lackner", "Don't fill KdHelp structure for usermode applications." },
+    { "dsound-Fast_Mixer", "Alexander E. Patrakov", "Add a linear resampler for use with a large number of dsound mixing buffers." },
+    { "fonts-Missing_Fonts", "Torsten Kurbad / Erich E. Hoover", "Implement missing fonts expected by Silverlight. [rev 2]" },
+    { "iphlpapi-TCP_Table", "Erich E. Hoover", "Implement AllocateAndGetTcpExTableFromStack." },
+    { "kernel32-FindFirstFile-LargeFetch", "Sebastian Lackner", "Ignore FIND_FIRST_EX_LARGE_FETCH flag in FindFirstFileExW." },
+    { "kernel32-GetFinalPathNameByHandle", "Michael Müller", "Implement GetFinalPathNameByHandle in kernel32." },
+    { "kernel32-GetSystemTimes", "Louis Lenders / Erich E. Hoover", "Implement GetSystemTimes. [rev 2]" },
+    { "kernel32-GetVolumePathName", "Erich E. Hoover", "Implement GetVolumePathName." },
+    { "kernel32-Named_Pipe", "Dan Kegel", "Fix for ConnectNamedPort return value in overlapped mode." },
+    { "kernel32-SystemFileCacheSize", "Austin English", "Add stub for [Get|Set]SystemFileCacheSize." },
+    { "libs-Unicode_Collation", "Dmitry Timoshkov", "Fix comparison of punctuation characters." },
+    { "loader-Cmdline_Diagnostics", "Michael Müller", "Add commandline option --check-libs to test if shared libraries are installed." },
+    { "loader-Cmdline_Diagnostics", "Sebastian Lackner", "Add commandline option --patches to show the patch list." },
+    { "ntdll-DOS_Attributes", "Erich E. Hoover", "Implement DOS hidden/system file attributes" },
+    { "ntdll-Dynamic_DST", "Michael Müller", "Add support for Dynamic DST (daylight saving time) information in registry." },
+    { "ntdll-Dynamic_DST", "Sebastian Lackner", "Add Dynamic DST exceptions for Israel Standard Time." },
+    { "ntdll-FD_Cache", "Sebastian Lackner", "Use lockfree implementation for get_cached_fd. [rev 4]" },
+    { "ntdll-FileDispositionInformation", "Dmitry Timoshkov / Erich E. Hoover", "Add support for setting file disposition information." },
+    { "ntdll-Fix_Alignment", "Michael Müller", "Move NtProtectVirtualMemory and NtCreateSection to separate pages in ntdll on x86." },
+    { "ntdll-Fix_Free", "Erich E. Hoover", "Fix unintentional leaks with ntdll internals [rev 2]" },
+    { "ntdll-Heap_FreeLists", "Steaphan Greene", "Improve heap allocation performance by using more fine-grained free lists." },
+    { "ntdll-Junction_Points", "Erich E. Hoover", "Support for junction points/reparse points." },
+    { "ntdll-Pipe_SpecialCharacters", "Michael Müller", "Allow special characters in pipe names." },
+    { "ntdll-loader_EntryPoint", "Sebastian Lackner", "Set ldr.EntryPoint for main executable." },
+    { "quartz-MediaSeeking_Positions", "Erich E. Hoover", "Return correct IMediaSeeking stream positions in quartz." },
+    { "riched20-IText_Interface", "Jactry Zeng", "Implement ITextRange/Selection::{GetChar,GetStart,GetEnd,GetDuplicate,Collapse,SetStart,SetEnd}." },
+    { "riched20-IText_Interface", "Jactry Zeng", "Implement ITextRange/Selection::{GetText,SetRange,IsEqual,GetStoryLength}." },
+    { "riched20-IText_Interface", "Jactry Zeng", "Implement Stubs for ITextFont interface. [rev 2]" },
+    { "riched20-IText_Interface", "Jactry Zeng", "Implement Stubs for ITextPara interface. [rev 2]" },
+    { "riched20-IText_Interface", "Jactry Zeng", "Implement Stubs for ITextRange interface. [rev 3]" },
+    { "server-ACL_Compat", "Erich E. Hoover", "Compatibility patch for old method of storing extended file system attributes. [rev 6]" },
+    { "server-Address_Change_Notification", "Erich E. Hoover", "Implement SIO_ADDRESS_LIST_CHANGE. [rev 2]" },
+    { "server-CreateProcess_ACLs", "Joris van der Wel / Sebastian Lackner", "Implement passing ACLs to CreateProcess. [rev 2]" },
+    { "server-Inherited_ACLs", "Erich E. Hoover", "Add support for inherited security attributes. [rev 7]" },
+    { "server-Misc_ACL", "Erich E. Hoover", "Add default security descriptor ownership and DACLs for processes." },
+    { "server-OpenProcess", "Michael Müller", "Return error when opening a terminating process. [rev 3]" },
+    { "server-Stored_ACLs", "Erich E. Hoover", "Store and return security attributes with extended file attributes. [rev 7]" },
+    { "shell32-Default_Folder_ACLs", "Erich E. Hoover", "Generate default ACLs for user shell folders. [rev 6]" },
+    { "shell32-Default_Path", "Sebastian Lackner", "Implement KF_FLAG_DEFAULT_PATH flag for SHGetKnownFolderPath." },
+    { "shell32-Icons", "Michael Müller", "Add support for extra large and jumbo icon lists in shell32." },
+    { "shell32-RunDLL_CallEntry16", "Michael Müller", "Manually relay RunDLL_CallEntry16 to make Tages Protection v5 happy." },
+    { "shell32-SHCreateSessionKey", "Dmitry Timoshkov", "shell32: Implement SHCreateSessionKey." },
+    { "shlwapi-UrlCombine", "Sebastian Lackner", "Workaround for broken implementation of shlwapi url functions." },
+    { "user32-GetSystemMetrics", "Michael Müller", "Allow changing the tablet / media center status via wine registry key." },
+    { "user32-GetTipText", "Erich E. Hoover", "Handle TOOLTIPS_GetTipText edge cases." },
+    { "user32-WndProc", "Sebastian Lackner", "Workaround for programs leaking wndproc splots." },
+    { "wineboot-HKEY_DYN_DATA", "Michael Müller", "Add some generic hardware in HKEY_DYN_DATA\\\\Config Manager\\\\Enum." },
+    { "winebuild-LinkerVersion", "Michael Müller", "Set a valid major and minor linker version in the PE header." },
+    { "wined3d-DXTn", "Michael Müller", "Add support for DXTn software decoding through libxtc_dxtn." },
+    { "wined3d-Revert_PixelFormat", "Ken Thomases", "Revert wined3d pixelformat changes." },
+    { "winepulse-PulseAudio_Support", "Maarten Lankhorst", "Winepulse patches extracted from https://launchpad.net/~ubuntu-wine/+archive/ubuntu/ppa/+files/wine1.7_1.7.22-0ubuntu1.debian.tar.gz. [rev 4]" },
+    { "winex11-Limited_Resolutions", "Erich E. Hoover", "Update the check for broken nVidia RandR to test for the number of resolutions instead of the number of modes." },
+    { "winex11-Window_Groups", "Michael Müller", "Prevent window managers from grouping all wine programs together." },
+    { "winex11-XEMBED", "Sebastian Lackner", "Enable/disable windows when they are (un)mapped by foreign applications." },
+    { "wpcap-Dynamic_Linking", "André Hentschel", "Use dynamic linking for libpcap." },
+    { "ws2_32-Connect_Time", "Bruno Jesus / Erich E. Hoover", "Return the appropriate connection time with SO_CONNECT_TIME." },
+    { "ws2_32-TransmitFile", "Erich E. Hoover", "Implement TransmitFile." },
+    { "ws2_32-inet_pton", "Bruno Jesus", "Implement ws2_32.inet_pton." },
+    { "wtsapi32-EnumerateProcesses", "Sebastian Lackner", "Partial implementation of WTSEnumerateProcessesW." },
+    { NULL, NULL, NULL }
+};
+
+/* return the applied non-standard patches */
+const void * wine_get_patches(void)
+{
+    return &wine_patch_data[0];
+}
+
 /* return the build id string */
 const char *wine_get_build_id(void)
 {
