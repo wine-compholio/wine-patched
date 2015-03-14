@@ -1,7 +1,8 @@
 MODULE    = d3dx9_25.dll
-IMPORTS   = d3d9
+IMPORTS   = d3d9 d3dx9
 
 C_SRCS = \
-	d3dx9_25_main.c
+	d3dx9_25_main.c \
+	effect.c
 
 RC_SRCS = version.rc
