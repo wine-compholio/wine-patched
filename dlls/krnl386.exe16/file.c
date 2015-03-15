@@ -53,21 +53,24 @@ static HANDLE dos_handles[DOS_TABLE_SIZE];
  */
 static void FILE_InitProcessDosHandles( void )
 {
+    HANDLE hStdInput, hStdOutput, hStdError;
     static BOOL init_done /* = FALSE */;
     HANDLE cp = GetCurrentProcess();
 
     if (init_done) return;
     init_done = TRUE;
-    DuplicateHandle(cp, GetStdHandle(STD_INPUT_HANDLE), cp, &dos_handles[0],
-                    0, TRUE, DUPLICATE_SAME_ACCESS);
-    DuplicateHandle(cp, GetStdHandle(STD_OUTPUT_HANDLE), cp, &dos_handles[1],
-                    0, TRUE, DUPLICATE_SAME_ACCESS);
-    DuplicateHandle(cp, GetStdHandle(STD_ERROR_HANDLE), cp, &dos_handles[2],
-                    0, TRUE, DUPLICATE_SAME_ACCESS);
-    DuplicateHandle(cp, GetStdHandle(STD_ERROR_HANDLE), cp, &dos_handles[3],
-                    0, TRUE, DUPLICATE_SAME_ACCESS);
-    DuplicateHandle(cp, GetStdHandle(STD_ERROR_HANDLE), cp, &dos_handles[4],
-                    0, TRUE, DUPLICATE_SAME_ACCESS);
+    hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    /* Invalid console handles need to translate to real handles in a new process */
+    if (!hStdInput) hStdInput = INVALID_HANDLE_VALUE;
+    if (!hStdOutput) hStdOutput = INVALID_HANDLE_VALUE;
+    if (!hStdError) hStdError = INVALID_HANDLE_VALUE;
+    DuplicateHandle(cp, hStdInput, cp, &dos_handles[0], 0, TRUE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(cp, hStdOutput, cp, &dos_handles[1], 0, TRUE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(cp, hStdError, cp, &dos_handles[2], 0, TRUE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(cp, hStdError, cp, &dos_handles[3], 0, TRUE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(cp, hStdError, cp, &dos_handles[4], 0, TRUE, DUPLICATE_SAME_ACCESS);
 }
 
 /***********************************************************************
