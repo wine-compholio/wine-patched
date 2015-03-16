@@ -3369,7 +3369,12 @@ static HRESULT WINAPI ID3DXEffectImpl_CloneEffect(ID3DXEffect *iface,
 
     FIXME("(%p)->(%p, %p): stub\n", This, device, effect);
 
-    return E_NOTIMPL;
+    if (!effect)
+        return D3DXERR_INVALIDDATA;
+
+    iface->lpVtbl->AddRef(iface);
+    *effect = iface;
+    return S_OK;
 }
 
 static HRESULT WINAPI ID3DXEffectImpl_SetRawValue(ID3DXEffect *iface,
