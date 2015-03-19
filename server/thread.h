@@ -88,6 +88,8 @@ struct thread
     timeout_t              creation_time; /* Thread creation time */
     timeout_t              exit_time;     /* Thread exit time */
     struct token          *token;         /* security token associated with this thread */
+    int                    shm_fd;        /* file descriptor for thread local shared memory */
+    shmlocal_t            *shm;           /* thread local shared memory pointer */
 };
 
 struct thread_snapshot

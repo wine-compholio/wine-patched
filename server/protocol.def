@@ -69,6 +69,15 @@ struct request_max_size
 #define FIRST_USER_HANDLE 0x0020  /* first possible value for low word of user handle */
 #define LAST_USER_HANDLE  0xffef  /* last possible value for low word of user handle */
 
+typedef struct
+{
+    int dummy;
+} shmglobal_t;
+
+typedef struct
+{
+    int dummy;
+} shmlocal_t;
 
 /* debug event data */
 typedef union
@@ -1207,6 +1216,12 @@ enum server_fd_type
     FD_TYPE_DEVICE,   /* Windows device file */
     FD_TYPE_NB_TYPES
 };
+
+
+/* Get file descriptor for shared memory */
+@REQ(get_shared_memory)
+    thread_id_t tid;            /* thread id or 0 */
+@END
 
 
 /* Flush a file buffers */
