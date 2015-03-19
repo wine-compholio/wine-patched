@@ -100,6 +100,7 @@ extern int server_get_unix_fd( HANDLE handle, unsigned int access, int *unix_fd,
 extern int server_pipe( int fd[2] ) DECLSPEC_HIDDEN;
 extern NTSTATUS alloc_object_attributes( const OBJECT_ATTRIBUTES *attr, struct object_attributes **ret,
                                          data_size_t *ret_len ) DECLSPEC_HIDDEN;
+extern void *server_get_shared_memory( HANDLE thread ) DECLSPEC_HIDDEN;
 
 /* module handling */
 extern LIST_ENTRY tls_links DECLSPEC_HIDDEN;
