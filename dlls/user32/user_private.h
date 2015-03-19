@@ -191,8 +191,9 @@ struct user_thread_info
     HWND                          msg_window;             /* HWND_MESSAGE parent window */
     RAWINPUT                     *rawinput;
     INT                           key_state_epoch;        /* Counter to invalidate the key state */
+    DWORD                         last_get_msg;           /* Last message time */
 
-    ULONG                         pad[4];                 /* Available for more data */
+    ULONG                         pad[3];                 /* Available for more data */
 };
 #include <poppack.h>
 
