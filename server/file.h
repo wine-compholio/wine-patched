@@ -143,6 +143,14 @@ extern obj_handle_t open_mapping_file( struct process *process, struct mapping *
 extern struct mapping *grab_mapping_unless_removable( struct mapping *mapping );
 extern int get_page_size(void);
 
+/* shared memory functions */
+
+extern int allocate_shared_memory( int *fd, void **memory, size_t size );
+extern void release_shared_memory( int fd, void *memory, size_t size );
+extern void init_shared_memory( void );
+extern shmglobal_t *shmglobal;
+extern int          shmglobal_fd;
+
 /* change notification functions */
 
 extern void do_change_notify( int unix_fd );
