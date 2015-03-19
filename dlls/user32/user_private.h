@@ -183,6 +183,7 @@ struct user_thread_info
     DWORD                         GetMessagePosVal;       /* Value for GetMessagePos */
     ULONG_PTR                     GetMessageExtraInfoVal; /* Value for GetMessageExtraInfo */
     UINT                          active_hooks;           /* Bitmap of active hooks */
+    DWORD                         last_get_msg;           /* Last time of Get/PeekMessage call */
     struct user_key_state_info   *key_state;              /* Cache of global key state */
     HWND                          top_window;             /* Desktop window */
     HWND                          msg_window;             /* HWND_MESSAGE parent window */
