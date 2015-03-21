@@ -169,6 +169,7 @@ struct wm_char_mapping_data
 
 /* this is the structure stored in TEB->Win32ClientInfo */
 /* no attempt is made to keep the layout compatible with the Windows one */
+#include <pshpack4.h>
 struct user_thread_info
 {
     HANDLE                        server_queue;           /* Handle to server-side queue */
@@ -190,8 +191,9 @@ struct user_thread_info
     HWND                          msg_window;             /* HWND_MESSAGE parent window */
     RAWINPUT                     *rawinput;
 
-    ULONG                         pad[6];                 /* Available for more data */
+    ULONG                         pad[5];                 /* Available for more data */
 };
+#include <poppack.h>
 
 struct hook_extra_info
 {
