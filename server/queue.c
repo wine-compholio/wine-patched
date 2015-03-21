@@ -450,6 +450,7 @@ static void set_foreground_input( struct desktop *desktop, struct thread_input *
     if (desktop->foreground_input == input) return;
     set_clip_rectangle( desktop, NULL, 1 );
     desktop->foreground_input = input;
+    if (shmglobal) interlocked_xchg_add( (int *)&shmglobal->foreground_wnd_epoch, 1 );
 }
 
 /* get the hook table for a given thread */
@@ -1095,7 +1096,12 @@ static inline void thread_input_cleanup_window( struct msg_queue *queue, user_ha
 
     if (window == input->focus) input->focus = 0;
     if (window == input->capture) input->capture = 0;
-    if (window == input->active) input->active = 0;
+    if (window == input->active)
+    {
+        input->active = 0;
+        if (shmglobal && input->desktop->foreground_input == input)
+            interlocked_xchg_add( (int *)&shmglobal->foreground_wnd_epoch, 1 );
+    }
     if (window == input->menu_owner) input->menu_owner = 0;
     if (window == input->move_size) input->move_size = 0;
     if (window == input->caret) set_caret_window( input, 0 );
@@ -1150,7 +1156,12 @@ int attach_thread_input( struct thread *thread_from, struct thread *thread_to )
     if (thread_from->queue)
     {
         if (!input->focus) input->focus = thread_from->queue->input->focus;
-        if (!input->active) input->active = thread_from->queue->input->active;
+        if (!input->active)
+        {
+            input->active = thread_from->queue->input->active;
+            if (shmglobal && input->desktop->foreground_input == input)
+                interlocked_xchg_add( (int *)&shmglobal->foreground_wnd_epoch, 1 );
+        }
     }
 
     ret = assign_thread_input( thread_from, input );
@@ -1186,6 +1197,9 @@ void detach_thread_input( struct thread *thread_from )
             {
                 input->active = old_input->active;
                 old_input->active = 0;
+                if (shmglobal && (input->desktop->foreground_input == input ||
+                                  old_input->desktop->foreground_input == old_input))
+                    interlocked_xchg_add( (int *)&shmglobal->foreground_wnd_epoch, 1 );
             }
             release_object( thread );
         }
@@ -3089,6 +3103,8 @@ DECL_HANDLER(set_active_window)
             reply->previous = queue->input->active;
             queue->input->active = get_user_full_handle( req->handle );
             update_shm_thread_input( queue->input );
+            if (shmglobal && queue->input->desktop->foreground_input == queue->input)
+                interlocked_xchg_add( (int *)&shmglobal->foreground_wnd_epoch, 1 );
         }
         else set_error( STATUS_INVALID_HANDLE );
     }
