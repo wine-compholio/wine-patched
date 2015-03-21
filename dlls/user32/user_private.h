@@ -184,18 +184,25 @@ struct user_thread_info
     DWORD                         GetMessageTimeVal;      /* Value for GetMessageTime */
     DWORD                         GetMessagePosVal;       /* Value for GetMessagePos */
     ULONG_PTR                     GetMessageExtraInfoVal; /* Value for GetMessageExtraInfo */
-    UINT                          active_hooks;           /* Bitmap of active hooks */
-    UINT                          key_state_time;         /* Time of last key state refresh */
-    BYTE                         *key_state;              /* Cache of global key state */
     HWND                          top_window;             /* Desktop window */
     HWND                          msg_window;             /* HWND_MESSAGE parent window */
     RAWINPUT                     *rawinput;
-    INT                           key_state_epoch;        /* Counter to invalidate the key state */
+    struct user_key_state_info   *key_state;              /* Cache of global key state */
+    UINT                          active_hooks;           /* Bitmap of active hooks */
     DWORD                         last_get_msg;           /* Last message time */
 
-    ULONG                         pad[3];                 /* Available for more data */
+    ULONG                         pad[5];                 /* Available for more data */
 };
 #include <poppack.h>
+
+C_ASSERT( sizeof(struct user_thread_info) <= sizeof(((TEB *)0)->Win32ClientInfo) );
+
+struct user_key_state_info
+{
+    UINT                          key_state_time;         /* Time of last key state refresh */
+    INT                           key_state_epoch;        /* Counter to invalidate the key state */
+    BYTE                          key_state[256];         /* State for each key */
+};
 
 extern INT global_key_state_epoch DECLSPEC_HIDDEN;
 
