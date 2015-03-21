@@ -185,15 +185,20 @@ struct user_thread_info
     ULONG_PTR                     GetMessageExtraInfoVal; /* Value for GetMessageExtraInfo */
     UINT                          active_hooks;           /* Bitmap of active hooks */
     DWORD                         last_get_msg;           /* Last time of Get/PeekMessage call */
-    UINT                          key_state_time;         /* Time of last key state refresh */
-    INT                           key_state_epoch;        /* Counter to invalidate the key state */
-    BYTE                         *key_state;              /* Cache of global key state */
+    struct user_key_state_info   *key_state;              /* Cache of global key state */
     HWND                          top_window;             /* Desktop window */
     HWND                          msg_window;             /* HWND_MESSAGE parent window */
     RAWINPUT                     *rawinput;
 };
 
 C_ASSERT( sizeof(struct user_thread_info) <= sizeof(((TEB *)0)->Win32ClientInfo) );
+
+struct user_key_state_info
+{
+    UINT                          key_state_time;         /* Time of last key state refresh */
+    INT                           key_state_epoch;        /* Counter to invalidate the key state */
+    BYTE                          key_state[256];         /* State for each key */
+};
 
 extern INT global_key_state_epoch DECLSPEC_HIDDEN;
 
