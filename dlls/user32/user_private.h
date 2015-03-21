@@ -190,8 +190,10 @@ struct user_thread_info
     struct user_key_state_info   *key_state;              /* Cache of global key state */
     UINT                          active_hooks;           /* Bitmap of active hooks */
     DWORD                         last_get_msg;           /* Last message time */
+    HWND                          foreground_wnd;         /* Cache of the foreground window */
+    DWORD                         foreground_wnd_epoch;   /* Counter to invalidate foreground window */
 
-    ULONG                         pad[5];                 /* Available for more data */
+    ULONG                         pad[2];                 /* Available for more data */
 };
 #include <poppack.h>
 
