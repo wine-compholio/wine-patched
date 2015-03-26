@@ -188,7 +188,8 @@ void schan_imp_set_session_target(schan_imp_session session, const char *target)
 {
     gnutls_session_t s = (gnutls_session_t)session;
 
-    pgnutls_server_name_set( s, GNUTLS_NAME_DNS, target, strlen(target) );
+    if (target != NULL && strlen(target) != 0)
+        pgnutls_server_name_set( s, GNUTLS_NAME_DNS, target, strlen(target) );
 }
 
 SECURITY_STATUS schan_imp_handshake(schan_imp_session session)
