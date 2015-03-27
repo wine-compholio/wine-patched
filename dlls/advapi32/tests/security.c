@@ -3262,7 +3262,7 @@ static void test_CreateDirectoryA(void)
     }
     ok(!error, "GetNamedSecurityInfo failed with error %d\n", error);
     test_inherited_dacl(pDacl, admin_sid, user_sid, OBJECT_INHERIT_ACE|CONTAINER_INHERIT_ACE,
-                        0x1f01ff, FALSE, TRUE, FALSE, __LINE__);
+                        0x1f01ff, FALSE, TRUE, TRUE, __LINE__);
     LocalFree(pSD);
 
     /* Test inheritance of ACLs in CreateFile without security descriptor */
