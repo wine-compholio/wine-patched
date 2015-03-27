@@ -3615,22 +3615,25 @@ static void test_GetNamedSecurityInfoA(void)
 
     error = pGetNamedSecurityInfoA(tmpfile, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
             NULL, NULL, &pDacl, NULL, &pSD);
-    ok(!error, "GetNamedSecurityInfo failed with error %d\n", error);
+    todo_wine ok(!error, "GetNamedSecurityInfo failed with error %d\n", error);
 
-    bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
-    ok(bret, "GetAclInformation failed\n");
-    if (acl_size.AceCount > 0)
+    if (!error)
     {
-        bret = pGetAce(pDacl, 0, (VOID **)&ace);
-        ok(bret, "Failed to get ACE.\n");
-        todo_wine ok(((ACE_HEADER *)ace)->AceFlags & INHERITED_ACE,
-                "ACE has unexpected flags: 0x%x\n", ((ACE_HEADER *)ace)->AceFlags);
+        bret = pGetAclInformation(pDacl, &acl_size, sizeof(acl_size), AclSizeInformation);
+        ok(bret, "GetAclInformation failed\n");
+        if (acl_size.AceCount > 0)
+        {
+            bret = pGetAce(pDacl, 0, (VOID **)&ace);
+            ok(bret, "Failed to get ACE.\n");
+            ok(((ACE_HEADER *)ace)->AceFlags & INHERITED_ACE,
+                    "ACE has unexpected flags: 0x%x\n", ((ACE_HEADER *)ace)->AceFlags);
+        }
+        LocalFree(pSD);
     }
-    LocalFree(pSD);
 
     h = CreateFileA(tmpfile, GENERIC_READ, FILE_SHARE_DELETE|FILE_SHARE_WRITE|FILE_SHARE_READ,
             NULL, OPEN_EXISTING, 0, NULL);
-    ok(h != INVALID_HANDLE_VALUE, "CreateFile error %d\n", GetLastError());
+    todo_wine ok(h != INVALID_HANDLE_VALUE, "CreateFile error %d\n", GetLastError());
     CloseHandle(h);
 
     /* test setting NULL DACL */
