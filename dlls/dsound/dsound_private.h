@@ -91,8 +91,8 @@ struct DirectSoundDevice
     int                         speaker_num[DS_MAX_CHANNELS];
     int                         num_speakers;
     int                         lfe_channel;
-    float *mix_buffer, *tmp_buffer;
-    DWORD                       tmp_buffer_len, mix_buffer_len;
+    float                      *mix_buffer, *tmp_buffer, *dsp_buffer;
+    DWORD                       mix_buffer_len, tmp_buffer_len, dsp_buffer_len;
 
     DSVOLUMEPAN                 volpan;
 
