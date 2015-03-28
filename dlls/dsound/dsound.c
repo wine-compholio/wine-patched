@@ -237,6 +237,7 @@ static ULONG DirectSoundDevice_Release(DirectSoundDevice * device)
         if(device->volume)
             IAudioStreamVolume_Release(device->volume);
 
+        HeapFree(GetProcessHeap(), 0, device->dsp_buffer);
         HeapFree(GetProcessHeap(), 0, device->tmp_buffer);
         HeapFree(GetProcessHeap(), 0, device->buffer);
         RtlDeleteResource(&device->buffer_list_lock);
