@@ -151,4 +151,9 @@ static inline thread_id_t get_thread_id( struct thread *thread ) { return thread
 static inline int get_thread_unix_tid( struct thread *thread ) { return thread->unix_tid; }
 static inline timeout_t get_thread_creation_time( struct thread *thread ) { return thread->creation_time; }
 
+/* scheduler functions */
+
+extern void init_scheduler( void );
+extern void set_scheduler_priority( struct thread *thread );
+
 #endif  /* __WINE_SERVER_THREAD_H */
