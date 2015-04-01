@@ -131,7 +131,7 @@
 @ stdcall D3DXFrameAppendChild(ptr ptr) d3dx9_36.D3DXFrameAppendChild
 @ stdcall D3DXFrameCalculateBoundingSphere(ptr ptr ptr) d3dx9_36.D3DXFrameCalculateBoundingSphere
 @ stdcall D3DXFrameDestroy(ptr ptr) d3dx9_36.D3DXFrameDestroy
-@ stdcall D3DXFrameFind(ptr ptr) d3dx9_36.D3DXFrameFind
+@ stdcall D3DXFrameFind(ptr str) d3dx9_36.D3DXFrameFind
 @ stdcall D3DXFrameNumNamedMatrices(ptr) d3dx9_36.D3DXFrameNumNamedMatrices
 @ stdcall D3DXFrameRegisterNamedMatrices(ptr ptr) d3dx9_36.D3DXFrameRegisterNamedMatrices
 @ stdcall D3DXFresnelTerm(float float) d3dx9_36.D3DXFresnelTerm
