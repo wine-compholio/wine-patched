@@ -2288,6 +2288,15 @@ NTSTATUS WINAPI IoWMIRegistrationControl(PDEVICE_OBJECT DeviceObject, ULONG Acti
 }
 
 /*****************************************************
+ *           PsRemoveLoadImageNotifyRoutine   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI PsRemoveLoadImageNotifyRoutine(PLOAD_IMAGE_NOTIFY_ROUTINE routine)
+{
+    FIXME("(%p) stub\n", routine);
+    return STATUS_SUCCESS;
+}
+
+/*****************************************************
  *           PsSetLoadImageNotifyRoutine   (NTOSKRNL.EXE.@)
  */
 NTSTATUS WINAPI PsSetLoadImageNotifyRoutine(PLOAD_IMAGE_NOTIFY_ROUTINE routine)
