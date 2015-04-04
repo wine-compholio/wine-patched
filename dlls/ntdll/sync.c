@@ -728,7 +728,7 @@ NTSTATUS WINAPI NtSetInformationJobObject( HANDLE handle, JOBOBJECTINFOCLASS cla
 
     default:
         FIXME( "stub: %p %u %p %u\n", handle, class, info, len );
-        return STATUS_NOT_IMPLEMENTED;
+        return STATUS_SUCCESS;
     }
 
     return status;
