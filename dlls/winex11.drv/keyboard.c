@@ -2463,7 +2463,7 @@ INT CDECL X11DRV_ToUnicodeEx(UINT virtKey, UINT scanCode, const BYTE *lpKeyState
     if (!match_x11_keyboard_layout(hkl))
         FIXME_(key)("keyboard layout %p is not supported\n", hkl);
 
-    if ((lpKeyState[VK_MENU] & 0x80) && (lpKeyState[VK_CONTROL] & 0x80))
+    if (lpKeyState && (lpKeyState[VK_MENU] & 0x80) && (lpKeyState[VK_CONTROL] & 0x80))
     {
         TRACE_(key)("Ctrl+Alt+[key] won't generate a character\n");
         return 0;
@@ -2486,25 +2486,28 @@ INT CDECL X11DRV_ToUnicodeEx(UINT virtKey, UINT scanCode, const BYTE *lpKeyState
 
     EnterCriticalSection( &kbd_section );
 
-    if (lpKeyState[VK_SHIFT] & 0x80)
+    if (lpKeyState)
     {
-	TRACE_(key)("ShiftMask = %04x\n", ShiftMask);
-	e.state |= ShiftMask;
-    }
-    if (lpKeyState[VK_CAPITAL] & 0x01)
-    {
-	TRACE_(key)("LockMask = %04x\n", LockMask);
-	e.state |= LockMask;
-    }
-    if (lpKeyState[VK_CONTROL] & 0x80)
-    {
-	TRACE_(key)("ControlMask = %04x\n", ControlMask);
-	e.state |= ControlMask;
-    }
-    if (lpKeyState[VK_NUMLOCK] & 0x01)
-    {
-	TRACE_(key)("NumLockMask = %04x\n", NumLockMask);
-	e.state |= NumLockMask;
+        if (lpKeyState[VK_SHIFT] & 0x80)
+        {
+            TRACE_(key)("ShiftMask = %04x\n", ShiftMask);
+            e.state |= ShiftMask;
+        }
+        if (lpKeyState[VK_CAPITAL] & 0x01)
+        {
+            TRACE_(key)("LockMask = %04x\n", LockMask);
+            e.state |= LockMask;
+        }
+        if (lpKeyState[VK_CONTROL] & 0x80)
+        {
+            TRACE_(key)("ControlMask = %04x\n", ControlMask);
+            e.state |= ControlMask;
+        }
+        if (lpKeyState[VK_NUMLOCK] & 0x01)
+        {
+            TRACE_(key)("NumLockMask = %04x\n", NumLockMask);
+            e.state |= NumLockMask;
+        }
     }
 
     /* Restore saved AltGr state */
@@ -2680,13 +2683,13 @@ INT CDECL X11DRV_ToUnicodeEx(UINT virtKey, UINT scanCode, const BYTE *lpKeyState
             lpChar[0] = 0;
             ret = 0;
         }
-	else if((lpKeyState[VK_SHIFT] & 0x80) /* Shift is pressed */
+        else if (lpKeyState && (lpKeyState[VK_SHIFT] & 0x80) /* Shift is pressed */
 		&& (keysym == XK_KP_Decimal))
         {
             lpChar[0] = 0;
             ret = 0;
         }
-	else if((lpKeyState[VK_CONTROL] & 0x80) /* Control is pressed */
+        else if (lpKeyState && (lpKeyState[VK_CONTROL] & 0x80) /* Control is pressed */
 		&& (keysym == XK_Return || keysym == XK_KP_Enter))
         {
             lpChar[0] = '\n';
