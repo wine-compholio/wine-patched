@@ -131,7 +131,9 @@ HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *
             ERR("Failed to allocate system memory.\n");
             return E_OUTOFMEMORY;
         }
+#if defined(STAGING_CSMT)
         resource->heap_memory = resource->map_heap_memory;
+#endif /* STAGING_CSMT */
     }
     else
     {
@@ -155,6 +157,7 @@ HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *
     return WINED3D_OK;
 }
 
+#if defined(STAGING_CSMT)
 void wined3d_resource_free_bo(struct wined3d_resource *resource)
 {
     struct wined3d_context *context = context_acquire(resource->device, NULL);
@@ -180,6 +183,7 @@ void wined3d_resource_cleanup_cs(struct wined3d_resource *resource)
     resource->map_heap_memory = NULL;
 }
 
+#endif /* STAGING_CSMT */
 void resource_cleanup(struct wined3d_resource *resource)
 {
     const struct wined3d *d3d = resource->device->wined3d;
@@ -192,7 +196,11 @@ void resource_cleanup(struct wined3d_resource *resource)
         adapter_adjust_memory(resource->device->adapter, (INT64)0 - resource->size);
     }
 
+#if defined(STAGING_CSMT)
     wined3d_cs_emit_resource_cleanup(resource->device->cs, resource);
+#else  /* STAGING_CSMT */
+    wined3d_resource_free_sysmem(resource);
+#endif /* STAGING_CSMT */
 
     device_resource_released(resource->device, resource);
 }
@@ -202,9 +210,11 @@ void resource_unload(struct wined3d_resource *resource)
     if (resource->map_count)
         ERR("Resource %p is being unloaded while mapped.\n", resource);
 
+#if defined(STAGING_CSMT)
     if (resource->buffer)
         wined3d_resource_free_bo(resource);
 
+#endif /* STAGING_CSMT */
     context_resource_unloaded(resource->device,
             resource, resource->type);
 }
@@ -267,7 +277,11 @@ BOOL wined3d_resource_allocate_sysmem(struct wined3d_resource *resource)
     p = (void **)(((ULONG_PTR)mem + align) & ~(RESOURCE_ALIGNMENT - 1)) - 1;
     *p = mem;
 
+#if defined(STAGING_CSMT)
     resource->map_heap_memory = ++p;
+#else  /* STAGING_CSMT */
+    resource->heap_memory = ++p;
+#endif /* STAGING_CSMT */
 
     return TRUE;
 }
@@ -333,7 +347,11 @@ GLbitfield wined3d_resource_gl_map_flags(DWORD d3d_flags)
     return ret;
 }
 
+#if defined(STAGING_CSMT)
 static GLenum wined3d_resource_gl_legacy_map_flags(DWORD d3d_flags)
+#else  /* STAGING_CSMT */
+GLenum wined3d_resource_gl_legacy_map_flags(DWORD d3d_flags)
+#endif /* STAGING_CSMT */
 {
     if (d3d_flags & WINED3D_MAP_READONLY)
         return GL_READ_ONLY_ARB;
@@ -403,6 +421,7 @@ void CDECL wined3d_resource_get_pitch(const struct wined3d_resource *resource, U
 
     TRACE("Returning row pitch %u, slice pitch %u.\n", *row_pitch, *slice_pitch);
 }
+#if defined(STAGING_CSMT)
 
 void wined3d_resource_validate_location(struct wined3d_resource *resource, DWORD location)
 {
@@ -949,3 +968,4 @@ void wined3d_resource_changed(struct wined3d_resource *resource, struct wined3d_
 
     wined3d_resource_invalidate_location(resource, ~resource->map_binding);
 }
+#endif /* STAGING_CSMT */
