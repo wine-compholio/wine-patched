@@ -29,6 +29,7 @@
 #include "winbase.h"
 #include "winreg.h"
 #include "winternl.h"
+#include "sddl.h"
 #include "advapi32_misc.h"
 
 #include "wine/debug.h"
@@ -568,6 +569,21 @@ NTSTATUS WINAPI LsaLookupSids(
                 domain.MaximumLength = sizeof(WCHAR);
             }
         }
+        else
+        {
+            WCHAR *strsid = NULL;
+
+            if (ConvertSidToStringSidW(Sids[i], &strsid))
+            {
+                name_size = strlenW(strsid) + 1;
+
+                (*Names)[i].Name.Length = (name_size - 1) * sizeof(WCHAR);
+                (*Names)[i].Name.MaximumLength = name_size * sizeof(WCHAR);
+                name_fullsize += (*Names)[i].Name.MaximumLength;
+
+                LocalFree(strsid);
+            }
+        }
     }
 
     /* now we have full length needed for both */
@@ -610,6 +626,21 @@ NTSTATUS WINAPI LsaLookupSids(
 
             (*Names)[i].DomainIndex = lsa_reflist_add_domain(*ReferencedDomains, &domain, &domain_data);
             heap_free(domain.Buffer);
+        }
+        else
+        {
+            WCHAR *strsid = NULL;
+
+            if (ConvertSidToStringSidW(Sids[i], &strsid))
+            {
+                name_size = strlenW(strsid) + 1;
+                mapped++;
+
+                (*Names)[i].Name.Buffer = name_buffer;
+                memcpy((*Names)[i].Name.Buffer, strsid, name_size * sizeof(WCHAR));
+
+                LocalFree(strsid);
+            }
         }
 
         name_buffer += name_size;
