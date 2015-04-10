@@ -51,6 +51,19 @@ WINE_DEFAULT_DEBUG_CHANNEL(msvcrt);
 #define signbit(x) ((x) < 0)
 #endif
 
+#ifndef HAVE_COSHL
+#define coshl(x) cosh(x)
+#endif
+#ifndef HAVE_SINHL
+#define sinhl(x) sinh(x)
+#endif
+#ifndef HAVE_EXPL
+#define expl(x) exp(x)
+#endif
+#ifndef HAVE_POWL
+#define powl(x,y) pow(x,y)
+#endif
+
 typedef int (CDECL *MSVCRT_matherr_func)(struct MSVCRT__exception *);
 typedef double LDOUBLE;  /* long double is just a double */
 
@@ -394,7 +407,7 @@ double CDECL MSVCRT_cos( double x )
 double CDECL MSVCRT_cosh( double x )
 {
   if (!isfinite(x)) *MSVCRT__errno() = MSVCRT_EDOM;
-  return cosh(x);
+  return coshl(x);
 }
 
 /*********************************************************************
@@ -403,7 +416,7 @@ double CDECL MSVCRT_cosh( double x )
 double CDECL MSVCRT_exp( double x )
 {
   if (isnan(x)) *MSVCRT__errno() = MSVCRT_EDOM;
-  return exp(x);
+  return expl(x);
 }
 
 /*********************************************************************
@@ -441,7 +454,7 @@ double CDECL MSVCRT_log10( double x )
 double CDECL MSVCRT_pow( double x, double y )
 {
   /* FIXME: If x < 0 and y is not integral, set EDOM */
-  double z = pow(x,y);
+  double z = powl(x,y);
   if (!isfinite(z)) *MSVCRT__errno() = MSVCRT_EDOM;
   return z;
 }
@@ -461,7 +474,7 @@ double CDECL MSVCRT_sin( double x )
 double CDECL MSVCRT_sinh( double x )
 {
   if (!isfinite(x)) *MSVCRT__errno() = MSVCRT_EDOM;
-  return sinh(x);
+  return sinhl(x);
 }
 
 /*********************************************************************
