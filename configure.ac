@@ -2614,6 +2614,38 @@ then
     AC_DEFINE(HAVE_ISNAN, 1, [Define to 1 if you have the `isnan' function.])
 fi
 
+dnl Check for coshl
+AC_CACHE_CHECK([for coshl], ac_cv_have_coshl,
+               AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <math.h>]], [[float f = 0.0; return coshl(f)]])],[ac_cv_have_coshl="yes"],[ac_cv_have_coshl="no"]))
+if test "$ac_cv_have_coshl" = "yes"
+then
+    AC_DEFINE(HAVE_COSHL, 1, [Define to 1 if you have the `coshl' function.])
+fi
+
+dnl Check for sinhl
+AC_CACHE_CHECK([for sinhl], ac_cv_have_sinhl,
+               AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <math.h>]], [[float f = 0.0; return sinhl(f)]])],[ac_cv_have_sinhl="yes"],[ac_cv_have_sinhl="no"]))
+if test "$ac_cv_have_sinhl" = "yes"
+then
+    AC_DEFINE(HAVE_SINHL, 1, [Define to 1 if you have the `sinhl' function.])
+fi
+
+dnl Check for expl
+AC_CACHE_CHECK([for expl], ac_cv_have_expl,
+               AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <math.h>]], [[float f = 0.0; return expl(f)]])],[ac_cv_have_expl="yes"],[ac_cv_have_expl="no"]))
+if test "$ac_cv_have_expl" = "yes"
+then
+    AC_DEFINE(HAVE_EXPL, 1, [Define to 1 if you have the `expl' function.])
+fi
+
+dnl Check for powl
+AC_CACHE_CHECK([for powl], ac_cv_have_powl,
+               AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <math.h>]], [[float f = 0.0; return powl(f, f)]])],[ac_cv_have_powl="yes"],[ac_cv_have_powl="no"]))
+if test "$ac_cv_have_powl" = "yes"
+then
+    AC_DEFINE(HAVE_POWL, 1, [Define to 1 if you have the `powl' function.])
+fi
+
 AC_CHECK_FUNCS(\
 	cbrt \
 	cbrtf \
