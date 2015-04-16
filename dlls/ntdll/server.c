@@ -1129,6 +1129,27 @@ int CDECL wine_server_fd_to_handle( int fd, unsigned int access, unsigned int at
 
 
 /***********************************************************************
+ *           wine_server_handle_exists   (NTDLL.@)
+ *
+ * Checks if a file handle exists (without duplicating it).
+ *
+ * PARAMS
+ *     handle  [I] Wine file handle.
+ *     access  [I] Win32 file access rights requested.
+ *
+ * RETURNS
+ *     NTSTATUS code
+ */
+int CDECL wine_server_handle_exists( HANDLE handle, unsigned int access )
+{
+    int unix_fd, needs_close, ret;
+    ret = server_get_unix_fd( handle, access, &unix_fd, &needs_close, NULL, NULL );
+    if (!ret && needs_close) close( unix_fd );
+    return !ret;
+}
+
+
+/***********************************************************************
  *           wine_server_handle_to_fd   (NTDLL.@)
  *
  * Retrieve the file descriptor corresponding to a file handle.
