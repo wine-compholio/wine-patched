@@ -1951,6 +1951,7 @@ unsigned int get_fd_options( struct fd *fd )
 void set_fd_disposition( struct fd *fd, int unlink )
 {
     struct stat st;
+    struct list *ptr;
 
     if (fd->unix_fd == -1)
     {
@@ -1976,6 +1977,20 @@ void set_fd_disposition( struct fd *fd, int unlink )
         /* can't unlink files we don't have permission to access */
         set_error( STATUS_CANNOT_DELETE );
         return;
+    }
+
+    LIST_FOR_EACH( ptr, &fd->inode->open )
+    {
+        struct fd *fd_ptr = LIST_ENTRY( ptr, struct fd, inode_entry );
+        if (fd_ptr != fd)
+        {
+            if (fd_ptr->access & FILE_MAPPING_ACCESS)
+            {
+                /* can't unlink files which are mapped to memory */
+                set_error( STATUS_CANNOT_DELETE );
+                return;
+            }
+        }
     }
 
     if (unlink)
