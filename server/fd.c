@@ -1871,6 +1871,15 @@ struct fd *open_fd( struct fd *root, const char *name, int flags, mode_t *mode, 
         list_add_head( &inode->open, &fd->inode_entry );
         closed_fd = NULL;
 
+        /* can't unlink files we don't have permission to access */
+        if ((options & FILE_DELETE_ON_CLOSE) && S_ISREG(st.st_mode) &&
+            !(flags & O_CREAT) && !(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)))
+        {
+            /* FIXME: instead of checking for O_CREAT it should check if the file was created */
+            set_error( STATUS_CANNOT_DELETE );
+            goto error;
+        }
+
         /* check directory options */
         if ((options & FILE_DIRECTORY_FILE) && !S_ISDIR(st.st_mode))
         {
