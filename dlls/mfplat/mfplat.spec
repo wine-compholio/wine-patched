@@ -137,7 +137,8 @@
 @ stub MFTEnum
 @ stub MFTEnumEx
 @ stub MFTGetInfo
-@ stub MFTRegister
+# Structures are directly pushed on the stack
+@ stdcall -norelay MFTRegister()
 @ stub MFTRegisterLocal
 @ stub MFTRegisterLocalByCLSID
 @ stub MFTUnregister
