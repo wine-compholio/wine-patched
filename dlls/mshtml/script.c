@@ -1506,8 +1506,10 @@ void bind_event_scripts(HTMLDocumentNode *doc)
 
                 if(SUCCEEDED(hres))
                     bind_activex_event(doc, plugin_container, event, event_disp);
-                else
+                else if(target_node)
                     bind_node_event(doc, event_target, target_node, event, event_disp);
+                else
+                    FIXME("binding to window not supported.\n");
 
                 if(target_node) {
                     IHTMLDOMNode_Release(&target_node->IHTMLDOMNode_iface);
