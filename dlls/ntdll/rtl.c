@@ -1596,6 +1596,15 @@ NTSTATUS WINAPI WinSqmEndSession(PVOID unknown1)
     return STATUS_NOT_IMPLEMENTED;
 }
 
+/*********************************************************************
+ * WinSqmIsOptedIn [NTDLL.@]
+ */
+BOOL WINAPI WinSqmIsOptedIn(void)
+{
+    FIXME("() stub!\n");
+    return FALSE;
+}
+
 /******************************************************************************
  * WinSqmStartSession [NTDLL.@]
  */
