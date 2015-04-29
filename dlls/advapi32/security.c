@@ -2501,6 +2501,16 @@ BOOL WINAPI ImpersonateLoggedOnUser(HANDLE hToken)
 }
 
 /******************************************************************************
+ * ImpersonateAnonymousToken [ADVAPI32.@]
+ */
+BOOL WINAPI ImpersonateAnonymousToken(HANDLE hThread)
+{
+    FIXME("(%p)\n", hThread);
+    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+    return FALSE;
+}
+
+/******************************************************************************
  * AccessCheck [ADVAPI32.@]
  */
 BOOL WINAPI
