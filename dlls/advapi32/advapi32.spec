@@ -375,7 +375,7 @@
 @ stub I_ScSetServiceBitsA
 # @ stub I_ScSetServiceBitsW
 # @ stub IdentifyCodeAuthzLevelW
-# @ stub ImpersonateAnonymousToken
+@ stdcall ImpersonateAnonymousToken(long)
 @ stdcall ImpersonateLoggedOnUser(long)
 @ stdcall ImpersonateNamedPipeClient(long)
 @ stdcall ImpersonateSelf(long)
