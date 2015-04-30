@@ -2980,18 +2980,13 @@ int WINAPI WS_bind(SOCKET s, const struct WS_sockaddr* name, int namelen)
  */
 int WINAPI WS_closesocket(SOCKET s)
 {
-    int res = SOCKET_ERROR, fd;
+    int res = SOCKET_ERROR;
     if (num_startup)
     {
-        fd = get_sock_fd(s, FILE_READ_DATA, NULL);
-        if (fd >= 0)
-        {
-            release_sock_fd(s, fd);
-            if (CloseHandle(SOCKET2HANDLE(s)))
-                res = 0;
-        }
-        else
+        if (!wine_server_handle_exists(SOCKET2HANDLE(s), FILE_READ_DATA))
             SetLastError(WSAENOTSOCK);
+        else if (CloseHandle(SOCKET2HANDLE(s)))
+            res = 0;
     }
     else
         SetLastError(WSANOTINITIALISED);
