@@ -3008,6 +3008,7 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
     static const WCHAR unixW[] = {'u','n','i','x'};
     static const WCHAR pipeW[] = {'p','i','p','e'};
     static const WCHAR invalid_charsW[] = { INVALID_NT_CHARS, 0 };
+    static const WCHAR device_nullW[] = {'\\','D','e','v','i','c','e','\\','N','u','l','l'};
 
     NTSTATUS status = STATUS_SUCCESS;
     const char *config_dir = wine_get_config_dir();
@@ -3023,6 +3024,22 @@ NTSTATUS CDECL wine_nt_to_unix_file_name( const UNICODE_STRING *nameW, ANSI_STRI
     name_len = nameW->Length / sizeof(WCHAR);
 
     if (!name_len || !IS_SEPARATOR(name[0])) return STATUS_OBJECT_PATH_SYNTAX_BAD;
+
+    if (name_len == sizeof(device_nullW) / sizeof(WCHAR) && !memicmpW( name, device_nullW, name_len ))
+    {
+        TRACE( "%s -> %s\n", debugstr_us(nameW), "/dev/null" );
+
+        unix_len = strlen("/dev/null");
+        if (!(unix_name = RtlAllocateHeap( GetProcessHeap(), 0, unix_len )))
+            return STATUS_NO_MEMORY;
+
+        strcpy( unix_name, "/dev/null" );
+        unix_name_ret->Buffer = unix_name;
+        unix_name_ret->Length = unix_len;
+        unix_name_ret->MaximumLength = unix_len + 1;
+
+        return STATUS_SUCCESS;
+    }
 
     if (!(pos = get_dos_prefix_len( nameW )))
         return STATUS_BAD_DEVICE_TYPE;  /* no DOS prefix, assume NT native name */
