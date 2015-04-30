@@ -4804,7 +4804,13 @@ static void release_poll_fds( const WS_fd_set *readfds, const WS_fd_set *writefd
     if (exceptfds)
     {
         for (i = 0; i < exceptfds->fd_count; i++, j++)
-            if (fds[j].fd != -1) release_sock_fd( exceptfds->fd_array[i], fds[j].fd );
+        {
+            if (fds[j].fd == -1) continue;
+            release_sock_fd( exceptfds->fd_array[i], fds[j].fd );
+            if (!(fds[j].revents & POLLHUP)) continue;
+            if (!wine_server_handle_exists( SOCKET2HANDLE(exceptfds->fd_array[i]), 0 ))
+                fds[j].revents = 0;
+        }
     }
 }
 
