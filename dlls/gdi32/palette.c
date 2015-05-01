@@ -418,8 +418,39 @@ UINT WINAPI GetSystemPaletteEntries(
 
     if ((dc = get_dc_ptr( hdc )))
     {
-        PHYSDEV physdev = GET_DC_PHYSDEV( dc, pGetSystemPaletteEntries );
-        ret = physdev->funcs->pGetSystemPaletteEntries( physdev, start, count, entries );
+        if (!(GetDeviceCaps( hdc, RASTERCAPS ) & RC_PALETTE))
+        {
+            if (entries && start < 256)
+            {
+                UINT i;
+                const RGBQUAD *default_entries;
+
+                if (start + count > 256) count = 256 - start;
+
+                default_entries = get_default_color_table( 8 );
+                for (i = 0; i < count; ++i)
+                {
+                    if (start + i < 10 || start + i >= 246)
+                    {
+                        entries[i].peRed = default_entries[start + i].rgbRed;
+                        entries[i].peGreen = default_entries[start + i].rgbGreen;
+                        entries[i].peBlue = default_entries[start + i].rgbBlue;
+                    }
+                    else
+                    {
+                        entries[i].peRed = 0;
+                        entries[i].peGreen = 0;
+                        entries[i].peBlue = 0;
+                    }
+                    entries[i].peFlags = 0;
+                }
+            }
+        }
+        else
+        {
+            PHYSDEV physdev = GET_DC_PHYSDEV( dc, pGetSystemPaletteEntries );
+            ret = physdev->funcs->pGetSystemPaletteEntries( physdev, start, count, entries );
+        }
         release_dc_ptr( dc );
     }
     return ret;
