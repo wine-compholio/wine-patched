@@ -2235,6 +2235,9 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T 
 
     TRACE("%p %p %08lx %08x\n", process, addr, size, new_prot );
 
+    if (!old_prot)
+        return STATUS_ACCESS_VIOLATION;
+
     if (process != NtCurrentProcess())
     {
         apc_call_t call;
