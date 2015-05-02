@@ -181,6 +181,11 @@ __ASM_GLOBAL_FUNC(interlocked_cmpxchg128,
                   "ret")
 
 #elif defined(__powerpc__)
+
+#include <pthread.h>
+
+static pthread_mutex_t interlocked_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void* interlocked_cmpxchg_ptr( void **dest, void* xchg, void* compare)
 {
     void *ret = 0;
@@ -199,10 +204,18 @@ void* interlocked_cmpxchg_ptr( void **dest, void* xchg, void* compare)
     return ret;
 }
 
-__int64 interlocked_cmpxchg64( __int64 *dest, __int64 xchg, __int64 compare)
+/* FIXME: replace with assembler implementation */
+__int64 interlocked_cmpxchg64( __int64 *dest, __int64 xchg, __int64 compare )
 {
-    /* FIXME: add code */
-    assert(0);
+    pthread_mutex_lock( &interlocked_mutex );
+
+    if (*dest == compare)
+        *dest = xchg;
+    else
+        compare = *dest;
+
+    pthread_mutex_unlock( &interlocked_mutex );
+    return compare;
 }
 
 int interlocked_cmpxchg( int *dest, int xchg, int compare)
