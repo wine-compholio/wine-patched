@@ -204,7 +204,8 @@ DECL_HANDLER(set_clipboard_info)
         if (clipboard->open_thread)
         {
             /* clipboard already opened */
-            set_error(STATUS_WAS_LOCKED);
+            if (clipboard->open_win != req->clipboard)
+                set_error(STATUS_WAS_LOCKED);
             return;
         }
 
