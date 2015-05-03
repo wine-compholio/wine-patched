@@ -462,6 +462,38 @@ static void create_environment_registry_keys( void )
     RegCloseKey( env_key );
 }
 
+/* create Cryptography registry keys */
+static void create_cryptography_registry_keys( void )
+{
+    static const WCHAR CryptographyW[]  = {'S','o','f','t','w','a','r','e','\\',
+                                           'M','i','c','r','o','s','o','f','t','\\',
+                                           'C','r','y','p','t','o','g','r','a','p','h','y',0};
+    static const WCHAR MachineGuidW[]   = {'M','a','c','h','i','n','e','G','u','i','d',0};
+    static const WCHAR formatW[] =
+    {
+        '%','0','8','x','-','%','0','4','x','-','%','0','4','x','-','%','0',
+        '2','x','%','0','2','x','-','%','0','2','x','%','0','2','x','%','0','2',
+        'x','%','0','2','x','%','0','2','x','%','0','2','x',0
+    };
+
+    HKEY crypt_key;
+    WCHAR buffer[37];
+    UUID uuid;
+
+    if (RegCreateKeyW( HKEY_LOCAL_MACHINE, CryptographyW, &crypt_key )) return;
+
+    if (RegQueryValueExW( crypt_key, MachineGuidW, NULL, NULL, NULL, NULL ))
+    {
+        UuidCreate( &uuid );
+        wsprintfW( buffer, formatW, uuid.Data1, uuid.Data2, uuid.Data3,
+                   uuid.Data4[0], uuid.Data4[1], uuid.Data4[2], uuid.Data4[3],
+                   uuid.Data4[4], uuid.Data4[5], uuid.Data4[6], uuid.Data4[7] );
+        RegSetValueExW( crypt_key, MachineGuidW, 0, REG_SZ, (BYTE *)buffer, sizeof(buffer) );
+    }
+
+    RegCloseKey( crypt_key );
+}
+
 static void create_volatile_environment_registry_key(void)
 {
     static const WCHAR VolatileEnvW[] = {'V','o','l','a','t','i','l','e',' ','E','n','v','i','r','o','n','m','e','n','t',0};
@@ -1337,6 +1369,7 @@ int main( int argc, char *argv[] )
     create_hardware_registry_keys();
     create_dynamic_registry_keys();
     create_environment_registry_keys();
+    create_cryptography_registry_keys();
     wininit();
     pendingRename();
 
