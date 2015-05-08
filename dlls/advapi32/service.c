@@ -868,8 +868,9 @@ SC_HANDLE WINAPI OpenSCManagerW( LPCWSTR lpMachineName, LPCWSTR lpDatabaseName,
     DWORD r;
 
     r = SERV_OpenSCManagerW(lpMachineName, lpDatabaseName, dwDesiredAccess, &handle);
-    if (r!=ERROR_SUCCESS)
-        SetLastError(r);
+
+    /* last error could still be ERROR_MORE_DATA, so set error unconditionally */
+    SetLastError(r);
     return handle;
 }
 
