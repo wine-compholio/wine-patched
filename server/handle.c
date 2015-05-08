@@ -650,6 +650,24 @@ DECL_HANDLER(get_object_info)
     release_object( obj );
 }
 
+DECL_HANDLER(get_object_typename)
+{
+    struct object *obj;
+    struct object_type *type;
+    const WCHAR *name;
+
+    if (!(obj = get_handle_obj( current->process, req->handle, 0, NULL ))) return;
+
+    reply->total = 0;
+    if ((type = obj->ops->get_type( obj )))
+    {
+        if ((name = get_object_name( &type->obj, &reply->total )))
+            set_reply_data( name, min( reply->total, get_reply_max_size() ) );
+        release_object( type );
+    }
+    release_object( obj );
+}
+
 DECL_HANDLER(set_security_object)
 {
     data_size_t sd_size = get_req_data_size();

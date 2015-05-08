@@ -41,11 +41,6 @@
 
 #define HASH_SIZE 7  /* default hash size */
 
-struct object_type
-{
-    struct object     obj;        /* object header */
-};
-
 static void object_type_dump( struct object *obj, int verbose );
 static struct object_type *object_type_get_type( struct object *obj );
 

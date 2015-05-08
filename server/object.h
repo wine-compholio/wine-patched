@@ -105,6 +105,11 @@ struct object
 #endif
 };
 
+struct object_type
+{
+    struct object     obj;        /* object header */
+};
+
 struct wait_queue_entry
 {
     struct list         entry;
