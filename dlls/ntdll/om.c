@@ -151,6 +151,70 @@ NTSTATUS WINAPI NtQueryObject(IN HANDLE handle,
             SERVER_END_REQ;
         }
         break;
+    case ObjectTypeInformation:
+        {
+            OBJECT_TYPE_INFORMATION *p = ptr;
+            ANSI_STRING unix_name;
+
+            /* first try as a file object */
+
+            if (!(status = server_get_unix_name( handle, &unix_name )))
+            {
+                static const WCHAR type_fileW[] = {'F','i','l','e','\0'};
+                int type_size = sizeof(type_fileW);
+
+                if (len < sizeof(*p))
+                    status = STATUS_INFO_LENGTH_MISMATCH;
+                else if (len < sizeof(*p) + type_size)
+                    status = STATUS_BUFFER_OVERFLOW;
+                else
+                {
+                    p->TypeName.Buffer = (WCHAR *)(p + 1);
+                    p->TypeName.Length = type_size - sizeof(WCHAR);
+                    p->TypeName.MaximumLength = type_size;
+                    memcpy( p->TypeName.Buffer, type_fileW, type_size );
+
+                }
+                if (used_len) *used_len = sizeof(*p) + type_size;
+                RtlFreeAnsiString( &unix_name );
+                break;
+            }
+            else if (status != STATUS_OBJECT_TYPE_MISMATCH) break;
+
+            /* not a file, treat as a generic object */
+
+            SERVER_START_REQ( get_object_typename )
+            {
+                req->handle = wine_server_obj_handle( handle );
+                if (len > sizeof(*p)) wine_server_set_reply( req, p + 1, len - sizeof(*p) );
+                status = wine_server_call( req );
+                if (status == STATUS_SUCCESS)
+                {
+                    if (!reply->total)  /* no name */
+                    {
+                        if (sizeof(*p) > len) status = STATUS_INFO_LENGTH_MISMATCH;
+                        else memset( p, 0, sizeof(*p) );
+                        if (used_len) *used_len = sizeof(*p);
+                    }
+                    else if (sizeof(*p) + reply->total + sizeof(WCHAR) > len)
+                    {
+                        if (used_len) *used_len = sizeof(*p) + reply->total + sizeof(WCHAR);
+                        status = STATUS_INFO_LENGTH_MISMATCH;
+                    }
+                    else
+                    {
+                        ULONG res = wine_server_reply_size( reply );
+                        p->TypeName.Buffer = (WCHAR *)(p + 1);
+                        p->TypeName.Length = res;
+                        p->TypeName.MaximumLength = res + sizeof(WCHAR);
+                        p->TypeName.Buffer[res / sizeof(WCHAR)] = 0;
+                        if (used_len) *used_len = sizeof(*p) + p->TypeName.MaximumLength;
+                    }
+                }
+            }
+            SERVER_END_REQ;
+        }
+        break;
     case ObjectDataInformation:
         {
             OBJECT_DATA_INFORMATION* p = ptr;
