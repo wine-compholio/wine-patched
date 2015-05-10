@@ -23,6 +23,12 @@
 #include "config.h"
 #include "wine/port.h"
 
+/* The FreeBSD implementation to enumerate directory content is completely
+ * broken, which causes test failures in kernel32/file and ntdll/directory
+ * tests, and also causes bug 35397. Fallback to the POSIX implementation
+ * until this issue is fixed. */
+#undef HAVE_GETDIRENTRIES
+
 #include <assert.h>
 #include <sys/types.h>
 #ifdef HAVE_DIRENT_H
