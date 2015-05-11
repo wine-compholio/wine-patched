@@ -79,6 +79,15 @@ HRESULT WINAPI FilterFindClose(HANDLE handle)
 }
 
 /**********************************************************************
+ *      FilterLoad              (FLTLIB.@)
+ */
+HRESULT WINAPI FilterLoad(LPCWSTR lpFilterName)
+{
+    FIXME("(%s) stub\n", debugstr_w(lpFilterName));
+    return S_OK;
+}
+
+/**********************************************************************
  *      FilterUnload            (FLTLIB.@)
  */
 HRESULT WINAPI FilterUnload(LPCWSTR lpFilterName)
