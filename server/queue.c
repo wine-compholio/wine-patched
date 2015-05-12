@@ -1139,6 +1139,14 @@ int attach_thread_input( struct thread *thread_from, struct thread *thread_to )
     struct thread_input *input;
     int ret;
 
+    /* do not create a message queue for foreign threads */
+    if ((!thread_to->queue && thread_to != current) ||
+        (!thread_from->queue && thread_from != current))
+    {
+        set_error( STATUS_INVALID_PARAMETER );
+        return 0;
+    }
+
     if (!thread_to->queue && !(thread_to->queue = create_msg_queue( thread_to, NULL ))) return 0;
     if (!(desktop = get_thread_desktop( thread_from, 0 ))) return 0;
     input = (struct thread_input *)grab_object( thread_to->queue->input );
