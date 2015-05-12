@@ -44,6 +44,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(browseui);
 
 typedef struct tagACLMulti {
     IACList2 IACList2_iface;
+    IEnumString IEnumString_iface;
     LONG refCount;
     DWORD dwOptions;
 } ACLShellSource;
@@ -51,6 +52,11 @@ typedef struct tagACLMulti {
 static inline ACLShellSource *impl_from_IACList2(IACList2 *iface)
 {
     return CONTAINING_RECORD(iface, ACLShellSource, IACList2_iface);
+}
+
+static inline ACLShellSource *impl_from_IEnumString(IEnumString *iface)
+{
+    return CONTAINING_RECORD(iface, ACLShellSource, IEnumString_iface);
 }
 
 static void ACLShellSource_Destructor(ACLShellSource *This)
@@ -68,6 +74,10 @@ static HRESULT WINAPI ACLShellSource_QueryInterface(IACList2 *iface, REFIID iid,
         IsEqualIID(iid, &IID_IACList))
     {
         *ppvOut = &This->IACList2_iface;
+    }
+    else if(IsEqualIID(iid, &IID_IEnumString))
+    {
+        *ppvOut = &This->IEnumString_iface;
     }
 
     if (*ppvOut)
@@ -133,6 +143,67 @@ static const IACList2Vtbl ACLMulti_ACList2Vtbl =
     ACLShellSource_GetOptions
 };
 
+static HRESULT WINAPI ACLShellSource_IEnumString_QueryInterface(IEnumString *iface, REFIID iid, LPVOID *ppvOut)
+{
+    ACLShellSource *This = impl_from_IEnumString(iface);
+    return ACLShellSource_QueryInterface(&This->IACList2_iface, iid, ppvOut);
+}
+
+static ULONG WINAPI ACLShellSource_IEnumString_AddRef(IEnumString *iface)
+{
+    ACLShellSource *This = impl_from_IEnumString(iface);
+    return ACLShellSource_AddRef(&This->IACList2_iface);
+}
+
+static ULONG WINAPI ACLShellSource_IEnumString_Release(IEnumString *iface)
+{
+    ACLShellSource *This = impl_from_IEnumString(iface);
+    return ACLShellSource_Release(&This->IACList2_iface);
+}
+
+static HRESULT WINAPI ACLShellSource_IEnumString_Next(IEnumString *iface, ULONG celt, LPOLESTR *rgelt, ULONG *pceltFetched)
+{
+    FIXME("(%p, %d, %p, %p): stub\n", iface, celt, rgelt, pceltFetched);
+
+    if (celt)
+        *rgelt = NULL;
+    if (pceltFetched)
+        *pceltFetched = 0;
+
+    return S_FALSE;
+}
+
+static HRESULT WINAPI ACLShellSource_IEnumString_Reset(IEnumString *iface)
+{
+    FIXME("(%p): stub\n", iface);
+    return S_OK;
+}
+
+static HRESULT WINAPI ACLShellSource_IEnumString_Skip(IEnumString *iface, ULONG celt)
+{
+    FIXME("(%p, %u): stub\n", iface, celt);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI ACLShellSource_IEnumString_Clone(IEnumString *iface, IEnumString **ppOut)
+{
+    FIXME("(%p, %p): stub\n", iface, ppOut);
+    *ppOut = NULL;
+    return E_OUTOFMEMORY;
+}
+
+static const IEnumStringVtbl ACLShellSource_EnumStringVtbl =
+{
+    ACLShellSource_IEnumString_QueryInterface,
+    ACLShellSource_IEnumString_AddRef,
+    ACLShellSource_IEnumString_Release,
+
+    ACLShellSource_IEnumString_Next,
+    ACLShellSource_IEnumString_Skip,
+    ACLShellSource_IEnumString_Reset,
+    ACLShellSource_IEnumString_Clone
+};
+
 HRESULT ACLShellSource_Constructor(IUnknown *pUnkOuter, IUnknown **ppOut)
 {
     ACLShellSource *This;
@@ -144,6 +215,7 @@ HRESULT ACLShellSource_Constructor(IUnknown *pUnkOuter, IUnknown **ppOut)
         return E_OUTOFMEMORY;
 
     This->IACList2_iface.lpVtbl = &ACLMulti_ACList2Vtbl;
+    This->IEnumString_iface.lpVtbl = &ACLShellSource_EnumStringVtbl;
     This->refCount = 1;
 
     TRACE("returning %p\n", This);
