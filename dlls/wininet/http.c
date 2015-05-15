@@ -5116,7 +5116,7 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
                 dwBufferSize=2048;
                 if (request->status_code == HTTP_STATUS_DENIED)
                 {
-                    WCHAR *host = get_host_header( request );
+                    WCHAR *host = heap_strdupW( request->server->canon_host_port );
                     DWORD dwIndex = 0;
                     while (HTTP_HttpQueryInfoW(request,HTTP_QUERY_WWW_AUTHENTICATE,szAuthValue,&dwBufferSize,&dwIndex) == ERROR_SUCCESS)
                     {
