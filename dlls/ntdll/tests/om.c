@@ -1051,18 +1051,17 @@ static void test_null_device(void)
     pRtlCreateUnicodeStringFromAsciiz(&str, "\\Device\\Null");
     InitializeObjectAttributes(&attr, &str, OBJ_CASE_INSENSITIVE, 0, NULL);
     status = pNtOpenSymbolicLinkObject(&null, SYMBOLIC_LINK_QUERY, &attr);
-    todo_wine
     ok(status == STATUS_OBJECT_TYPE_MISMATCH,
        "expected STATUS_OBJECT_TYPE_MISMATCH, got %08x\n", status);
 
     status = pNtOpenFile(&null, GENERIC_READ | GENERIC_WRITE, &attr, &iosb,
                          FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN);
-    todo_wine
     ok(status == STATUS_SUCCESS,
        "expected STATUS_SUCCESS, got %08x\n", status);
 
     SetLastError(0xdeadbeef);
     ret = WriteFile(null, buf, sizeof(buf), &num_bytes, NULL);
+    todo_wine
     ok(!ret, "WriteFile unexpectedly succeeded\n");
     todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER,
@@ -1070,6 +1069,7 @@ static void test_null_device(void)
 
     SetLastError(0xdeadbeef);
     ret = ReadFile(null, buf, sizeof(buf), &num_bytes, NULL);
+    todo_wine
     ok(!ret, "ReadFile unexpectedly succeeded\n");
     todo_wine
     ok(GetLastError() == ERROR_INVALID_PARAMETER,
@@ -1080,7 +1080,6 @@ static void test_null_device(void)
     ret = WriteFile(null, buf, sizeof(buf), &num_bytes, &ov);
     if (ret || GetLastError() != ERROR_IO_PENDING)
     {
-        todo_wine
         ok(ret, "WriteFile failed with error %u\n", GetLastError());
     }
     else
@@ -1089,7 +1088,6 @@ static void test_null_device(void)
         ret = GetOverlappedResult(null, &ov, &num_bytes, TRUE);
         ok(ret, "GetOverlappedResult failed with error %u\n", GetLastError());
     }
-    todo_wine
     ok(num_bytes == sizeof(buf), "expected num_bytes = %u, got %u\n",
        (DWORD)sizeof(buf), num_bytes);
 
@@ -1106,7 +1104,6 @@ static void test_null_device(void)
         ret = GetOverlappedResult(null, &ov, &num_bytes, TRUE);
         ok(!ret, "GetOverlappedResult unexpectedly succeeded\n");
     }
-    todo_wine
     ok(GetLastError() == ERROR_HANDLE_EOF,
        "expected ERROR_HANDLE_EOF, got %u\n", GetLastError());
 
