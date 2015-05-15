@@ -3229,7 +3229,7 @@ static void test_header_override(int port)
     ret = HttpSendRequestA( req, NULL, 0, NULL, 0 );
     ok( ret, "HttpSendRequestA failed %u\n", GetLastError() );
 
-    test_status_code_todo(req, 200);
+    test_status_code(req, 200);
 
     InternetCloseHandle(req);
     InternetCloseHandle(con);
@@ -3268,7 +3268,7 @@ static void test_header_override(int port)
     ret = HttpSendRequestA(req, NULL, 0, NULL, 0);
     ok(ret, "HttpSendRequestA failed %u\n", GetLastError());
 
-    test_status_code_todo(req, 200);
+    test_status_code(req, 200);
 
     InternetCloseHandle(req);
     InternetCloseHandle(con);
