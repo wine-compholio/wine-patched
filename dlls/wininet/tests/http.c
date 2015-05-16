@@ -3076,7 +3076,7 @@ static void test_header_override(int port)
     size = sizeof(buffer)-1;
     ret = InternetQueryOptionA(req, INTERNET_OPTION_URL, buffer, &size);
     ok(ret, "InternetQueryOption failed\n");
-    todo_wine ok(!strcmp(full_url, buffer), "Expected %s, got %s\n", full_url, buffer);
+    ok(!strcmp(full_url, buffer), "Expected %s, got %s\n", full_url, buffer);
 
     ret = HttpSendRequestA(req, NULL, 0, NULL, 0);
     ok(ret, "HttpSendRequest failed\n");
