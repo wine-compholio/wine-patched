@@ -3142,13 +3142,13 @@ static void test_header_override(int port)
 
     ret = HttpAddRequestHeadersA(req, host_header_override, ~0u, HTTP_ADDREQ_FLAG_REPLACE);
     err = GetLastError();
-    todo_wine ok(!ret, "HttpAddRequestHeaders succeeded\n");
-    todo_wine ok(err == ERROR_HTTP_HEADER_NOT_FOUND, "Expected error ERROR_HTTP_HEADER_NOT_FOUND, got %d\n", err);
+    ok(!ret, "HttpAddRequestHeaders succeeded\n");
+    ok(err == ERROR_HTTP_HEADER_NOT_FOUND, "Expected error ERROR_HTTP_HEADER_NOT_FOUND, got %d\n", err);
 
     ret = HttpSendRequestA(req, NULL, 0, NULL, 0);
     ok(ret, "HttpSendRequest failed\n");
 
-    test_status_code_todo(req, 400);
+    test_status_code(req, 400);
 
     InternetCloseHandle(req);
     InternetSetCookieA("http://localhost", "cookie", "biscuit");
