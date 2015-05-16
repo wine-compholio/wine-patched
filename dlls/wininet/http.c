@@ -2142,21 +2142,12 @@ static DWORD HTTPREQ_QueryOption(object_header_t *hdr, DWORD option, void *buffe
     case INTERNET_OPTION_URL: {
         static const WCHAR httpW[] = {'h','t','t','p',':','/','/',0};
         WCHAR url[INTERNET_MAX_URL_LENGTH];
-        HTTPHEADERW *host_header;
-        const WCHAR *host;
 
         TRACE("INTERNET_OPTION_URL\n");
 
-        EnterCriticalSection( &req->headers_section );
-
-        host_header = HTTP_GetHeader(req, hostW);
-        if (host_header) host = host_header->lpszValue;
-        else host = req->server->canon_host_port;
-
         strcpyW(url, httpW);
-        strcatW(url, host);
+        strcatW(url, req->server->canon_host_port);
         strcatW(url, req->path);
-        LeaveCriticalSection( &req->headers_section );
 
         TRACE("INTERNET_OPTION_URL: %s\n",debugstr_w(url));
         return str_to_buffer(url, buffer, size, unicode);
