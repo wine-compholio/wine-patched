@@ -6472,6 +6472,7 @@ static void test_WSAPoll(void)
     POLL_SET(fdWrite, POLLIN);
     ret = pWSAPoll(fds, ix, poll_timeout);
     ok(ret == 1, "expected 1, got %d\n", ret);
+todo_wine
     ok(POLL_ISSET(fdWrite, POLLHUP), "fdWrite socket events incorrect\n");
     ret = recv(fdWrite, tmp_buf, sizeof(tmp_buf), 0);
     ok(ret == 0, "expected 0, got %d\n", ret);
@@ -6490,6 +6491,7 @@ static void test_WSAPoll(void)
     POLL_SET(fdWrite, POLLIN | POLLOUT);
     poll_timeout = 2000;
     ret = pWSAPoll(fds, ix, poll_timeout);
+todo_wine
     ok(ret == 0, "expected 0, got %d\n", ret);
     len = sizeof(id);
     id = 0xdeadbeef;
@@ -6511,6 +6513,7 @@ static void test_WSAPoll(void)
     POLL_SET(fdWrite, POLLIN | POLLOUT);
     ret = pWSAPoll(fds, ix, poll_timeout);
     ok(ret == 1, "expected 1, got %d\n", ret);
+todo_wine
     ok(POLL_ISSET(fdWrite, POLLWRNORM | POLLHUP) || broken(POLL_ISSET(fdWrite, POLLWRNORM)) /* <= 2008 */,
        "fdWrite socket events incorrect\n");
     closesocket(fdWrite);
@@ -6534,6 +6537,7 @@ static void test_WSAPoll(void)
     POLL_SET(fdWrite, POLLIN);
     ret = pWSAPoll(fds, ix, poll_timeout);
     ok(ret == 1, "expected 1, got %d\n", ret);
+todo_wine
     ok(POLL_ISSET(fdWrite, POLLNVAL), "fdWrite socket events incorrect\n");
     WaitForSingleObject (thread_handle, 1000);
     closesocket(fdRead);
