@@ -1717,7 +1717,7 @@ void set_fd_user( struct fd *fd, const struct fd_ops *user_ops, struct object *u
     fd->user   = user;
 }
 
-static char *dup_fd_name( struct fd *root, const char *name )
+char *dup_fd_name( struct fd *root, const char *name )
 {
     char *ret;
     int len;
@@ -2416,14 +2416,36 @@ DECL_HANDLER(flush)
 DECL_HANDLER(open_file_object)
 {
     struct unicode_str name;
-    struct directory *root = NULL;
+    struct directory *root;
     struct object *obj, *result;
 
     get_req_unicode_str( &name );
-    if (req->rootdir && !(root = get_directory_obj( current->process, req->rootdir, 0 )))
-        return;
+    if (req->rootdir)
+    {
+        if ((root = get_directory_obj( current->process, req->rootdir, 0 )))
+        {
+            obj = open_object_dir( root, &name, req->attributes, NULL );
+            release_object( root );
+        }
+        else if (get_error() == STATUS_OBJECT_TYPE_MISMATCH &&
+                 (obj = (struct object *)get_file_obj( current->process, req->rootdir, 0 )))
+        {
+            if (name.len)
+            {
+                release_object( obj );
+                set_error( STATUS_OBJECT_PATH_NOT_FOUND );
+                return;
+            }
+            clear_error();
+        }
+        else return;
+    }
+    else
+    {
+        obj = open_object_dir( NULL, &name, req->attributes, NULL );
+    }
 
-    if ((obj = open_object_dir( root, &name, req->attributes, NULL )))
+    if (obj)
     {
         if ((result = obj->ops->open_file( obj, req->access, req->sharing, req->options )))
         {
@@ -2432,8 +2454,6 @@ DECL_HANDLER(open_file_object)
         }
         release_object( obj );
     }
-
-    if (root) release_object( root );
 }
 
 /* get the Unix name from a file handle */
