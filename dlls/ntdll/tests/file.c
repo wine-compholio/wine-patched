@@ -299,7 +299,8 @@ static void create_file_test(void)
 
 static void open_file_test(void)
 {
-    static const WCHAR fooW[] = {'f','o','o',0};
+    static const char testdata[] = "Hello World";
+    static WCHAR fooW[] = {'f','o','o',0};
     NTSTATUS status;
     HANDLE dir, root, handle, file;
     WCHAR path[MAX_PATH], tmpfile[MAX_PATH];
@@ -308,7 +309,8 @@ static void open_file_test(void)
     IO_STATUS_BLOCK io;
     UNICODE_STRING nameW;
     UINT i, len;
-    BOOL restart = TRUE;
+    BOOL ret, restart = TRUE;
+    DWORD numbytes;
 
     len = GetWindowsDirectoryW( path, MAX_PATH );
     pRtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL );
@@ -434,6 +436,14 @@ static void open_file_test(void)
     GetTempFileNameW( path, fooW, 0, tmpfile );
     pRtlDosPathNameToNtPathName_U( tmpfile, &nameW, NULL, NULL );
 
+    file = CreateFileW( tmpfile, FILE_WRITE_DATA, 0, NULL, CREATE_ALWAYS, 0, 0 );
+    ok( file != INVALID_HANDLE_VALUE, "CreateFile error %d\n", GetLastError() );
+    numbytes = 0xdeadbeef;
+    ret = WriteFile( file, testdata, sizeof(testdata) - 1, &numbytes, NULL );
+    ok( ret, "WriteFile failed with error %u\n", GetLastError() );
+    ok( numbytes == sizeof(testdata) - 1, "failed to write all data\n" );
+    CloseHandle( file );
+
     attr.Length = sizeof(attr);
     attr.RootDirectory = 0;
     attr.ObjectName = &nameW;
@@ -445,13 +455,46 @@ static void open_file_test(void)
     ok( !status, "open %s failed %x\n", wine_dbgstr_w(nameW.Buffer), status );
     pRtlFreeUnicodeString( &nameW );
 
+    numbytes = 0xdeadbeef;
+    memset( data, 0, sizeof(data) );
+    ret = ReadFile( file, data, sizeof(data), &numbytes, NULL );
+    ok( ret, "ReadFile failed with error %u\n", GetLastError() );
+    ok( numbytes == sizeof(testdata) - 1, "failed to read all data\n" );
+    ok( !memcmp( data, testdata, sizeof(testdata) - 1 ), "testdata doesn't match\n" );
+
+    nameW.Length = sizeof(fooW) - sizeof(WCHAR);
+    nameW.Buffer = fooW;
+    attr.RootDirectory = file;
+    attr.ObjectName = &nameW;
+    status = pNtOpenFile( &root, SYNCHRONIZE|FILE_LIST_DIRECTORY, &attr, &io,
+                         FILE_SHARE_READ, FILE_SYNCHRONOUS_IO_NONALERT );
+    ok( status == STATUS_OBJECT_PATH_NOT_FOUND,
+        "expected STATUS_OBJECT_PATH_NOT_FOUND, got %08x\n", status );
+
     nameW.Length = 0;
     nameW.Buffer = NULL;
     attr.RootDirectory = file;
     attr.ObjectName = &nameW;
     status = pNtOpenFile( &root, SYNCHRONIZE|FILE_LIST_DIRECTORY, &attr, &io,
                           FILE_SHARE_READ, FILE_SYNCHRONOUS_IO_NONALERT );
-    todo_wine ok( !status, "open %s failed %x\n", wine_dbgstr_w(tmpfile), status );
+    ok( !status, "open %s failed %x\n", wine_dbgstr_w(tmpfile), status );
+
+    numbytes = SetFilePointer( file, 0, 0, FILE_CURRENT );
+    ok( numbytes == sizeof(testdata) - 1, "SetFilePointer returned %u\n", numbytes );
+    numbytes = SetFilePointer( root, 0, 0, FILE_CURRENT );
+    ok( numbytes == 0, "SetFilePointer returned %u\n", numbytes );
+
+    numbytes = 0xdeadbeef;
+    memset( data, 0, sizeof(data) );
+    ret = ReadFile( root, data, sizeof(data), &numbytes, NULL );
+    ok( ret, "ReadFile failed with error %u\n", GetLastError() );
+    ok( numbytes == sizeof(testdata) - 1, "failed to read all data\n" );
+    ok( !memcmp( data, testdata, sizeof(testdata) - 1 ), "testdata doesn't match\n" );
+
+    numbytes = SetFilePointer( file, 0, 0, FILE_CURRENT );
+    ok( numbytes == sizeof(testdata) - 1, "SetFilePointer returned %u\n", numbytes );
+    numbytes = SetFilePointer( root, 0, 0, FILE_CURRENT );
+    ok( numbytes == sizeof(testdata) - 1, "SetFilePointer returned %u\n", numbytes );
 
     CloseHandle( file );
     CloseHandle( root );
