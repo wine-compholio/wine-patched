@@ -4803,7 +4803,7 @@ static int do_poll(struct pollfd *pollfds, int count, int timeout)
     struct timeval tv1, tv2;
     int ret, torig = timeout;
 
-    if (timeout > 0) gettimeofday( &tv1, 0 );
+    if (timeout >= 0) gettimeofday( &tv1, 0 );
 
     while ((ret = poll( pollfds, count, timeout )) < 0)
     {
