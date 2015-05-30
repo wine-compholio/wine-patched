@@ -2319,7 +2319,7 @@ struct fbo_entry
     struct list entry;
     struct wined3d_surface **render_targets;
     struct wined3d_surface *depth_stencil;
-    DWORD color_location, ds_location;
+    DWORD location;
     DWORD rt_mask;
     BOOL attached;
     GLuint id;
