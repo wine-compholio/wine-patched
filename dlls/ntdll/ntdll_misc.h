@@ -253,6 +253,11 @@ extern HANDLE keyed_event DECLSPEC_HIDDEN;
 
 NTSTATUS WINAPI RtlHashUnicodeString(PCUNICODE_STRING,BOOLEAN,ULONG,ULONG*);
 
+/* version */
+extern const char * CDECL NTDLL_wine_get_version(void);
+extern const char * CDECL NTDLL_wine_get_build_id(void);
+extern void CDECL NTDLL_wine_get_host_version( const char **sysname, const char **release );
+
 /* process / thread time */
 extern BOOL read_process_time(int unix_pid, int unix_tid, unsigned long clk_tck,
                               LARGE_INTEGER *kernel, LARGE_INTEGER *user) DECLSPEC_HIDDEN;
