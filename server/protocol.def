@@ -1210,6 +1210,15 @@ enum server_fd_type
     int          unlink;        /* whether to unlink file on close */
 @END
 
+
+/* Rename a file */
+@REQ(rename_file)
+    obj_handle_t handle;        /* handle to the file */
+    obj_handle_t rootdir;       /* root directory */
+    VARARG(unix_name,string);   /* file name */
+@END
+
+
 /* Create a socket */
 @REQ(create_socket)
     unsigned int access;        /* wanted access rights */

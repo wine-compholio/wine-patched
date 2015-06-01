@@ -1483,19 +1483,19 @@ static void test_file_rename_information(void)
 
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
-    todo_wine ok( U(io).Status == STATUS_SUCCESS, "io.Status expected STATUS_SUCCESS, got %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
+    ok( U(io).Status == STATUS_SUCCESS, "io.Status expected STATUS_SUCCESS, got %x\n", U(io).Status );
+    ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( fileDeleted, "File should not exist\n" );
+    ok( fileDeleted, "File should not exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( !fileDeleted, "File should exist\n" );
+    ok( !fileDeleted, "File should exist\n" );
 
     pfni = HeapAlloc( GetProcessHeap(), 0, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR) );
     res = pNtQueryInformationFile( handle, &io, pfni, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR), FileNameInformation );
     ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
     pfni->FileName[ pfni->FileNameLength / sizeof(WCHAR) ] = 0;
-    todo_wine ok( !lstrcmpW(pfni->FileName, newpath + 2), "FileName expected %s, got %s\n",
-                  wine_dbgstr_w(newpath + 2), wine_dbgstr_w(pfni->FileName) );
+    ok( !lstrcmpW(pfni->FileName, newpath + 2), "FileName expected %s, got %s\n",
+        wine_dbgstr_w(newpath + 2), wine_dbgstr_w(pfni->FileName) );
     HeapFree( GetProcessHeap(), 0, pfni );
 
     CloseHandle( handle );
@@ -1522,7 +1522,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "shouldn't be able to set FileRenameInformation, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
+    ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1555,7 +1555,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_OBJECT_NAME_COLLISION, "res expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
+    ok( res == STATUS_OBJECT_NAME_COLLISION, "res expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1585,10 +1585,10 @@ static void test_file_rename_information(void)
 
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
-    todo_wine ok( U(io).Status == STATUS_SUCCESS, "io.Status expect STATUS_SUCCESS, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_SUCCESS, "res expect STATUS_SUCCESS, res is %x\n", res );
+    ok( U(io).Status == STATUS_SUCCESS, "io.Status expect STATUS_SUCCESS, io.Status is %x\n", U(io).Status );
+    ok( res == STATUS_SUCCESS, "res expect STATUS_SUCCESS, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( fileDeleted, "File should have been deleted\n" );
+    ok( fileDeleted, "File should have been deleted\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
 
@@ -1619,7 +1619,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1653,7 +1653,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1687,7 +1687,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1721,19 +1721,19 @@ static void test_file_rename_information(void)
 
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
-    todo_wine ok( U(io).Status == STATUS_SUCCESS, "io.Status expected STATUS_SUCCESS, got %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
+    ok( U(io).Status == STATUS_SUCCESS, "io.Status expected STATUS_SUCCESS, got %x\n", U(io).Status );
+    ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( fileDeleted, "File should have been deleted\n" );
+    ok( fileDeleted, "File should have been deleted\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( !fileDeleted, "File should exist\n" );
+    ok( !fileDeleted, "File should exist\n" );
 
     pfni = HeapAlloc( GetProcessHeap(), 0, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR) );
     res = pNtQueryInformationFile( handle, &io, pfni, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR), FileNameInformation );
     ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
     pfni->FileName[ pfni->FileNameLength / sizeof(WCHAR) ] = 0;
-    todo_wine ok( !lstrcmpW(pfni->FileName, newpath + 2), "FileName expected %s, got %s\n",
-                  wine_dbgstr_w(newpath + 2), wine_dbgstr_w(pfni->FileName) );
+    ok( !lstrcmpW(pfni->FileName, newpath + 2), "FileName expected %s, got %s\n",
+        wine_dbgstr_w(newpath + 2), wine_dbgstr_w(pfni->FileName) );
     HeapFree( GetProcessHeap(), 0, pfni );
 
     CloseHandle( handle );
@@ -1771,14 +1771,20 @@ static void test_file_rename_information(void)
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expected 0xdeadbeef, got %x\n", U(io).Status );
     todo_wine ok( res == STATUS_ACCESS_DENIED, "res expected STATUS_ACCESS_DENIED, got %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    ok( !fileDeleted, "File should exist\n" );
+    todo_wine ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    ok( fileDeleted, "File should not exist\n" );
+    todo_wine ok( fileDeleted, "File should not exist\n" );
 
     CloseHandle( handle );
     CloseHandle( handle2 );
     HeapFree( GetProcessHeap(), 0, pfri );
     delete_object( oldpath );
+    if (res == STATUS_SUCCESS) /* remove when wine is fixed */
+    {
+        lstrcpyW( oldpath, newpath );
+        lstrcatW( oldpath, foo_txt );
+        delete_object( oldpath );
+    }
     delete_object( newpath );
 
     /* oldpath is a directory, newpath is a file, Replace = FALSE */
@@ -1803,7 +1809,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "shouldn't be able to set FileRenameInformation, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
+    ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1839,7 +1845,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "shouldn't be able to set FileRenameInformation, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
+    ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1872,10 +1878,10 @@ static void test_file_rename_information(void)
 
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
-    todo_wine ok( U(io).Status == STATUS_SUCCESS, "io.Status expect STATUS_SUCCESS, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_SUCCESS, "res expect STATUS_SUCCESS, res is %x\n", res );
+    ok( U(io).Status == STATUS_SUCCESS, "io.Status expect STATUS_SUCCESS, io.Status is %x\n", U(io).Status );
+    ok( res == STATUS_SUCCESS, "res expect STATUS_SUCCESS, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( fileDeleted, "File should have been deleted\n" );
+    ok( fileDeleted, "File should have been deleted\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
 
@@ -1909,7 +1915,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1946,7 +1952,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "shouldn't be able to set FileRenameInformation, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
+    ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -1982,7 +1988,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -2021,7 +2027,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -2055,7 +2061,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "shouldn't be able to set FileRenameInformation, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
+    ok( res == STATUS_OBJECT_NAME_COLLISION, "expect STATUS_OBJECT_NAME_COLLISION, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -2088,7 +2094,7 @@ static void test_file_rename_information(void)
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
     todo_wine ok( U(io).Status == 0xdeadbeef, "io.Status expect 0xdeadbeef, io.Status is %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
+    ok( res == STATUS_ACCESS_DENIED, "res expect STATUS_ACCESS_DENIED, res is %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
     ok( !fileDeleted, "File should exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -2121,12 +2127,12 @@ static void test_file_rename_information(void)
 
     U(io).Status = 0xdeadbeef;
     res = pNtSetInformationFile( handle, &io, pfri, sizeof(FILE_RENAME_INFORMATION) + pfri->FileNameLength, FileRenameInformation );
-    todo_wine ok( U(io).Status == STATUS_SUCCESS, "io.Status expected STATUS_SUCCESS, got %x\n", U(io).Status );
-    todo_wine ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
+    ok( U(io).Status == STATUS_SUCCESS, "io.Status expected STATUS_SUCCESS, got %x\n", U(io).Status );
+    ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
     fileDeleted = GetFileAttributesW( oldpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( fileDeleted, "File should not exist\n" );
+    ok( fileDeleted, "File should not exist\n" );
     fileDeleted = GetFileAttributesW( newpath ) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
-    todo_wine ok( !fileDeleted, "File should exist\n" );
+    ok( !fileDeleted, "File should exist\n" );
 
     pfni = HeapAlloc( GetProcessHeap(), 0, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR) );
     res = pNtQueryInformationFile( handle, &io, pfni, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR), FileNameInformation );
