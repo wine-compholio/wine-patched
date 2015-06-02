@@ -2322,7 +2322,6 @@ static void test_multiselect(void)
 
 	selected_count = (int)SendMessageA(hwnd, LVM_GETSELECTEDCOUNT, 0, 0);
 
-        todo_wine
 	ok((task.result == -1 ? item_count : task.result) == selected_count, "Failed multiple selection %s. There should be %d selected items (is %d)\n", task.descr, item_count, selected_count);
 
 	/* Set SHIFT key released */
