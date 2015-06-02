@@ -115,6 +115,7 @@ struct thread_input
     struct list            msg_list;      /* list of hardware messages */
     int                    lock_count;    /* lock counter for keystate */
     unsigned char          keystate[256]; /* state of each key */
+    unsigned char          shadow_keystate[256]; /* shadow copy of keystate */
 };
 
 struct msg_queue
@@ -257,6 +258,7 @@ static struct thread_input *create_thread_input( struct thread *thread )
         list_init( &input->msg_list );
         set_caret_window( input, 0 );
         memset( input->keystate, 0, sizeof(input->keystate) );
+        memset( input->shadow_keystate, 0, sizeof(input->shadow_keystate) );
 
         if (!(input->desktop = get_thread_desktop( thread, 0 /* FIXME: access rights */ )))
         {
@@ -1094,7 +1096,11 @@ int attach_thread_input( struct thread *thread_from, struct thread *thread_to )
     }
 
     ret = assign_thread_input( thread_from, input );
-    if (ret) memset( input->keystate, 0, sizeof(input->keystate) );
+    if (ret)
+    {
+        memset( input->keystate, 0, sizeof(input->keystate) );
+        memset( input->shadow_keystate, 0, sizeof(input->shadow_keystate) );
+    }
     release_object( input );
     return ret;
 }
@@ -1333,10 +1339,18 @@ static void synchronize_input_key_state( struct thread_input *input )
 {
     if (!input->lock_count)
     {
+        unsigned char *shadow_keystate = input->shadow_keystate;
         unsigned char *keystate = input->keystate;
         unsigned int i;
+
         for (i = 0; i < 256; i++)
-            keystate[i] = input->desktop->keystate[i] & ~0x40;
+        {
+            if (input->desktop->keystate[i] != shadow_keystate[i])
+            {
+                keystate[i] = input->desktop->keystate[i] & ~0x40;
+                shadow_keystate[i] = input->desktop->keystate[i];
+            }
+        }
     }
 }
 
