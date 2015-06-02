@@ -2138,8 +2138,8 @@ static void test_file_rename_information(void)
     res = pNtQueryInformationFile( handle, &io, pfni, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR), FileNameInformation );
     ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
     pfni->FileName[ pfni->FileNameLength / sizeof(WCHAR) ] = 0;
-    todo_wine ok( !lstrcmpW(pfni->FileName, newpath + 2), "FileName expected %s, got %s\n",
-                  wine_dbgstr_w(newpath + 2), wine_dbgstr_w(pfni->FileName) );
+    ok( !lstrcmpW(pfni->FileName, newpath + 2), "FileName expected %s, got %s\n",
+        wine_dbgstr_w(newpath + 2), wine_dbgstr_w(pfni->FileName) );
     HeapFree( GetProcessHeap(), 0, pfni );
 
     CloseHandle( handle );
