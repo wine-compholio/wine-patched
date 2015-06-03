@@ -1999,8 +1999,8 @@ void set_fd_disposition( struct fd *fd, int unlink )
         fd->closed->unlink = 0;
 }
 
-/* rename a file */
-static void rename_fd( struct fd *fd, struct fd *root, const char *nameptr, data_size_t len )
+/* rename or link a file */
+static void rename_fd( struct fd *fd, struct fd *root, const char *nameptr, data_size_t len, int do_link )
 {
     struct inode *inode;
     struct stat st;
@@ -2027,8 +2027,16 @@ static void rename_fd( struct fd *fd, struct fd *root, const char *nameptr, data
         name = combined_name;
     }
 
+    if (do_link && fd->unix_fd != -1 &&
+        !fstat( fd->unix_fd, &st ) && S_ISDIR( st.st_mode ))
+    {
+        /* when creating a hard link, source must be a file */
+        set_error( STATUS_FILE_IS_A_DIRECTORY );
+        goto failed;
+    }
+
     if (stat( name, &st ))
-        goto do_rename;
+        goto skip_checks;
 
     if (!S_ISREG( st.st_mode ))
     {
@@ -2049,25 +2057,34 @@ static void rename_fd( struct fd *fd, struct fd *root, const char *nameptr, data
         }
     }
 
+    /* unix link() doesn't succeed when the target already exists */
     /* unix rename() doesn't automatically replace files with directories */
-    if (fd->unix_fd != -1 && !fstat( fd->unix_fd, &st ) &&
-        S_ISDIR( st.st_mode ) && unlink( name ))
+    if ((do_link || (fd->unix_fd != -1 && !fstat( fd->unix_fd, &st ) &&
+        S_ISDIR( st.st_mode ))) && unlink( name ))
     {
         file_set_error();
         goto failed;
     }
 
-do_rename:
-    if (rename( fd->unix_name, name ))
+skip_checks:
+    if (do_link)
     {
-        file_set_error();
-        goto failed;
+        if (link( fd->unix_name, name ))
+            file_set_error();
     }
+    else
+    {
+        if (rename( fd->unix_name, name ))
+        {
+            file_set_error();
+            goto failed;
+        }
 
-    free( fd->unix_name );
-    fd->unix_name = name;
-    fd->closed->unix_name = name;
-    return;
+        free( fd->unix_name );
+        fd->unix_name = name;
+        fd->closed->unix_name = name;
+        return;
+    }
 
 failed:
     free( name );
@@ -2567,7 +2584,7 @@ DECL_HANDLER(add_fd_completion)
     }
 }
 
-/* rename file */
+/* rename or link a file */
 DECL_HANDLER(rename_file)
 {
     struct fd *root_fd = NULL;
@@ -2584,7 +2601,7 @@ DECL_HANDLER(rename_file)
 
     if ((fd = get_handle_fd_obj( current->process, req->handle, 0 )))
     {
-        rename_fd( fd, root_fd, get_req_data(), get_req_data_size() );
+        rename_fd( fd, root_fd, get_req_data(), get_req_data_size(), req->link );
         release_object( fd );
     }
 
