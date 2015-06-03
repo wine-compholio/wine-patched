@@ -10755,6 +10755,21 @@ static void test_check_device_format(void)
     IDirect3D9_Release(d3d);
 }
 
+static void test_desktop_window(void)
+{
+    IDirect3DDevice9 *device = NULL;
+    IDirect3D9 *d3d;
+
+    d3d = Direct3DCreate9(D3D_SDK_VERSION);
+    ok(!!d3d, "Failed to create a D3D object.\n");
+
+    device = create_device(d3d, GetDesktopWindow(), NULL);
+    ok(!!device, "Failed to created device on desktop window.\n");
+
+    if (device) IDirect3DDevice9_Release(device);
+    IDirect3D9_Release(d3d);
+}
+
 START_TEST(device)
 {
     WNDCLASSA wc = {0};
@@ -10869,6 +10884,7 @@ START_TEST(device)
     test_resource_priority();
     test_swapchain_parameters();
     test_check_device_format();
+    test_desktop_window();
 
     UnregisterClassA("d3d9_test_wc", GetModuleHandleA(NULL));
 }
