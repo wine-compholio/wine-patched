@@ -1211,10 +1211,11 @@ enum server_fd_type
 @END
 
 
-/* Rename a file */
+/* Rename or link a file */
 @REQ(rename_file)
     obj_handle_t handle;        /* handle to the file */
     obj_handle_t rootdir;       /* root directory */
+    int          link;          /* link instead of renaming */
     VARARG(unix_name,string);   /* file name */
 @END
 
