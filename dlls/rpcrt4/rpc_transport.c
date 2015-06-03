@@ -416,6 +416,7 @@ static int rpcrt4_conn_np_read(RpcConnection *Connection,
   char *buf = buffer;
   BOOL ret = TRUE;
   unsigned int bytes_left = count;
+  DWORD err = GetLastError();
 
   while (bytes_left)
   {
@@ -428,6 +429,7 @@ static int rpcrt4_conn_np_read(RpcConnection *Connection,
     bytes_left -= bytes_read;
     buf += bytes_read;
   }
+  if (ret) SetLastError(err);
   return ret ? count : -1;
 }
 
