@@ -1225,12 +1225,10 @@ static void test_CloseNamedPipe(void)
 
         SetLastError(0xdeadbeef);
         ok(!ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() succeeded\n");
-        todo_wine
         ok(GetLastError() == ERROR_BROKEN_PIPE, "GetLastError() returned %08x, expected ERROR_BROKEN_PIPE\n", GetLastError());
 
         SetLastError(0xdeadbeef);
         ok(!WriteFile(hFile, obuf, sizeof(obuf), &written, NULL), "WriteFile() succeeded\n");
-        todo_wine
         ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
 
         CloseHandle(hFile);
