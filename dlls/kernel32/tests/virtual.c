@@ -1138,12 +1138,10 @@ static void test_NtMapViewOfSection(void)
         offset.QuadPart = 0;
         status = pNtMapViewOfSection( mapping, hProcess, &ptr2, 0, 0, &offset,
                                       &size, 1, AT_ROUND_TO_PAGE, PAGE_READWRITE );
-        todo_wine
         ok( status == STATUS_SUCCESS, "NtMapViewOfSection returned %x\n", status );
         ok( (char *)ptr2 == (char *)ptr + 0x1000,
             "expected address %p, got %p\n", (char *)ptr + 0x1000, ptr2 );
         status = pNtUnmapViewOfSection( hProcess, ptr2 );
-        todo_wine
         ok( !status, "NtUnmapViewOfSection failed status %x\n", status );
 
         /* the address is rounded down if not on a page boundary */
@@ -1166,12 +1164,10 @@ static void test_NtMapViewOfSection(void)
         offset.QuadPart = 0;
         status = pNtMapViewOfSection( mapping, hProcess, &ptr2, 0, 0, &offset,
                                       &size, 1, AT_ROUND_TO_PAGE, PAGE_READWRITE );
-        todo_wine
         ok( status == STATUS_SUCCESS, "NtMapViewOfSection returned %x\n", status );
         ok( (char *)ptr2 == (char *)ptr + 0x2000,
             "expected address %p, got %p\n", (char *)ptr + 0x2000, ptr2 );
         status = pNtUnmapViewOfSection( hProcess, ptr2 );
-        todo_wine
         ok( !status, "NtUnmapViewOfSection failed status %x\n", status );
     }
     else
