@@ -1192,7 +1192,6 @@ static void test_CloseNamedPipe(void)
 
         SetLastError(0xdeadbeef);
         ok(!WriteFile(hFile, obuf, sizeof(obuf), &written, NULL), "WriteFile() succeeded\n");
-        todo_wine
         ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
 
         CloseHandle(hFile);
@@ -1276,7 +1275,6 @@ static void test_CloseNamedPipe(void)
 
         SetLastError(0xdeadbeef);
         ok(!WriteFile(hnp, obuf, sizeof(obuf), &written, NULL), "WriteFile() succeeded\n");
-        todo_wine
         ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
 
         CloseHandle(hnp);
@@ -1314,7 +1312,6 @@ static void test_CloseNamedPipe(void)
 
         SetLastError(0xdeadbeef);
         ok(!WriteFile(hnp, obuf, sizeof(obuf), &written, NULL), "WriteFile() succeeded\n");
-        todo_wine
         ok(GetLastError() == ERROR_NO_DATA, "GetLastError() returned %08x, expected ERROR_NO_DATA\n", GetLastError());
 
         CloseHandle(hnp);
