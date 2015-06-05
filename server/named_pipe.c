@@ -150,6 +150,7 @@ static const struct object_ops named_pipe_ops =
 /* server end functions */
 static void pipe_server_dump( struct object *obj, int verbose );
 static struct fd *pipe_server_get_fd( struct object *obj );
+static int pipe_server_close_handle( struct object *obj, struct process *process, obj_handle_t handle );
 static void pipe_server_destroy( struct object *obj);
 static obj_handle_t pipe_server_flush( struct fd *fd, struct async *async, int blocking );
 static enum server_fd_type pipe_server_get_fd_type( struct fd *fd );
@@ -175,7 +176,7 @@ static const struct object_ops pipe_server_ops =
     NULL,                         /* unlink_name */
     no_open_file,                 /* open_file */
     no_alloc_handle,              /* alloc_handle */
-    fd_close_handle,              /* close_handle */
+    pipe_server_close_handle,     /* close_handle */
     pipe_server_destroy           /* destroy */
 };
 
@@ -196,6 +197,7 @@ static const struct fd_ops pipe_server_fd_ops =
 static void pipe_client_dump( struct object *obj, int verbose );
 static int pipe_client_signaled( struct object *obj, struct wait_queue_entry *entry );
 static struct fd *pipe_client_get_fd( struct object *obj );
+static int pipe_client_close_handle( struct object *obj, struct process *process, obj_handle_t handle );
 static void pipe_client_destroy( struct object *obj );
 static obj_handle_t pipe_client_flush( struct fd *fd, struct async *async, int blocking );
 static enum server_fd_type pipe_client_get_fd_type( struct fd *fd );
@@ -219,7 +221,7 @@ static const struct object_ops pipe_client_ops =
     NULL,                         /* unlink_name */
     no_open_file,                 /* open_file */
     no_alloc_handle,              /* alloc_handle */
-    fd_close_handle,              /* close_handle */
+    pipe_client_close_handle,     /* close_handle */
     pipe_client_destroy           /* destroy */
 };
 
@@ -283,6 +285,8 @@ static const struct fd_ops named_pipe_device_fd_ops =
     default_fd_queue_async,           /* queue_async */
     default_fd_reselect_async         /* reselect_async */
 };
+
+static inline int messagemode_flags( int flags );
 
 static void named_pipe_dump( struct object *obj, int verbose )
 {
@@ -393,6 +397,23 @@ static void do_disconnect( struct pipe_server *server )
     server->pipe_end.fd = NULL;
 }
 
+static int pipe_server_close_handle( struct object *obj, struct process *process, obj_handle_t handle )
+{
+#ifdef __linux__
+    struct pipe_server *server = (struct pipe_server *)obj;
+    struct pipe_client *client = server->client;
+    int unix_fd;
+
+    assert( obj->ops == &pipe_server_ops );
+    if (obj->handle_count == 1 && client && client->pipe_end.fd && (unix_fd = get_unix_fd( client->pipe_end.fd )) != -1)
+    {
+        /* set the NAMED_PIPE_CLOSED_HANDLE flag, to distinguish disconnect / closing pipe */
+        fcntl( unix_fd, F_SETSIG, messagemode_flags( client->pipe_end.flags ) | NAMED_PIPE_CLOSED_HANDLE );
+    }
+#endif
+    return 1;
+}
+
 static void pipe_server_destroy( struct object *obj)
 {
     struct pipe_server *server = (struct pipe_server *)obj;
@@ -417,6 +438,24 @@ static void pipe_server_destroy( struct object *obj)
     if (server->ioctl_fd) release_object( server->ioctl_fd );
     list_remove( &server->entry );
     release_object( server->pipe );
+}
+
+static int pipe_client_close_handle( struct object *obj, struct process *process, obj_handle_t handle )
+{
+#ifdef __linux__
+    struct pipe_client *client = (struct pipe_client *)obj;
+    struct pipe_server *server = client->server;
+    int unix_fd;
+
+    assert( obj->ops == &pipe_client_ops );
+    if (obj->handle_count == 1 && server && server->pipe_end.fd &&
+        server->state != ps_wait_connect && (unix_fd = get_unix_fd( server->pipe_end.fd )) != -1)
+    {
+        /* set the NAMED_PIPE_CLOSED_HANDLE flag, to distinguish disconnect / closing pipe */
+        fcntl( unix_fd, F_SETSIG, messagemode_flags( server->pipe_end.flags ) | NAMED_PIPE_CLOSED_HANDLE );
+    }
+#endif
+    return 1;
 }
 
 static void pipe_client_destroy( struct object *obj)
