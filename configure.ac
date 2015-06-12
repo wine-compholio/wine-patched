@@ -75,6 +75,8 @@ AC_ARG_WITH(pthread,   AS_HELP_STRING([--without-pthread],[do not use the pthrea
             [if test "x$withval" = "xno"; then ac_cv_header_pthread_h=no; fi])
 AC_ARG_WITH(sane,      AS_HELP_STRING([--without-sane],[do not use SANE (scanner support)]))
 AC_ARG_WITH(tiff,      AS_HELP_STRING([--without-tiff],[do not use TIFF]))
+AC_ARG_WITH(unwind,    AS_HELP_STRING([--without-unwind],[do not use libunwind]),
+            [if test "x$withval" = "xno"; then ac_cv_header_libunwind_h=no; fi])
 AC_ARG_WITH(v4l,       AS_HELP_STRING([--without-v4l],[do not use v4l1 (v4l support)]))
 AC_ARG_WITH(xcomposite,AS_HELP_STRING([--without-xcomposite],[do not use the Xcomposite extension]),
             [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xcomposite_h=no; fi])
@@ -1091,6 +1093,32 @@ fi
 WINE_ERROR_WITH(pthread,[test "x$ac_cv_func_pthread_create" != xyes -a "x$PTHREAD_LIBS" = x],
 [pthread ${notice_platform}development files not found.
 Wine cannot support threads without libpthread.])
+
+dnl **** Check for libunwind ****
+
+if test "x$enable_win64" = "xyes"
+then
+    if test "$ac_cv_header_libunwind_h" = "yes"
+    then
+        ac_save_LIBS="$LIBS"
+        AC_MSG_CHECKING([for libunwind])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#define UNW_LOCAL_ONLY
+            #include <libunwind.h>]], [[unw_context_t u; unw_cursor_t c; unw_getcontext(&u); unw_init_local(&c, &u);]])],
+            [AC_MSG_RESULT([yes, without linking])
+             AC_DEFINE(HAVE_LIBUNWIND, 1, [Define to 1 if you have libunwind])],
+            [LIBS="$LIBS -lunwind"
+             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#define UNW_LOCAL_ONLY
+                 #include <libunwind.h>]], [[unw_context_t u; unw_cursor_t c; unw_getcontext(&u); unw_init_local(&c, &u);]])],
+                 [AC_MSG_RESULT([yes, with linking])
+                  AC_SUBST(UNWIND_LIBS,"-lunwind")
+                  AC_DEFINE(HAVE_LIBUNWIND, 1, [Define to 1 if you have libunwind])],
+                 [AC_MSG_RESULT([no])
+                  ac_cv_header_libunwind_h=no])])
+        LIBS="$ac_save_LIBS"
+    fi
+    WINE_NOTICE_WITH(unwind,[test "x$ac_cv_header_libunwind_h" != xyes],
+                     [libunwind ${notice_platform}development files not found.])
+fi
 
 dnl **** Check for X11 ****
 
