@@ -1152,6 +1152,8 @@ static void test_CloseNamedPipe(void)
     char ibuf[32];
     DWORD written;
     DWORD readden;
+    DWORD state;
+    BOOL ret;
 
     hnp = CreateNamedPipeA(PIPENAME, PIPE_ACCESS_DUPLEX,
                            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
@@ -1185,6 +1187,14 @@ static void test_CloseNamedPipe(void)
         ok(ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
         ok(readden == sizeof(obuf), "got %d bytes\n", readden);
         /* pipe is empty now */
+
+        ret = GetNamedPipeHandleStateA(hFile, &state, NULL, NULL, NULL, NULL, 0);
+        todo_wine
+        ok(ret, "GetNamedPipeHandleState failed with %d\n", GetLastError());
+        state = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        ret = SetNamedPipeHandleState(hFile, &state, NULL, NULL);
+        todo_wine
+        ok(ret, "SetNamedPipeHandleState failed with %d\n", GetLastError());
 
         SetLastError(0xdeadbeef);
         ok(!ReadFile(hFile, ibuf, 0, &readden, NULL), "ReadFile() succeeded\n");
@@ -1222,6 +1232,14 @@ static void test_CloseNamedPipe(void)
         ok(ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
         ok(readden == 0, "got %d bytes\n", readden);
         /* pipe is empty now */
+
+        ret = GetNamedPipeHandleStateA(hFile, &state, NULL, NULL, NULL, NULL, 0);
+        todo_wine
+        ok(ret, "GetNamedPipeHandleState failed with %d\n", GetLastError());
+        state = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        ret = SetNamedPipeHandleState(hFile, &state, NULL, NULL);
+        todo_wine
+        ok(ret, "SetNamedPipeHandleState failed with %d\n", GetLastError());
 
         SetLastError(0xdeadbeef);
         ok(!ReadFile(hFile, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() succeeded\n");
@@ -1267,6 +1285,14 @@ static void test_CloseNamedPipe(void)
         ok(readden == sizeof(obuf), "got %d bytes\n", readden);
         /* pipe is empty now */
 
+        ret = GetNamedPipeHandleStateA(hnp, &state, NULL, NULL, NULL, NULL, 0);
+        ok(ret, "GetNamedPipeHandleState failed with %d\n", GetLastError());
+        SetLastError(0xdeadbeef);
+        state = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        ret = SetNamedPipeHandleState(hFile, &state, NULL, NULL);
+        ok(!ret, "SetNamedPipeHandleState unexpectedly succeeded\n");
+        ok(GetLastError() == ERROR_INVALID_HANDLE, "GetLastError() returned %08x, expected ERROR_INVALID_HANDLE\n", GetLastError());
+
         SetLastError(0xdeadbeef);
         ok(!ReadFile(hnp, ibuf, 0, &readden, NULL), "ReadFile() succeeded\n");
         ok(GetLastError() == ERROR_BROKEN_PIPE, "GetLastError() returned %08x, expected ERROR_BROKEN_PIPE\n", GetLastError());
@@ -1303,6 +1329,15 @@ static void test_CloseNamedPipe(void)
         ok(ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() failed: %08x\n", GetLastError());
         ok(readden == 0, "got %d bytes\n", readden);
         /* pipe is empty now */
+
+        ret = GetNamedPipeHandleStateA(hnp, &state, NULL, NULL, NULL, NULL, 0);
+        ok(ret, "GetNamedPipeHandleState failed with %d\n", GetLastError());
+        ret = SetNamedPipeHandleState(hFile, &state, NULL, NULL);
+        SetLastError(0xdeadbeef);
+        state = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        ret = SetNamedPipeHandleState(hFile, &state, NULL, NULL);
+        ok(!ret, "SetNamedPipeHandleState unexpectedly succeeded\n");
+        ok(GetLastError() == ERROR_INVALID_HANDLE, "GetLastError() returned %08x, expected ERROR_INVALID_HANDLE\n", GetLastError());
 
         SetLastError(0xdeadbeef);
         ok(!ReadFile(hnp, ibuf, sizeof(ibuf), &readden, NULL), "ReadFile() succeeded\n");
