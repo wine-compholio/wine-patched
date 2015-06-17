@@ -1105,7 +1105,12 @@ DECL_HANDLER(get_named_pipe_info)
         client = (struct pipe_client *)get_handle_obj( current->process, req->handle,
                                                        0, &pipe_client_ops );
         if (!client) return;
-        server = client->server;
+        if (!(server = client->server))
+        {
+            release_object( client );
+            set_error( STATUS_INVALID_HANDLE );
+            return;
+        }
     }
 
     reply->flags        = client ? client->pipe_flags : server->pipe_flags;
@@ -1142,7 +1147,12 @@ DECL_HANDLER(set_named_pipe_info)
         client = (struct pipe_client *)get_handle_obj( current->process, req->handle,
                                                        0, &pipe_client_ops );
         if (!client) return;
-        server = client->server;
+        if (!(server = client->server))
+        {
+            release_object( client );
+            set_error( STATUS_INVALID_HANDLE );
+            return;
+        }
     }
 
     if ((req->flags & ~(NAMED_PIPE_MESSAGE_STREAM_READ | NAMED_PIPE_NONBLOCKING_MODE)) ||
