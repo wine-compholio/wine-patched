@@ -653,6 +653,8 @@ OSS4_CFLAGS
 ALSA_LIBS
 GSTREAMER_LIBS
 GSTREAMER_CFLAGS
+PULSEINCL
+PULSELIBS
 GETTEXTPO_LIBS
 Z_LIBS
 FREETYPE_LIBS
@@ -676,7 +678,6 @@ XSLT_LIBS
 XSLT_CFLAGS
 XML2_LIBS
 XML2_CFLAGS
-LIBPCAP
 X_EXTRA_LIBS
 X_LIBS
 X_PRE_LIBS
@@ -725,6 +726,7 @@ GREP
 LN_S
 RANLIB
 ARFLAGS
+OTOOL
 STRIP
 ac_ct_AR
 AR
@@ -798,6 +800,7 @@ enable_win16
 enable_win64
 enable_tests
 enable_maintainer_mode
+enable_exagear_compat
 with_alsa
 with_capi
 with_cms
@@ -827,9 +830,11 @@ with_oss
 with_pcap
 with_png
 with_pthread
+with_pulse
 with_sane
 with_tiff
 with_v4l
+with_xattr
 with_xcomposite
 with_xcursor
 with_xinerama
@@ -843,6 +848,7 @@ with_xshm
 with_xslt
 with_xxf86vm
 with_zlib
+with_va
 with_wine_tools
 with_wine64
 enable_largefile
@@ -1065,6 +1071,7 @@ enable_explorerframe
 enable_ext_ms_win_gdi_devcaps_l1_1_0
 enable_faultrep
 enable_fltlib
+enable_fltmgr_sys
 enable_fntcache
 enable_fontsub
 enable_fusion
@@ -1201,6 +1208,9 @@ enable_ntdll
 enable_ntdsapi
 enable_ntoskrnl_exe
 enable_ntprint
+enable_win32
+enable_nvcuda
+enable_nvcuvid
 enable_objsel
 enable_odbc32
 enable_odbccp32
@@ -1305,6 +1315,7 @@ enable_windowscodecs
 enable_windowscodecsext
 enable_winealsa_drv
 enable_winecoreaudio_drv
+enable_wined3d_csmt
 enable_wined3d
 enable_winegstreamer
 enable_winejoystick_drv
@@ -1313,6 +1324,7 @@ enable_winemapi
 enable_winemp3_acm
 enable_wineoss_drv
 enable_wineps_drv
+enable_winepulse_drv
 enable_wineqtdecoder
 enable_winex11_drv
 enable_wing32
@@ -2122,6 +2134,8 @@ Optional Features:
   --disable-tests         do not build the regression tests
   --enable-maintainer-mode
                           enable maintainer-specific build rules
+  --enable-exagear-compat use workarounds for known problems in the Exagear
+                          emulator
   --disable-largefile     omit support for large files
 
 Optional Packages:
@@ -2156,9 +2170,11 @@ Optional Packages:
   --without-pcap          do not use the Packet Capture library
   --without-png           do not use PNG
   --without-pthread       do not use the pthread library
+  --without-pulse         do not use PulseAudio sound support
   --without-sane          do not use SANE (scanner support)
   --without-tiff          do not use TIFF
   --without-v4l           do not use v4l1 (v4l support)
+  --without-xattr         do not use xattr (security attributes support)
   --without-xcomposite    do not use the Xcomposite extension
   --without-xcursor       do not use the Xcursor extension
   --without-xinerama      do not use Xinerama (multi-monitor support)
@@ -2172,6 +2188,7 @@ Optional Packages:
   --without-xslt          do not use XSLT
   --without-xxf86vm       do not use XFree video mode extension
   --without-zlib          do not use Zlib (data compression)
+  --without-va            do not use VA (GPU video acceleration)
   --with-wine-tools=DIR   use Wine tools from directory DIR
   --with-wine64=DIR       use the 64-bit Wine in DIR for a Wow64 build
   --with-x                use the X Window System
@@ -3227,6 +3244,11 @@ if test "${enable_maintainer_mode+set}" = set; then :
   enableval=$enable_maintainer_mode;
 fi
 
+# Check whether --enable-exagear-compat was given.
+if test "${enable_exagear_compat+set}" = set; then :
+  enableval=$enable_exagear_compat;
+fi
+
 
 
 # Check whether --with-alsa was given.
@@ -3403,6 +3425,12 @@ if test "${with_pthread+set}" = set; then :
 fi
 
 
+# Check whether --with-pulse was given.
+if test "${with_pulse+set}" = set; then :
+  withval=$with_pulse;
+fi
+
+
 # Check whether --with-sane was given.
 if test "${with_sane+set}" = set; then :
   withval=$with_sane;
@@ -3418,6 +3446,12 @@ fi
 # Check whether --with-v4l was given.
 if test "${with_v4l+set}" = set; then :
   withval=$with_v4l;
+fi
+
+
+# Check whether --with-xattr was given.
+if test "${with_xattr+set}" = set; then :
+  withval=$with_xattr;
 fi
 
 
@@ -3496,6 +3530,12 @@ fi
 # Check whether --with-zlib was given.
 if test "${with_zlib+set}" = set; then :
   withval=$with_zlib; if test "x$withval" = "xno"; then ac_cv_header_zlib_h=no; fi
+fi
+
+
+# Check whether --with-va was given.
+if test "${with_va+set}" = set; then :
+  withval=$with_va; if test "x$withval" = "xno"; then ac_cv_header_va_va_x11_h=no; fi
 fi
 
 
@@ -4985,6 +5025,12 @@ esac
 
 enable_win16=${enable_win16:-no}
 enable_win64=${enable_win64:-no}
+if test "x$enable_win64" != "xyes"
+then
+  enable_win32="yes"
+else
+  enable_win32="no"
+fi
 
 enable_winetest=${enable_winetest:-$enable_tests}
 
@@ -5343,6 +5389,98 @@ esac
   fi
 else
   STRIP="$ac_cv_prog_STRIP"
+fi
+
+if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}otool", so it can be a program name with args.
+set dummy ${ac_tool_prefix}otool; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_OTOOL+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$OTOOL"; then
+  ac_cv_prog_OTOOL="$OTOOL" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_OTOOL="${ac_tool_prefix}otool"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+OTOOL=$ac_cv_prog_OTOOL
+if test -n "$OTOOL"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $OTOOL" >&5
+$as_echo "$OTOOL" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_prog_OTOOL"; then
+  ac_ct_OTOOL=$OTOOL
+  # Extract the first word of "otool", so it can be a program name with args.
+set dummy otool; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_ac_ct_OTOOL+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$ac_ct_OTOOL"; then
+  ac_cv_prog_ac_ct_OTOOL="$ac_ct_OTOOL" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_ac_ct_OTOOL="otool"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+ac_ct_OTOOL=$ac_cv_prog_ac_ct_OTOOL
+if test -n "$ac_ct_OTOOL"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_ct_OTOOL" >&5
+$as_echo "$ac_ct_OTOOL" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_ct_OTOOL" = x; then
+    OTOOL="otool"
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    OTOOL=$ac_ct_OTOOL
+  fi
+else
+  OTOOL="$ac_cv_prog_OTOOL"
 fi
 
 ARFLAGS=rc
@@ -6021,6 +6159,14 @@ if test "$MSGFMT" = false; then :
   *)   as_fn_error $? "gettext tools not found (or too old), translations won't be built.
 This is an error since --with-gettext was requested." "$LINENO" 5 ;;
 esac
+fi
+
+
+if test "x$enable_exagear_compat" = "xyes"
+then
+
+$as_echo "#define EXAGEAR_COMPAT 1" >>confdefs.h
+
 fi
 
 
@@ -7067,6 +7213,64 @@ fi
 done
 
 
+if test "x$with_xattr" != "xno"
+then
+    for ac_header in attr/xattr.h sys/extattr.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+ HAVE_XATTR=1
+fi
+
+done
+
+    for ac_header in sys/xattr.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "sys/xattr.h" "ac_cv_header_sys_xattr_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_xattr_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SYS_XATTR_H 1
+_ACEOF
+ HAVE_XATTR=1
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/xattr.h>
+int
+main ()
+{
+getxattr("", "", "", 0, 0, 0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+$as_echo "#define XATTR_ADDITIONAL_OPTIONS 1" >>confdefs.h
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+done
+
+fi
+if test "x$with_xattr" = "xyes"
+then
+    if test "x$HAVE_XATTR" = "x"; then :
+  case "x$with_xattr" in
+  xno) ;;
+  *)   as_fn_error $? "xattr ${notice_platform}development files \
+not found. Wine will be built without extended attribute support, which probably isn't what you \
+want. You will need to install ${notice_platform}development packages of libattr at the very least.
+Use the --without-xattr option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+fi
+
 
 dlldir="\${libdir}/wine"
 
@@ -7654,6 +7858,30 @@ testclean::
 $ac_dir/crosstest: $ac_dir/Makefile __builddeps__ dummy
 	@cd $ac_dir && \$(MAKE) crosstest"
         fi
+}
+
+wine_fn_config_resource ()
+{
+    ac_dir=$1
+    ac_name=$2
+    ac_flags=$3
+    ac_dll=$ac_name
+
+    case $ac_name in
+      *.*) ;;
+      *)   ac_dll=$ac_dll.dll ;;
+    esac
+
+    ac_clean=
+    test -n "$CROSSTARGET" && ac_clean=`expr $ac_dir/$ac_dll : "\\(.*\\)\\."`_crossres.`expr $ac_dll : ".*\\.\\(.*\\)"`
+    test -n "$DLLEXT" || ac_clean="$ac_dir/$ac_dll"
+
+    if test "x$enable_tests" = xno; then :
+  wine_fn_disabled_rules $ac_clean; return
+fi
+
+    wine_fn_depend_rules
+    wine_fn_clean_rules $ac_clean
 }
 
 wine_fn_config_tool ()
@@ -8448,7 +8676,7 @@ eval ac_res=\$$as_ac_var
 	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
 $as_echo "$ac_res" >&6; }
 if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
-  LDRPATH_INSTALL="-Wl,--rpath,\\\$\$ORIGIN/\`\$(MAKEDEP) -R \$(bindir) \$(libdir)\`"
+  LDRPATH_INSTALL="-Wl,--rpath,\\\$\$ORIGIN/\`\$(MAKEDEP) -R \$(bindir) \$(libdir)\`:\$(DESTDIR)\$(libdir)"
                        LDRPATH_LOCAL="-Wl,--rpath,\\\$\$ORIGIN/\$(top_builddir)/libs/wine"
 else
   as_ac_var=`$as_echo "ac_cv_cflags_-fPIC -Wl,-R,\\$ORIGIN/../lib" | $as_tr_sh`
@@ -8476,7 +8704,7 @@ eval ac_res=\$$as_ac_var
 	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
 $as_echo "$ac_res" >&6; }
 if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
-  LDRPATH_INSTALL="-Wl,-R,\\\$\$ORIGIN/\`\$(MAKEDEP) -R \$(bindir) \$(libdir)\`"
+  LDRPATH_INSTALL="-Wl,-R,\\\$\$ORIGIN/\`\$(MAKEDEP) -R \$(bindir) \$(libdir)\`:\$(DESTDIR)\$(libdir)"
                             LDRPATH_LOCAL="-Wl,-R,\\\$\$ORIGIN/\$(top_builddir)/libs/wine"
 fi
 fi
@@ -9530,7 +9758,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_X11=`$ac_cv_path_LDD conftest.exe | grep "X11" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_X11=`otool -L conftest$ac_exeext | grep "libX11\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libX11\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_X11=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libX11\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libX11\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_X11=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libX11\\.$LIBEXT" | sed -e "s/^.*\\[\\(libX11\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_X11:+false} :; then :
   ac_cv_lib_soname_X11=`$LDD conftest$ac_exeext | grep "libX11\\.$LIBEXT" | sed -e "s/^.*\(libX11\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -9583,7 +9811,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xext=`$ac_cv_path_LDD conftest.exe | grep "Xext" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xext=`otool -L conftest$ac_exeext | grep "libXext\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXext\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xext=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXext\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXext\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xext=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXext\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXext\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xext:+false} :; then :
   ac_cv_lib_soname_Xext=`$LDD conftest$ac_exeext | grep "libXext\\.$LIBEXT" | sed -e "s/^.*\(libXext\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -9719,7 +9947,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xcursor=`$ac_cv_path_LDD conftest.exe | grep "Xcursor" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xcursor=`otool -L conftest$ac_exeext | grep "libXcursor\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXcursor\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xcursor=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXcursor\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXcursor\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xcursor=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXcursor\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXcursor\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xcursor:+false} :; then :
   ac_cv_lib_soname_Xcursor=`$LDD conftest$ac_exeext | grep "libXcursor\\.$LIBEXT" | sed -e "s/^.*\(libXcursor\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -9784,7 +10012,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xi=`$ac_cv_path_LDD conftest.exe | grep "Xi" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xi=`otool -L conftest$ac_exeext | grep "libXi\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXi\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xi=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXi\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXi\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xi=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXi\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXi\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xi:+false} :; then :
   ac_cv_lib_soname_Xi=`$LDD conftest$ac_exeext | grep "libXi\\.$LIBEXT" | sed -e "s/^.*\(libXi\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -9969,7 +10197,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xxf86vm=`$ac_cv_path_LDD conftest.exe | grep "Xxf86vm" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xxf86vm=`otool -L conftest$ac_exeext | grep "libXxf86vm\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXxf86vm\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xxf86vm=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXxf86vm\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXxf86vm\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xxf86vm=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXxf86vm\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXxf86vm\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xxf86vm:+false} :; then :
   ac_cv_lib_soname_Xxf86vm=`$LDD conftest$ac_exeext | grep "libXxf86vm\\.$LIBEXT" | sed -e "s/^.*\(libXxf86vm\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10034,7 +10262,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xrender=`$ac_cv_path_LDD conftest.exe | grep "Xrender" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xrender=`otool -L conftest$ac_exeext | grep "libXrender\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXrender\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xrender=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXrender\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXrender\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xrender=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXrender\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXrender\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xrender:+false} :; then :
   ac_cv_lib_soname_Xrender=`$LDD conftest$ac_exeext | grep "libXrender\\.$LIBEXT" | sed -e "s/^.*\(libXrender\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10196,7 +10424,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xrandr=`$ac_cv_path_LDD conftest.exe | grep "Xrandr" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xrandr=`otool -L conftest$ac_exeext | grep "libXrandr\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXrandr\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xrandr=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXrandr\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXrandr\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xrandr=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXrandr\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXrandr\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xrandr:+false} :; then :
   ac_cv_lib_soname_Xrandr=`$LDD conftest$ac_exeext | grep "libXrandr\\.$LIBEXT" | sed -e "s/^.*\(libXrandr\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10293,7 +10521,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xinerama=`$ac_cv_path_LDD conftest.exe | grep "Xinerama" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xinerama=`otool -L conftest$ac_exeext | grep "libXinerama\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXinerama\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xinerama=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXinerama\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXinerama\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xinerama=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXinerama\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXinerama\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xinerama:+false} :; then :
   ac_cv_lib_soname_Xinerama=`$LDD conftest$ac_exeext | grep "libXinerama\\.$LIBEXT" | sed -e "s/^.*\(libXinerama\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10360,7 +10588,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_Xcomposite=`$ac_cv_path_LDD conftest.exe | grep "Xcomposite" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xcomposite=`otool -L conftest$ac_exeext | grep "libXcomposite\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXcomposite\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xcomposite=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libXcomposite\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXcomposite\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xcomposite=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXcomposite\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXcomposite\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_Xcomposite:+false} :; then :
   ac_cv_lib_soname_Xcomposite=`$LDD conftest$ac_exeext | grep "libXcomposite\\.$LIBEXT" | sed -e "s/^.*\(libXcomposite\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10453,7 +10681,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_GL=`$ac_cv_path_LDD conftest.exe | grep "GL" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_GL=`otool -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_GL=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_GL=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libGL\\.$LIBEXT" | sed -e "s/^.*\\[\\(libGL\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_GL:+false} :; then :
   ac_cv_lib_soname_GL=`$LDD conftest$ac_exeext | grep "libGL\\.$LIBEXT" | sed -e "s/^.*\(libGL\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10495,7 +10723,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_GL=`$ac_cv_path_LDD conftest.exe | grep "GL" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_GL=`otool -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_GL=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_GL=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libGL\\.$LIBEXT" | sed -e "s/^.*\\[\\(libGL\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_GL:+false} :; then :
   ac_cv_lib_soname_GL=`$LDD conftest$ac_exeext | grep "libGL\\.$LIBEXT" | sed -e "s/^.*\(libGL\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10618,7 +10846,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_OSMesa=`$ac_cv_path_LDD conftest.exe | grep "OSMesa" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_OSMesa=`otool -L conftest$ac_exeext | grep "libOSMesa\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libOSMesa\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_OSMesa=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libOSMesa\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libOSMesa\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_OSMesa=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libOSMesa\\.$LIBEXT" | sed -e "s/^.*\\[\\(libOSMesa\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_OSMesa:+false} :; then :
   ac_cv_lib_soname_OSMesa=`$LDD conftest$ac_exeext | grep "libOSMesa\\.$LIBEXT" | sed -e "s/^.*\(libOSMesa\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10661,6 +10889,196 @@ OpenGL and Direct3D won't be supported." ;;
   *)   as_fn_error $? "$opengl_msg
 OpenGL and Direct3D won't be supported.
 This is an error since --with-opengl was requested." "$LINENO" 5 ;;
+esac
+fi
+
+        for ac_header in va/va_x11.h va/va_drm.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+    if test "$ac_cv_header_va_va_x11_h" = "yes" -a "$ac_cv_header_va_va_drm_h" = "yes"
+    then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lva" >&5
+$as_echo_n "checking for -lva... " >&6; }
+if ${ac_cv_lib_soname_va+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lva $X_LIBS $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vaQuerySurfaceAttributes ();
+int
+main ()
+{
+return vaQuerySurfaceAttributes ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_va=`$ac_cv_path_LDD conftest.exe | grep "va" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_va=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libva\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libva\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_va=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libva\\.$LIBEXT" | sed -e "s/^.*\\[\\(libva\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_va:+false} :; then :
+  ac_cv_lib_soname_va=`$LDD conftest$ac_exeext | grep "libva\\.$LIBEXT" | sed -e "s/^.*\(libva\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_va:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_va" >&5
+$as_echo "$ac_cv_lib_soname_va" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBVA "$ac_cv_lib_soname_va"
+_ACEOF
+
+
+fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lva-x11" >&5
+$as_echo_n "checking for -lva-x11... " >&6; }
+if ${ac_cv_lib_soname_va_x11+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lva-x11 $X_LIBS -lva $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vaGetDisplay ();
+int
+main ()
+{
+return vaGetDisplay ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_va_x11=`$ac_cv_path_LDD conftest.exe | grep "va-x11" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_va_x11=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libva-x11\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libva-x11\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_va_x11=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libva-x11\\.$LIBEXT" | sed -e "s/^.*\\[\\(libva-x11\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_va_x11:+false} :; then :
+  ac_cv_lib_soname_va_x11=`$LDD conftest$ac_exeext | grep "libva-x11\\.$LIBEXT" | sed -e "s/^.*\(libva-x11\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_va_x11:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_va_x11" >&5
+$as_echo "$ac_cv_lib_soname_va_x11" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBVA_X11 "$ac_cv_lib_soname_va_x11"
+_ACEOF
+
+
+fi
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lva-drm" >&5
+$as_echo_n "checking for -lva-drm... " >&6; }
+if ${ac_cv_lib_soname_va_drm+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lva-drm $X_LIBS -lva $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vaGetDisplayDRM ();
+int
+main ()
+{
+return vaGetDisplayDRM ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_va_drm=`$ac_cv_path_LDD conftest.exe | grep "va-drm" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_va_drm=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libva-drm\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libva-drm\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_va_drm=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libva-drm\\.$LIBEXT" | sed -e "s/^.*\\[\\(libva-drm\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_va_drm:+false} :; then :
+  ac_cv_lib_soname_va_drm=`$LDD conftest$ac_exeext | grep "libva-drm\\.$LIBEXT" | sed -e "s/^.*\(libva-drm\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_va_drm:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_va_drm" >&5
+$as_echo "$ac_cv_lib_soname_va_drm" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBVA_DRM "$ac_cv_lib_soname_va_drm"
+_ACEOF
+
+
+fi
+        if test "x$ac_cv_lib_soname_va" != "x" -a "x$ac_cv_lib_soname_va_x11" != "x" -a "x$ac_cv_lib_soname_va_drm" != "x"
+        then
+
+$as_echo "#define HAVE_VAAPI 1" >>confdefs.h
+
+        fi
+    fi
+    if test "x$ac_cv_lib_soname_va" = "x" -o "x$ac_cv_lib_soname_va_x11" = "x" -o "x$ac_cv_lib_soname_va_drm" = "x"; then :
+  case "x$with_va" in
+  x)   as_fn_append wine_notices "|libva ${notice_platform}development files not found, GPU video acceleration won't be supported." ;;
+  xno) ;;
+  *)   as_fn_error $? "libva ${notice_platform}development files not found, GPU video acceleration won't be supported.
+This is an error since --with-va was requested." "$LINENO" 5 ;;
 esac
 fi
 
@@ -10738,14 +11156,14 @@ test "x$ac_cv_lib_OpenCL_clGetPlatformInfo" != xyes && enable_opencl=${enable_op
 
 if test "$ac_cv_header_pcap_pcap_h" = "yes"
 then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_create in -lpcap" >&5
-$as_echo_n "checking for pcap_create in -lpcap... " >&6; }
-if ${ac_cv_lib_pcap_pcap_create+:} false; then :
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lpcap" >&5
+$as_echo_n "checking for -lpcap... " >&6; }
+if ${ac_cv_lib_soname_pcap+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-  ac_check_lib_save_LIBS=$LIBS
+  ac_check_soname_save_LIBS=$LIBS
 LIBS="-lpcap  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 /* Override any GCC internal prototype to avoid an error.
@@ -10764,23 +11182,35 @@ return pcap_create ();
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_pcap_pcap_create=yes
-else
-  ac_cv_lib_pcap_pcap_create=no
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_pcap=`$ac_cv_path_LDD conftest.exe | grep "pcap" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_pcap=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libpcap\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libpcap\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_pcap=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libpcap\\.$LIBEXT" | sed -e "s/^.*\\[\\(libpcap\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_pcap:+false} :; then :
+  ac_cv_lib_soname_pcap=`$LDD conftest$ac_exeext | grep "libpcap\\.$LIBEXT" | sed -e "s/^.*\(libpcap\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
+  LIBS=$ac_check_soname_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcap_pcap_create" >&5
-$as_echo "$ac_cv_lib_pcap_pcap_create" >&6; }
-if test "x$ac_cv_lib_pcap_pcap_create" = xyes; then :
-  LIBPCAP="-lpcap"
+if ${ac_cv_lib_soname_pcap:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_pcap" >&5
+$as_echo "$ac_cv_lib_soname_pcap" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBPCAP "$ac_cv_lib_soname_pcap"
+_ACEOF
+
 
 fi
-
 fi
-if test "x$ac_cv_lib_pcap_pcap_create" != xyes; then :
+if test "x$ac_cv_lib_soname_pcap" = "x"; then :
   case "x$with_pcap" in
   x)   as_fn_append wine_notices "|pcap ${notice_platform}development files not found, wpcap won't be supported." ;;
   xno) ;;
@@ -10788,7 +11218,7 @@ if test "x$ac_cv_lib_pcap_pcap_create" != xyes; then :
 This is an error since --with-pcap was requested." "$LINENO" 5 ;;
 esac
 fi
-test "x$ac_cv_lib_pcap_pcap_create" != xyes && enable_wpcap=${enable_wpcap:-no}
+test "x$ac_cv_lib_soname_pcap" = "x" && enable_wpcap=${enable_wpcap:-no}
 
 
 if test "x$with_xml" != "xno"
@@ -11170,7 +11600,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_xslt=`$ac_cv_path_LDD conftest.exe | grep "xslt" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_xslt=`otool -L conftest$ac_exeext | grep "libxslt\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libxslt\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_xslt=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libxslt\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libxslt\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_xslt=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libxslt\\.$LIBEXT" | sed -e "s/^.*\\[\\(libxslt\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_xslt:+false} :; then :
   ac_cv_lib_soname_xslt=`$LDD conftest$ac_exeext | grep "libxslt\\.$LIBEXT" | sed -e "s/^.*\(libxslt\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11261,7 +11691,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_dbus_1=`$ac_cv_path_LDD conftest.exe | grep "dbus-1" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_dbus_1=`otool -L conftest$ac_exeext | grep "libdbus-1\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libdbus-1\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_dbus_1=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libdbus-1\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libdbus-1\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_dbus_1=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libdbus-1\\.$LIBEXT" | sed -e "s/^.*\\[\\(libdbus-1\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_dbus_1:+false} :; then :
   ac_cv_lib_soname_dbus_1=`$LDD conftest$ac_exeext | grep "libdbus-1\\.$LIBEXT" | sed -e "s/^.*\(libdbus-1\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11355,7 +11785,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_hal=`$ac_cv_path_LDD conftest.exe | grep "hal" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_hal=`otool -L conftest$ac_exeext | grep "libhal\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libhal\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_hal=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libhal\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libhal\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_hal=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libhal\\.$LIBEXT" | sed -e "s/^.*\\[\\(libhal\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_hal:+false} :; then :
   ac_cv_lib_soname_hal=`$LDD conftest$ac_exeext | grep "libhal\\.$LIBEXT" | sed -e "s/^.*\(libhal\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11462,7 +11892,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_gnutls=`$ac_cv_path_LDD conftest.exe | grep "gnutls" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_gnutls=`otool -L conftest$ac_exeext | grep "libgnutls\\(-deb0\\)\\{0,1\\}\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libgnutls\\(-deb0\\)\\{0,1\\}\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_gnutls=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libgnutls\\(-deb0\\)\\{0,1\\}\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libgnutls\\(-deb0\\)\\{0,1\\}\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_gnutls=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libgnutls\\(-deb0\\)\\{0,1\\}\\.$LIBEXT" | sed -e "s/^.*\\[\\(libgnutls\\(-deb0\\)\\{0,1\\}\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_gnutls:+false} :; then :
   ac_cv_lib_soname_gnutls=`$LDD conftest$ac_exeext | grep "libgnutls\\(-deb0\\)\\{0,1\\}\\.$LIBEXT" | sed -e "s/^.*\(libgnutls\\(-deb0\\)\\{0,1\\}\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11539,7 +11969,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_ncurses=`$ac_cv_path_LDD conftest.exe | grep "ncurses" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_ncurses=`otool -L conftest$ac_exeext | grep "libncursesw\\{0,1\\}\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libncursesw\\{0,1\\}\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_ncurses=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libncursesw\\{0,1\\}\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libncursesw\\{0,1\\}\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_ncurses=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libncursesw\\{0,1\\}\\.$LIBEXT" | sed -e "s/^.*\\[\\(libncursesw\\{0,1\\}\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_ncurses:+false} :; then :
   ac_cv_lib_soname_ncurses=`$LDD conftest$ac_exeext | grep "libncursesw\\{0,1\\}\\.$LIBEXT" | sed -e "s/^.*\(libncursesw\\{0,1\\}\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11594,7 +12024,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_curses=`$ac_cv_path_LDD conftest.exe | grep "curses" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_curses=`otool -L conftest$ac_exeext | grep "libcurses\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcurses\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_curses=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libcurses\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcurses\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_curses=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libcurses\\.$LIBEXT" | sed -e "s/^.*\\[\\(libcurses\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_curses:+false} :; then :
   ac_cv_lib_soname_curses=`$LDD conftest$ac_exeext | grep "libcurses\\.$LIBEXT" | sed -e "s/^.*\(libcurses\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11692,7 +12122,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_sane=`$ac_cv_path_LDD conftest.exe | grep "sane" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_sane=`otool -L conftest$ac_exeext | grep "libsane\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libsane\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_sane=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libsane\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libsane\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_sane=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libsane\\.$LIBEXT" | sed -e "s/^.*\\[\\(libsane\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_sane:+false} :; then :
   ac_cv_lib_soname_sane=`$LDD conftest$ac_exeext | grep "libsane\\.$LIBEXT" | sed -e "s/^.*\(libsane\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11766,7 +12196,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_v4l1=`$ac_cv_path_LDD conftest.exe | grep "v4l1" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_v4l1=`otool -L conftest$ac_exeext | grep "libv4l1\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libv4l1\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_v4l1=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libv4l1\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libv4l1\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_v4l1=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libv4l1\\.$LIBEXT" | sed -e "s/^.*\\[\\(libv4l1\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_v4l1:+false} :; then :
   ac_cv_lib_soname_v4l1=`$LDD conftest$ac_exeext | grep "libv4l1\\.$LIBEXT" | sed -e "s/^.*\(libv4l1\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -12175,7 +12605,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_freetype=`$ac_cv_path_LDD conftest.exe | grep "freetype" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_freetype=`otool -L conftest$ac_exeext | grep "libfreetype\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libfreetype\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_freetype=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libfreetype\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libfreetype\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_freetype=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libfreetype\\.$LIBEXT" | sed -e "s/^.*\\[\\(libfreetype\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_freetype:+false} :; then :
   ac_cv_lib_soname_freetype=`$LDD conftest$ac_exeext | grep "libfreetype\\.$LIBEXT" | sed -e "s/^.*\(libfreetype\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -12401,6 +12831,87 @@ fi
 This is an error since --with-gettextpo was requested." "$LINENO" 5 ;;
 esac
 fi
+fi
+
+PULSELIBS=""
+
+PULSEINCL=""
+
+if test "x$with_pulse" != "xno";
+then
+    ac_save_CPPFLAGS="$CPPFLAGS"
+    if test "$PKG_CONFIG" != "false";
+    then
+        ac_pulse_libs="`$PKG_CONFIG --libs libpulse 2>/dev/null`"
+        ac_pulse_cflags="`$PKG_CONFIG --cflags-only-I libpulse 2>/dev/null`"
+
+        CPPFLAGS="$CPPFLAGS $ac_pulse_cflags"
+        for ac_header in pulse/pulseaudio.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "pulse/pulseaudio.h" "ac_cv_header_pulse_pulseaudio_h" "$ac_includes_default"
+if test "x$ac_cv_header_pulse_pulseaudio_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PULSE_PULSEAUDIO_H 1
+_ACEOF
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pa_stream_is_corked in -lpulse" >&5
+$as_echo_n "checking for pa_stream_is_corked in -lpulse... " >&6; }
+if ${ac_cv_lib_pulse_pa_stream_is_corked+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpulse $ac_pulse_libs $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pa_stream_is_corked ();
+int
+main ()
+{
+return pa_stream_is_corked ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_pulse_pa_stream_is_corked=yes
+else
+  ac_cv_lib_pulse_pa_stream_is_corked=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pulse_pa_stream_is_corked" >&5
+$as_echo "$ac_cv_lib_pulse_pa_stream_is_corked" >&6; }
+if test "x$ac_cv_lib_pulse_pa_stream_is_corked" = xyes; then :
+
+$as_echo "#define HAVE_PULSEAUDIO 1" >>confdefs.h
+
+                 PULSELIBS="$ac_pulse_libs"
+                 PULSEINCL="$ac_pulse_cflags"
+fi
+
+
+fi
+
+done
+
+    fi
+    CPPFLAGS="$ac_save_CPPFLAGS"
+fi
+if test "$ac_cv_lib_pulse_pa_stream_is_corked" != "yes"; then :
+  case "x$with_pulse" in
+  x)   as_fn_append wine_warnings "|libpulse ${notice_platform}development files not found or too old, Pulse won't be supported." ;;
+  xno) ;;
+  *)   as_fn_error $? "libpulse ${notice_platform}development files not found or too old, Pulse won't be supported.
+This is an error since --with-pulse was requested." "$LINENO" 5 ;;
+esac
 fi
 
 if test "x$with_gstreamer" != "xno"
@@ -12718,7 +13229,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_capi20=`$ac_cv_path_LDD conftest.exe | grep "capi20" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_capi20=`otool -L conftest$ac_exeext | grep "libcapi20\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcapi20\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_capi20=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libcapi20\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcapi20\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_capi20=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libcapi20\\.$LIBEXT" | sed -e "s/^.*\\[\\(libcapi20\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_capi20:+false} :; then :
   ac_cv_lib_soname_capi20=`$LDD conftest$ac_exeext | grep "libcapi20\\.$LIBEXT" | sed -e "s/^.*\(libcapi20\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -12801,7 +13312,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_cups=`$ac_cv_path_LDD conftest.exe | grep "cups" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_cups=`otool -L conftest$ac_exeext | grep "libcups\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcups\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_cups=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libcups\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcups\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_cups=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libcups\\.$LIBEXT" | sed -e "s/^.*\\[\\(libcups\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_cups:+false} :; then :
   ac_cv_lib_soname_cups=`$LDD conftest$ac_exeext | grep "libcups\\.$LIBEXT" | sed -e "s/^.*\(libcups\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -12902,7 +13413,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_fontconfig=`$ac_cv_path_LDD conftest.exe | grep "fontconfig" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_fontconfig=`otool -L conftest$ac_exeext | grep "libfontconfig\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libfontconfig\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_fontconfig=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libfontconfig\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libfontconfig\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_fontconfig=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libfontconfig\\.$LIBEXT" | sed -e "s/^.*\\[\\(libfontconfig\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_fontconfig:+false} :; then :
   ac_cv_lib_soname_fontconfig=`$LDD conftest$ac_exeext | grep "libfontconfig\\.$LIBEXT" | sed -e "s/^.*\(libfontconfig\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -12974,7 +13485,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_gsm=`$ac_cv_path_LDD conftest.exe | grep "gsm" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_gsm=`otool -L conftest$ac_exeext | grep "libgsm\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libgsm\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_gsm=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libgsm\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libgsm\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_gsm=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libgsm\\.$LIBEXT" | sed -e "s/^.*\\[\\(libgsm\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_gsm:+false} :; then :
   ac_cv_lib_soname_gsm=`$LDD conftest$ac_exeext | grep "libgsm\\.$LIBEXT" | sed -e "s/^.*\(libgsm\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13070,7 +13581,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_jpeg=`$ac_cv_path_LDD conftest.exe | grep "jpeg" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_jpeg=`otool -L conftest$ac_exeext | grep "libjpeg\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libjpeg\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_jpeg=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libjpeg\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libjpeg\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_jpeg=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libjpeg\\.$LIBEXT" | sed -e "s/^.*\\[\\(libjpeg\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_jpeg:+false} :; then :
   ac_cv_lib_soname_jpeg=`$LDD conftest$ac_exeext | grep "libjpeg\\.$LIBEXT" | sed -e "s/^.*\(libjpeg\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13173,7 +13684,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_png=`$ac_cv_path_LDD conftest.exe | grep "png" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_png=`otool -L conftest$ac_exeext | grep "libpng[0-9]*\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libpng[0-9]*\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_png=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libpng[0-9]*\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libpng[0-9]*\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_png=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libpng[0-9]*\\.$LIBEXT" | sed -e "s/^.*\\[\\(libpng[0-9]*\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_png:+false} :; then :
   ac_cv_lib_soname_png=`$LDD conftest$ac_exeext | grep "libpng[0-9]*\\.$LIBEXT" | sed -e "s/^.*\(libpng[0-9]*\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13292,7 +13803,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_tiff=`$ac_cv_path_LDD conftest.exe | grep "tiff" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_tiff=`otool -L conftest$ac_exeext | grep "libtiff\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libtiff\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_tiff=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libtiff\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libtiff\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_tiff=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libtiff\\.$LIBEXT" | sed -e "s/^.*\\[\\(libtiff\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_tiff:+false} :; then :
   ac_cv_lib_soname_tiff=`$LDD conftest$ac_exeext | grep "libtiff\\.$LIBEXT" | sed -e "s/^.*\(libtiff\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13330,6 +13841,60 @@ if test "x$ac_cv_lib_soname_tiff" = "x"; then :
   *)   as_fn_error $? "libtiff ${notice_platform}development files not found, TIFF won't be supported.
 This is an error since --with-tiff was requested." "$LINENO" 5 ;;
 esac
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -ltxc_dxtn" >&5
+$as_echo_n "checking for -ltxc_dxtn... " >&6; }
+if ${ac_cv_lib_soname_txc_dxtn+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-ltxc_dxtn  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char tx_compress_dxtn ();
+int
+main ()
+{
+return tx_compress_dxtn ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_txc_dxtn=`$ac_cv_path_LDD conftest.exe | grep "txc_dxtn" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_txc_dxtn=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libtxc_dxtn\\(_s2tc\\)\\{0,1\\}\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libtxc_dxtn\\(_s2tc\\)\\{0,1\\}\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_txc_dxtn=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libtxc_dxtn\\(_s2tc\\)\\{0,1\\}\\.$LIBEXT" | sed -e "s/^.*\\[\\(libtxc_dxtn\\(_s2tc\\)\\{0,1\\}\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_txc_dxtn:+false} :; then :
+  ac_cv_lib_soname_txc_dxtn=`$LDD conftest$ac_exeext | grep "libtxc_dxtn\\(_s2tc\\)\\{0,1\\}\\.$LIBEXT" | sed -e "s/^.*\(libtxc_dxtn\\(_s2tc\\)\\{0,1\\}\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_txc_dxtn:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_txc_dxtn" >&5
+$as_echo "$ac_cv_lib_soname_txc_dxtn" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBTXC_DXTN "$ac_cv_lib_soname_txc_dxtn"
+_ACEOF
+
+
 fi
 
 if test "x$with_mpg123" != "xno"
@@ -13456,7 +14021,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_openal=`$ac_cv_path_LDD conftest.exe | grep "openal" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_openal=`otool -L conftest$ac_exeext | grep "libopenal\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libopenal\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_openal=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libopenal\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libopenal\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_openal=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libopenal\\.$LIBEXT" | sed -e "s/^.*\\[\\(libopenal\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_openal:+false} :; then :
   ac_cv_lib_soname_openal=`$LDD conftest$ac_exeext | grep "libopenal\\.$LIBEXT" | sed -e "s/^.*\(libopenal\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13623,7 +14188,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_odbc=`$ac_cv_path_LDD conftest.exe | grep "odbc" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_odbc=`otool -L conftest$ac_exeext | grep "libodbc\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libodbc\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_odbc=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libodbc\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libodbc\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_odbc=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libodbc\\.$LIBEXT" | sed -e "s/^.*\\[\\(libodbc\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_odbc:+false} :; then :
   ac_cv_lib_soname_odbc=`$LDD conftest$ac_exeext | grep "libodbc\\.$LIBEXT" | sed -e "s/^.*\(libodbc\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13682,7 +14247,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_netapi=`$ac_cv_path_LDD conftest.exe | grep "netapi" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_netapi=`otool -L conftest$ac_exeext | grep "libnetapi\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libnetapi\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_netapi=`$ac_cv_prog_OTOOL -L conftest$ac_exeext | grep "libnetapi\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libnetapi\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_netapi=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libnetapi\\.$LIBEXT" | sed -e "s/^.*\\[\\(libnetapi\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_netapi:+false} :; then :
   ac_cv_lib_soname_netapi=`$LDD conftest$ac_exeext | grep "libnetapi\\.$LIBEXT" | sed -e "s/^.*\(libnetapi\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -13714,12 +14279,13 @@ fi
 
 test -n "$ALSA_LIBS" || enable_winealsa_drv=${enable_winealsa_drv:-no}
 test -n "$COREAUDIO_LIBS" || enable_winecoreaudio_drv=${enable_winecoreaudio_drv:-no}
+test -n "$PULSELIBS" || enable_winepulse_drv=${enable_winepulse_drv:-no}
 test "x$ac_cv_member_oss_sysinfo_numaudioengines" = xyes || enable_wineoss_drv=${enable_wineoss_drv:-no}
 test "$ac_cv_header_linux_joystick_h" = "yes" -o "$ac_cv_header_IOKit_hid_IOHIDLib_h" = "yes" || enable_winejoystick_drv=${enable_winejoystick_drv:-no}
 
-if test "x$ALSA_LIBS$COREAUDIO_LIBS" = "x" -a \
+if test "x$ALSA_LIBS$COREAUDIO_LIBS$PULSELIBS" = "x" -a \
         "x$ac_cv_member_oss_sysinfo_numaudioengines" != xyes -a \
-        "x$with_alsa$with_coreaudio$with_oss" != xnonono
+        "x$with_alsa$with_coreaudio$with_oss$with_pulse" != xnononono
 then
     as_fn_append wine_warnings "|No sound system was found. Windows applications will be silent."
 fi
@@ -13730,48 +14296,6 @@ EXTRACFLAGS=""
 if test "x${GCC}" = "xyes"
 then
   EXTRACFLAGS="-Wall -pipe"
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gcc strength-reduce bug" >&5
-$as_echo_n "checking for gcc strength-reduce bug... " >&6; }
-if ${ac_cv_c_gcc_strength_bug+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test "$cross_compiling" = yes; then :
-  ac_cv_c_gcc_strength_bug="yes"
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-int L[4] = {0,1,2,3};
-int
-main ()
-{
-static int Array[3];
-  unsigned int B = 3;
-  int i;
-  for(i=0; i<B; i++) Array[i] = i - 3;
-  for(i=0; i<4 - 1; i++) L[i] = L[i + 1];
-  L[i] = 4;
-  return (Array[1] != -2 || L[2] != 3)
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_c_gcc_strength_bug="no"
-else
-  ac_cv_c_gcc_strength_bug="yes"
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_c_gcc_strength_bug" >&5
-$as_echo "$ac_cv_c_gcc_strength_bug" >&6; }
-  if test "$ac_cv_c_gcc_strength_bug" = "yes"
-  then
-    EXTRACFLAGS="$EXTRACFLAGS -fno-strength-reduce"
-  fi
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -fno-builtin" >&5
 $as_echo_n "checking whether the compiler supports -fno-builtin... " >&6; }
@@ -17291,6 +17815,7 @@ wine_fn_config_dll dxgi enable_dxgi implib
 wine_fn_config_test dlls/dxgi/tests dxgi_test
 wine_fn_config_lib dxguid
 wine_fn_config_dll dxva2 enable_dxva2
+wine_fn_config_test dlls/dxva2/tests dxva2_test
 wine_fn_config_dll evr enable_evr
 wine_fn_config_dll explorerframe enable_explorerframe clean
 wine_fn_config_test dlls/explorerframe/tests explorerframe_test
@@ -17298,6 +17823,7 @@ wine_fn_config_dll ext-ms-win-gdi-devcaps-l1-1-0 enable_ext_ms_win_gdi_devcaps_l
 wine_fn_config_dll faultrep enable_faultrep implib
 wine_fn_config_test dlls/faultrep/tests faultrep_test
 wine_fn_config_dll fltlib enable_fltlib
+wine_fn_config_dll fltmgr.sys enable_fltmgr_sys
 wine_fn_config_dll fntcache enable_fntcache
 wine_fn_config_dll fontsub enable_fontsub
 wine_fn_config_dll fusion enable_fusion
@@ -17494,8 +18020,18 @@ wine_fn_config_test dlls/ntdll/tests ntdll_test
 wine_fn_config_dll ntdsapi enable_ntdsapi implib
 wine_fn_config_test dlls/ntdsapi/tests ntdsapi_test
 wine_fn_config_dll ntoskrnl.exe enable_ntoskrnl_exe implib
+wine_fn_config_test dlls/ntoskrnl.exe/tests ntoskrnl.exe_test
+wine_fn_config_resource dlls/ntoskrnl.exe/tests/driver.sys driver.sys
 wine_fn_config_dll ntprint enable_ntprint
 wine_fn_config_test dlls/ntprint/tests ntprint_test
+wine_fn_config_dll nvapi enable_win32
+wine_fn_config_test dlls/nvapi/tests nvapi_test
+wine_fn_config_dll nvapi64 enable_win64
+wine_fn_config_dll nvcuda enable_nvcuda
+wine_fn_config_test dlls/nvcuda/tests nvcuda_test
+wine_fn_config_dll nvcuvid enable_nvcuvid
+wine_fn_config_dll nvencodeapi enable_win32
+wine_fn_config_dll nvencodeapi64 enable_win64
 wine_fn_config_dll objsel enable_objsel clean
 wine_fn_config_dll odbc32 enable_odbc32 implib
 wine_fn_config_dll odbccp32 enable_odbccp32 implib
@@ -17648,7 +18184,8 @@ wine_fn_config_dll uxtheme enable_uxtheme implib
 wine_fn_config_test dlls/uxtheme/tests uxtheme_test
 wine_fn_config_dll vbscript enable_vbscript clean
 wine_fn_config_test dlls/vbscript/tests vbscript_test clean
-wine_fn_config_dll vcomp enable_vcomp
+wine_fn_config_dll vcomp enable_vcomp implib
+wine_fn_config_test dlls/vcomp/tests vcomp_test
 wine_fn_config_dll vcomp100 enable_vcomp100
 wine_fn_config_dll vcomp90 enable_vcomp90
 wine_fn_config_dll vdhcp.vxd enable_win16
@@ -17681,9 +18218,10 @@ wine_fn_config_dll windowscodecs enable_windowscodecs clean,implib
 wine_fn_config_test dlls/windowscodecs/tests windowscodecs_test
 wine_fn_config_dll windowscodecsext enable_windowscodecsext implib
 wine_fn_config_test dlls/windowscodecsext/tests windowscodecsext_test
-wine_fn_config_dll winealsa.drv enable_winealsa_drv
+wine_fn_config_dll winealsa.drv enable_winealsa_drv implib
 wine_fn_config_dll winecoreaudio.drv enable_winecoreaudio_drv
 wine_fn_config_lib winecrt0
+wine_fn_config_dll wined3d-csmt enable_wined3d_csmt
 wine_fn_config_dll wined3d enable_wined3d implib
 wine_fn_config_dll winegstreamer enable_winegstreamer
 wine_fn_config_dll winejoystick.drv enable_winejoystick_drv
@@ -17693,6 +18231,7 @@ wine_fn_config_dll winemp3.acm enable_winemp3_acm
 wine_fn_config_dll wineoss.drv enable_wineoss_drv
 wine_fn_config_dll wineps.drv enable_wineps_drv clean,po
 wine_fn_config_dll wineps16.drv16 enable_win16
+wine_fn_config_dll winepulse.drv enable_winepulse_drv
 wine_fn_config_dll wineqtdecoder enable_wineqtdecoder
 wine_fn_config_dll winex11.drv enable_winex11_drv
 wine_fn_config_dll wing.dll16 enable_win16
