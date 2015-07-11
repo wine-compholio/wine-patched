@@ -232,6 +232,7 @@ static const struct wined3d_extension_map wgl_extension_map[] =
     {"WGL_ARB_pixel_format",                WGL_ARB_PIXEL_FORMAT             },
     {"WGL_EXT_swap_control",                WGL_EXT_SWAP_CONTROL             },
     {"WGL_WINE_pixel_format_passthrough",   WGL_WINE_PIXEL_FORMAT_PASSTHROUGH},
+    {"WGL_WINE_gpu_info",                   WGL_WINE_GPU_INFO                },
 };
 
 /**********************************************************
@@ -1412,8 +1413,21 @@ static void init_driver_info(struct wined3d_gl_info *gl_info, struct wined3d_dri
     if (driver_info->vendor != PCI_VENDOR_NONE || driver_info->device != PCI_DEVICE_NONE)
     {
         static unsigned int once;
+        unsigned int real_vendor, real_device;
 
         TRACE("GPU override %04x:%04x.\n", wined3d_settings.pci_vendor_id, wined3d_settings.pci_device_id);
+
+        if (gl_info->supported[WGL_WINE_GPU_INFO] &&
+            gl_info->gl_ops.ext.p_wglGetPCIInfoWINE(&real_vendor, &real_device))
+        {
+            if (get_gpu_description(real_vendor, real_device))
+            {
+                vendor = real_vendor;
+                device = real_device;
+            }
+            else if (!once++)
+                ERR_(winediag)("Could not find GPU info for %04x:%04x.\n", real_vendor, real_device);
+        }
 
         driver_info->vendor = wined3d_settings.pci_vendor_id;
         if (driver_info->vendor == PCI_VENDOR_NONE)
@@ -1516,6 +1530,17 @@ static void init_driver_info(struct wined3d_gl_info *gl_info, struct wined3d_dri
         driver_info->vram_bytes = (UINT64)vram_kb * 1024;
         TRACE("Got 0x%s as video memory from NVX_GPU_MEMORY_INFO extension.\n",
                 wine_dbgstr_longlong(driver_info->vram_bytes));
+    }
+
+    if (gl_info->supported[WGL_WINE_GPU_INFO])
+    {
+        unsigned int vram_mb;
+        if (gl_info->gl_ops.ext.p_wglGetMemoryInfoWINE(&vram_mb))
+        {
+            driver_info->vram_bytes = (UINT64)vram_mb * 1024 * 1024;
+            TRACE("Got 0x%s as video memory from wglGetGPUInfoWINE.\n",
+                    wine_dbgstr_longlong(driver_info->vram_bytes));
+        }
     }
 
     if (wined3d_settings.emulated_textureram)
