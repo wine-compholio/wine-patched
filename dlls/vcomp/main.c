@@ -56,6 +56,9 @@ struct vcomp_thread_info
     /* current task */
     struct vcomp_team_info  *team;
     DWORD                   thread_num;
+
+    /* section */
+    DWORD                   section;
 };
 
 struct vcomp_team_info
@@ -72,6 +75,11 @@ struct vcomp_team_info
     /* barrier */
     DWORD               barrier;
     DWORD               barrier_count;
+
+    /* section */
+    DWORD               section;
+    DWORD               num_sections;
+    DWORD               section_index;
 };
 
 static inline struct vcomp_thread_info *vcomp_get_thread_info(void)
@@ -357,6 +365,43 @@ int CDECL omp_in_parallel(void)
     return vcomp_get_team_info() != NULL;
 }
 
+void CDECL _vcomp_sections_init(int n)
+{
+    struct vcomp_thread_info *thread_info = vcomp_get_thread_info();
+    struct vcomp_team_info *team_info = thread_info->team;
+
+    TRACE("(%d)\n", n);
+
+    EnterCriticalSection(&vcomp_section);
+    thread_info->section++;
+    if ((int)(thread_info->section - team_info->section) > 0)
+    {
+        /* first thread in a new section */
+        team_info->section = thread_info->section;
+        team_info->num_sections  = n;
+        team_info->section_index = 0;
+    }
+    LeaveCriticalSection(&vcomp_section);
+}
+
+int CDECL _vcomp_sections_next(void)
+{
+    struct vcomp_thread_info *thread_info = vcomp_get_thread_info();
+    struct vcomp_team_info *team_info = thread_info->team;
+    int i = -1;
+
+    TRACE("()\n");
+
+    EnterCriticalSection(&vcomp_section);
+    if (thread_info->section == team_info->section &&
+        team_info->section_index < team_info->num_sections)
+    {
+        i = team_info->section_index++;
+    }
+    LeaveCriticalSection(&vcomp_section);
+    return i;
+}
+
 void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args);
 
 static DWORD WINAPI _vcomp_fork_worker(void *param)
@@ -418,12 +463,14 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
     __ms_va_start(team_info.valist, wrapper);
     team_info.barrier           = 0;
     team_info.barrier_count     = 0;
+    team_info.section           = -1;
 
     /* Initialize members of thread_info. */
     list_init(&thread_info.entry);
     InitializeConditionVariable(&thread_info.cond);
     thread_info.team        = &team_info;
     thread_info.thread_num  = 0;
+    thread_info.section     = 0;
 
     if (parallel)
     {
@@ -439,6 +486,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
             list_add_tail(&thread_info.entry, &info->entry);
             info->team          = &team_info;
             info->thread_num    = team_info.num_threads++;
+            info->section       = 0;
             WakeAllConditionVariable(&info->cond);
         }
 
@@ -455,6 +503,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
             InitializeConditionVariable(&info->cond);
             info->team       = &team_info;
             info->thread_num = team_info.num_threads;
+            info->section    = 0;
 
             thread = CreateThread(NULL, 0, _vcomp_fork_worker, info, 0, NULL);
             if (!thread)

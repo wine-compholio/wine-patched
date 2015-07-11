@@ -30,6 +30,8 @@ static void  (CDECL   *p_vcomp_for_static_init)(int first, int last, int step, i
 static void  (CDECL   *p_vcomp_for_static_simple_init)(unsigned int first, unsigned int last, int step,
                                                        BOOL forward, unsigned int *begin, unsigned int *end);
 static void  (WINAPIV *p_vcomp_fork)(BOOL ifval, int nargs, void *wrapper, ...);
+static void  (CDECL   *p_vcomp_sections_init)(int n);
+static int   (CDECL   *p_vcomp_sections_next)(void);
 static int   (CDECL   *pomp_get_max_threads)(void);
 static int   (CDECL   *pomp_get_num_threads)(void);
 static int   (CDECL   *pomp_get_thread_num)(void);
@@ -57,6 +59,8 @@ static BOOL init_vcomp(void)
     VCOMP_GET_PROC(_vcomp_for_static_init);
     VCOMP_GET_PROC(_vcomp_for_static_simple_init);
     VCOMP_GET_PROC(_vcomp_fork);
+    VCOMP_GET_PROC(_vcomp_sections_init);
+    VCOMP_GET_PROC(_vcomp_sections_next);
     VCOMP_GET_PROC(omp_get_max_threads);
     VCOMP_GET_PROC(omp_get_num_threads);
     VCOMP_GET_PROC(omp_get_thread_num);
@@ -536,6 +540,50 @@ static void test_vcomp_for_static_init(void)
     }
 }
 
+static void CDECL _test_vcomp_sections_init(LONG *a, LONG *b, LONG *c)
+{
+    int i;
+
+    p_vcomp_sections_init(20);
+    while ((i = p_vcomp_sections_next()) != -1)
+    {
+        InterlockedIncrement(a);
+        Sleep(50);
+    }
+
+    p_vcomp_sections_init(30);
+    while ((i = p_vcomp_sections_next()) != -1)
+    {
+        InterlockedIncrement(b);
+        Sleep(50);
+    }
+
+    p_vcomp_sections_init(40);
+    while ((i = p_vcomp_sections_next()) != -1)
+    {
+        InterlockedIncrement(c);
+        Sleep(50);
+    }
+}
+
+static void test_vcomp_sections_init(void)
+{
+    LONG a, b, c;
+    int i;
+
+    for (i = 1; i <= 4; i++)
+    {
+        trace("Running tests with %d threads\n", i);
+        pomp_set_num_threads(i);
+
+        a = b = c = 0;
+        p_vcomp_fork(TRUE, 3, _test_vcomp_sections_init, &a, &b, &c);
+        ok(a == 20, "expected a = 20, got %d\n", a);
+        ok(b == 30, "expected b = 30, got %d\n", b);
+        ok(c == 40, "expected c = 40, got %d\n", c);
+    }
+}
+
 START_TEST(vcomp)
 {
     if (!init_vcomp())
@@ -544,6 +592,7 @@ START_TEST(vcomp)
     test_vcomp_fork();
     test_vcomp_for_static_simple_init();
     test_vcomp_for_static_init();
+    test_vcomp_sections_init();
 
     FreeLibrary(hvcomp);
 }
