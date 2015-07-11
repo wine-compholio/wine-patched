@@ -1,0 +1,7 @@
+TESTDLL = vcomp.dll
+
+C_SRCS = \
+	vcomp.c
+
+RC_SRCS = \
+	vcomp.rc
