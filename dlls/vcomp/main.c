@@ -351,6 +351,12 @@ void CDECL _vcomp_for_static_end(void)
     TRACE("()\n");
 }
 
+int CDECL omp_in_parallel(void)
+{
+    TRACE("()\n");
+    return vcomp_get_team_info() != NULL;
+}
+
 void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args);
 
 static DWORD WINAPI _vcomp_fork_worker(void *param)
