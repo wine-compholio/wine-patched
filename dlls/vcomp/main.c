@@ -259,6 +259,68 @@ void CDECL _vcomp_for_static_simple_init(unsigned int first, unsigned int last, 
     }
 }
 
+void CDECL _vcomp_for_static_init(int first, int last, int step, int chunksize, unsigned int *loops,
+                                  int *begin, int *end, int *next, int *lastchunk)
+{
+    struct vcomp_thread_info *thread_info = vcomp_get_thread_info();
+    struct vcomp_team_info *team_info = thread_info->team;
+    unsigned int iterations, num_chunks, per_thread, remaining;
+    DWORD num_threads, thread_num;
+
+    TRACE("(%d, %d, %d, %d, %p, %p, %p, %p, %p)\n",
+          first, last, step, chunksize, loops, begin, end, next, lastchunk);
+
+    num_threads = team_info->num_threads;
+    thread_num  = thread_info->thread_num;
+
+    if (chunksize < 1)
+        chunksize = 1;
+
+    if (num_threads == 1 && chunksize > 1)
+    {
+        *loops = 1;
+        *begin = first;
+        *end   = last;
+        *next = chunksize;
+        *lastchunk = first;
+    }
+    else if (last > first)
+    {
+        iterations = 1 + (last - first) / step;
+        num_chunks = (iterations + chunksize - 1) / chunksize;
+        per_thread = num_chunks / num_threads;
+        remaining  = num_chunks - per_thread * num_threads;
+
+        *loops = per_thread + (thread_num < remaining);
+        *begin = first + thread_num * chunksize * step;
+        *end   = *begin + (chunksize - 1) * step;
+        *next = chunksize * num_threads * step;
+        *lastchunk = first + (num_chunks - 1) * chunksize * step;
+
+    }
+    else if (last < first)
+    {
+        iterations = 1 + (first - last) / step;
+        num_chunks = (iterations + chunksize - 1) / chunksize;
+        per_thread = num_chunks / num_threads;
+        remaining  = num_chunks - per_thread * num_threads;
+
+        *loops = per_thread + (thread_num < remaining);
+        *begin = first - thread_num * chunksize * step;
+        *end   = *begin - (chunksize - 1) * step;
+        *next = - chunksize * num_threads * step;
+        *lastchunk = first - (num_chunks - 1) * chunksize * step;
+    }
+    else
+    {
+        *loops = (thread_num == 0);
+        *begin = first;
+        *end   = last;
+        *next = 0;
+        *lastchunk = first;
+    }
+}
+
 void CDECL _vcomp_for_static_end(void)
 {
     TRACE("()\n");
