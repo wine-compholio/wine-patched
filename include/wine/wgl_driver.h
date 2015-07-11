@@ -2903,6 +2903,8 @@ struct opengl_funcs
         BOOL       (WINE_GLAPI *p_wglSetPbufferAttribARB)(struct wgl_pbuffer *,const int*);
         BOOL       (WINE_GLAPI *p_wglSetPixelFormatWINE)(HDC,int);
         BOOL       (WINE_GLAPI *p_wglSwapIntervalEXT)(int);
+        BOOL       (WINE_GLAPI *p_wglGetPCIInfoWINE)(unsigned int *, unsigned int *);
+        BOOL       (WINE_GLAPI *p_wglGetMemoryInfoWINE)(unsigned int *);
     } ext;
 };
 
