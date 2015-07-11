@@ -175,6 +175,18 @@ typedef XID GLXPbuffer;
 /** GLX_NV_float_buffer */
 #define GLX_FLOAT_COMPONENTS_NV           0x20B0
 
+/** GLX_MESA_query_renderer */
+#define GLX_RENDERER_VENDOR_ID_MESA                               0x8183
+#define GLX_RENDERER_DEVICE_ID_MESA                               0x8184
+#define GLX_RENDERER_VERSION_MESA                                 0x8185
+#define GLX_RENDERER_ACCELERATED_MESA                             0x8186
+#define GLX_RENDERER_VIDEO_MEMORY_MESA                            0x8187
+#define GLX_RENDERER_UNIFIED_MEMORY_ARCHITECTURE_MESA             0x8188
+#define GLX_RENDERER_PREFERRED_PROFILE_MESA                       0x8189
+#define GLX_RENDERER_OPENGL_CORE_PROFILE_VERSION_MESA             0x818A
+#define GLX_RENDERER_OPENGL_COMPATIBILITY_PROFILE_VERSION_MESA    0x818B
+#define GLX_RENDERER_OPENGL_ES_PROFILE_VERSION_MESA               0x818C
+#define GLX_RENDERER_OPENGL_ES2_PROFILE_VERSION_MESA              0x818D
 
 struct WineGLInfo {
     const char *glVersion;
@@ -405,6 +417,7 @@ static void  (*pglXFreeMemoryNV)(GLvoid *pointer);
 /* MESA GLX Extensions */
 static void (*pglXCopySubBufferMESA)(Display *dpy, GLXDrawable drawable, int x, int y, int width, int height);
 static int (*pglXSwapIntervalMESA)(unsigned int interval);
+static Bool (*pglXQueryCurrentRendererIntegerMESA)(int attribute, unsigned int *value);
 
 /* Standard OpenGL */
 static void (*pglFinish)(void);
@@ -662,6 +675,7 @@ static BOOL has_opengl(void)
     /* NV GLX Extension */
     LOAD_FUNCPTR(glXAllocateMemoryNV);
     LOAD_FUNCPTR(glXFreeMemoryNV);
+    LOAD_FUNCPTR(glXQueryCurrentRendererIntegerMESA);
 #undef LOAD_FUNCPTR
 
     if(!X11DRV_WineGL_InitOpenglInfo()) goto failed;
@@ -3068,6 +3082,50 @@ static BOOL X11DRV_wglSwapIntervalEXT(int interval)
 }
 
 /**
+ * X11DRV_wglGetPCIInfoWINE
+ *
+ * WINE-specific function to get the PCI vendor / device id.
+ */
+static BOOL X11DRV_wglGetPCIInfoWINE(unsigned int *vendor, unsigned int *device)
+{
+    TRACE("(%p, %p)\n", vendor, device);
+
+    if (!pglXQueryCurrentRendererIntegerMESA || !vendor || !device)
+        return FALSE;
+
+    if (!pglXQueryCurrentRendererIntegerMESA(GLX_RENDERER_VENDOR_ID_MESA, vendor))
+        return FALSE;
+
+    if (!pglXQueryCurrentRendererIntegerMESA(GLX_RENDERER_DEVICE_ID_MESA, device))
+        return FALSE;
+
+    return TRUE;
+}
+
+/**
+ * X11DRV_wglGetMemoryInfoWINE
+ *
+ * WINE-specific function to get the available video memory (in MB).
+ */
+static BOOL X11DRV_wglGetMemoryInfoWINE(unsigned int *memory)
+{
+    TRACE("(%p)\n", memory);
+
+    if (!pglXQueryCurrentRendererIntegerMESA || !memory)
+        return FALSE;
+
+    if (!pglXQueryCurrentRendererIntegerMESA(GLX_RENDERER_VIDEO_MEMORY_MESA, memory))
+        return FALSE;
+
+    /* Some MESA drivers return a video memory of 0 MB. This doesn't make any sense,
+     * so fall back to other methods. */
+    if (!*memory)
+        return FALSE;
+
+    return TRUE;
+}
+
+/**
  * X11DRV_wglSetPixelFormatWINE
  *
  * WGL_WINE_pixel_format_passthrough: wglSetPixelFormatWINE
@@ -3217,6 +3275,13 @@ static void X11DRV_WineGL_LoadExtensions(void)
         has_swap_method = TRUE;
 
     /* WINE-specific WGL Extensions */
+
+    if (has_extension(WineGLInfo.glxExtensions, "GLX_MESA_query_renderer"))
+    {
+        register_extension( "WGL_WINE_gpu_info" );
+        opengl_funcs.ext.p_wglGetPCIInfoWINE = X11DRV_wglGetPCIInfoWINE;
+        opengl_funcs.ext.p_wglGetMemoryInfoWINE = X11DRV_wglGetMemoryInfoWINE;
+    }
 
     /* In WineD3D we need the ability to set the pixel format more than once (e.g. after a device reset).
      * The default wglSetPixelFormat doesn't allow this, so add our own which allows it.
