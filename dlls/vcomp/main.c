@@ -174,6 +174,96 @@ void CDECL _vcomp_single_end(void)
     TRACE("stub\n");
 }
 
+void CDECL _vcomp_for_static_simple_init(unsigned int first, unsigned int last, int step, BOOL forward,
+                                         unsigned int *begin, unsigned int *end)
+{
+    struct vcomp_thread_info *thread_info = vcomp_get_thread_info();
+    struct vcomp_team_info *team_info = thread_info->team;
+    unsigned int iterations, per_thread, remaining;
+    DWORD num_threads, thread_num;
+
+    TRACE("(%d, %d, %d, %d, %p, %p)\n", first, last, step, forward, begin, end);
+
+    num_threads = team_info->num_threads;
+    thread_num  = thread_info->thread_num;
+
+    if (num_threads == 1)
+    {
+        *begin = first;
+        *end   = last;
+        return;
+    }
+
+    if (step <= 0)
+    {
+        *begin = 0;
+        *end   = forward ? -1 : 1;
+        return;
+    }
+
+    if (forward)
+    {
+        DWORD64 last64 = last;
+        if (last64 < first)
+            last64 += 0x100000000;
+
+        iterations = 1 + (last64 - first) / step;
+        per_thread = iterations / num_threads;
+        remaining  = iterations - per_thread * num_threads;
+
+        if (thread_num < remaining)
+        {
+            per_thread++;
+        }
+        else if (per_thread)
+        {
+            first += remaining * step;
+        }
+        else
+        {
+            *begin = first;
+            *end   = first - step;
+            return;
+        }
+
+        *begin = first + per_thread * thread_num * step;
+        *end   = *begin + (per_thread - 1) * step;
+    }
+    else
+    {
+        DWORD first64 = first;
+        if (first64 < last)
+            first64 += 0x100000000;
+
+        iterations = 1 + (first64 - last) / step;
+        per_thread = iterations / num_threads;
+        remaining  = iterations - per_thread * num_threads;
+
+        if (thread_num < remaining)
+        {
+            per_thread++;
+        }
+        else if (per_thread)
+        {
+            first64 -= remaining * step;
+        }
+        else
+        {
+            *begin = first64;
+            *end   = first64 + step;
+            return;
+        }
+
+        *begin = first64 - per_thread * thread_num * step;
+        *end   = *begin - (per_thread - 1) * step;
+    }
+}
+
+void CDECL _vcomp_for_static_end(void)
+{
+    TRACE("()\n");
+}
+
 void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args);
 
 static DWORD WINAPI _vcomp_fork_worker(void *param)
