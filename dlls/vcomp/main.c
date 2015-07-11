@@ -59,6 +59,9 @@ struct vcomp_thread_info
 
     /* section */
     DWORD                   section;
+
+    /* dynamic */
+    DWORD                   dynamic;
 };
 
 struct vcomp_team_info
@@ -80,6 +83,15 @@ struct vcomp_team_info
     DWORD               section;
     DWORD               num_sections;
     DWORD               section_index;
+
+    /* dynamic */
+    DWORD               dynamic;
+    DWORD               dynamic_forward;
+    DWORD               dynamic_first;
+    DWORD               dynamic_iterations;
+    int                 dynamic_step;
+    DWORD               dynamic_chunksize;
+    DWORD               dynamic_min_chunksize;
 };
 
 static inline struct vcomp_thread_info *vcomp_get_thread_info(void)
@@ -402,6 +414,83 @@ int CDECL _vcomp_sections_next(void)
     return i;
 }
 
+void CDECL _vcomp_for_dynamic_init(int flags, int first, int last, int step, int chunksize)
+{
+    struct vcomp_thread_info *thread_info = vcomp_get_thread_info();
+    struct vcomp_team_info *team_info = thread_info->team;
+    unsigned int iterations;
+    BOOL forward = (flags & 0x40) != 0;
+
+    TRACE("(%d, %d, %d, %d, %d)\n", flags, first, last, step, chunksize);
+
+    EnterCriticalSection(&vcomp_section);
+    thread_info->dynamic++;
+    if ((int)(thread_info->dynamic - team_info->dynamic) > 0)
+    {
+        /* first thread in a new for_dynamic */
+
+        if (forward)
+        {
+            DWORD64 last64 = last;
+            if (last64 < first)
+                last64 += 0x100000000;
+            iterations = 1 + (last64 - first) / step;
+        }
+        else
+        {
+            DWORD first64 = first;
+            if (first64 < last)
+                first64 += 0x100000000;
+            iterations = 1 + (first64 - last) / step;
+        }
+
+        team_info->dynamic = thread_info->dynamic;
+        team_info->dynamic_forward    = forward;
+        team_info->dynamic_first      = first;
+        team_info->dynamic_iterations = iterations;
+        team_info->dynamic_step       = step;
+        team_info->dynamic_chunksize  = max(1, iterations / team_info->num_threads);
+        team_info->dynamic_min_chunksize = max(1, chunksize);
+    }
+    LeaveCriticalSection(&vcomp_section);
+}
+
+int CDECL _vcomp_for_dynamic_next(int *begin, int *end)
+{
+    struct vcomp_thread_info *thread_info = vcomp_get_thread_info();
+    struct vcomp_team_info *team_info = thread_info->team;
+    unsigned int iterations = 0;
+
+    TRACE("(%p, %p)\n", begin, end);
+
+    EnterCriticalSection(&vcomp_section);
+    if (thread_info->dynamic == team_info->dynamic &&
+        team_info->dynamic_iterations != 0)
+    {
+        iterations = min(team_info->dynamic_iterations, team_info->dynamic_chunksize);
+        team_info->dynamic_iterations -= iterations;
+
+        if (team_info->dynamic_forward)
+        {
+            *begin = team_info->dynamic_first;
+            *end   = team_info->dynamic_first + (iterations - 1) * team_info->dynamic_step;
+            team_info->dynamic_first += iterations * team_info->dynamic_step;
+        }
+        else
+        {
+            *begin = team_info->dynamic_first;
+            *end   = team_info->dynamic_first - (iterations - 1) * team_info->dynamic_step;
+            team_info->dynamic_first -= iterations * team_info->dynamic_step;
+        }
+
+        team_info->dynamic_chunksize =
+            max((team_info->dynamic_chunksize * 3 + 2)/4, team_info->dynamic_min_chunksize);
+    }
+    LeaveCriticalSection(&vcomp_section);
+
+    return (iterations != 0);
+}
+
 void CDECL _vcomp_fork_call_wrapper(void *wrapper, int nargs, __ms_va_list args);
 
 static DWORD WINAPI _vcomp_fork_worker(void *param)
@@ -464,6 +553,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
     team_info.barrier           = 0;
     team_info.barrier_count     = 0;
     team_info.section           = -1;
+    team_info.dynamic           = -1;
 
     /* Initialize members of thread_info. */
     list_init(&thread_info.entry);
@@ -471,6 +561,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
     thread_info.team        = &team_info;
     thread_info.thread_num  = 0;
     thread_info.section     = 0;
+    thread_info.dynamic     = 0;
 
     if (parallel)
     {
@@ -487,6 +578,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
             info->team          = &team_info;
             info->thread_num    = team_info.num_threads++;
             info->section       = 0;
+            info->dynamic       = 0;
             WakeAllConditionVariable(&info->cond);
         }
 
@@ -504,6 +596,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
             info->team       = &team_info;
             info->thread_num = team_info.num_threads;
             info->section    = 0;
+            info->dynamic    = 0;
 
             thread = CreateThread(NULL, 0, _vcomp_fork_worker, info, 0, NULL);
             if (!thread)

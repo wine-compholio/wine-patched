@@ -24,6 +24,8 @@ static const int is_win64 = (sizeof(void *) > sizeof(int));
 
 static HMODULE hvcomp = 0;
 static void  (CDECL   *p_vcomp_barrier)(void);
+static void  (CDECL   *p_vcomp_for_dynamic_init)(int flags, int first, int last, int step, int chunksize);
+static int   (CDECL   *p_vcomp_for_dynamic_next)(int *begin, int *end);
 static void  (CDECL   *p_vcomp_for_static_end)(void);
 static void  (CDECL   *p_vcomp_for_static_init)(int first, int last, int step, int chunksize, unsigned int *loops,
                                                 int *begin, int *end, int *next, int *lastchunk);
@@ -55,6 +57,8 @@ static BOOL init_vcomp(void)
     }
 
     VCOMP_GET_PROC(_vcomp_barrier);
+    VCOMP_GET_PROC(_vcomp_for_dynamic_init);
+    VCOMP_GET_PROC(_vcomp_for_dynamic_next);
     VCOMP_GET_PROC(_vcomp_for_static_end);
     VCOMP_GET_PROC(_vcomp_for_static_init);
     VCOMP_GET_PROC(_vcomp_for_static_simple_init);
@@ -584,6 +588,54 @@ static void test_vcomp_sections_init(void)
     }
 }
 
+static void CDECL _test_vcomp_for_dynamic_init(LONG *a, LONG *b, LONG *c)
+{
+    int begin, end;
+
+    p_vcomp_for_dynamic_init(0x40, 1, 100000, 1, 30);
+    while (p_vcomp_for_dynamic_next(&begin, &end))
+    {
+        InterlockedExchangeAdd(a, end - begin + 1);
+        Sleep(50);
+    }
+
+    p_vcomp_for_dynamic_init(0, 1337, 1, 1, 50);
+    while (p_vcomp_for_dynamic_next(&begin, &end))
+    {
+        InterlockedExchangeAdd(b, begin - end + 1);
+        Sleep(50);
+    }
+
+    p_vcomp_for_dynamic_init(0x40, 1, 100000, 7, 30);
+    while (p_vcomp_for_dynamic_next(&begin, &end))
+    {
+        while (begin <= end)
+        {
+            InterlockedIncrement(c);
+            begin += 7;
+        }
+        Sleep(50);
+    }
+}
+
+static void test_vcomp_for_dynamic_init(void)
+{
+    LONG a, b, c;
+    int i;
+
+    for (i = 1; i <= 4; i++)
+    {
+        trace("Running tests with %d threads\n", i);
+        pomp_set_num_threads(i);
+
+        a = b = c = 0;
+        p_vcomp_fork(TRUE, 3, _test_vcomp_for_dynamic_init, &a, &b, &c);
+        ok(a == 100000, "expected a = 100000, got %d\n", a);
+        ok(b == 1337, "expected b = 1337, got %d\n", b);
+        ok(c == 14286, "expected c = 14286, got %d\n", c);
+    }
+}
+
 START_TEST(vcomp)
 {
     if (!init_vcomp())
@@ -593,6 +645,7 @@ START_TEST(vcomp)
     test_vcomp_for_static_simple_init();
     test_vcomp_for_static_init();
     test_vcomp_sections_init();
+    test_vcomp_for_dynamic_init();
 
     FreeLibrary(hvcomp);
 }
