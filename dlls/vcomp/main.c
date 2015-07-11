@@ -68,6 +68,10 @@ struct vcomp_team_info
     unsigned int        nargs;
     void                *wrapper;
     __ms_va_list        valist;
+
+    /* barrier */
+    DWORD               barrier;
+    DWORD               barrier_count;
 };
 
 static inline struct vcomp_thread_info *vcomp_get_thread_info(void)
@@ -154,7 +158,28 @@ void CDECL omp_set_num_threads(int num_threads)
 
 void CDECL _vcomp_barrier(void)
 {
-    TRACE("stub\n");
+    struct vcomp_team_info *team_info;
+
+    TRACE("()\n");
+
+    team_info = vcomp_get_team_info();
+    EnterCriticalSection(&vcomp_section);
+
+    team_info->barrier_count++;
+    if (team_info->barrier_count >= team_info->num_threads)
+    {
+        team_info->barrier++;
+        team_info->barrier_count = 0;
+        WakeAllConditionVariable(&team_info->cond);
+    }
+    else
+    {
+        DWORD barrier = team_info->barrier;
+        while (team_info->barrier == barrier)
+            SleepConditionVariableCS(&team_info->cond, &vcomp_section, INFINITE);
+    }
+
+    LeaveCriticalSection(&vcomp_section);
 }
 
 void CDECL _vcomp_set_num_threads(int num_threads)
@@ -385,6 +410,8 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
     team_info.nargs             = nargs;
     team_info.wrapper           = wrapper;
     __ms_va_start(team_info.valist, wrapper);
+    team_info.barrier           = 0;
+    team_info.barrier_count     = 0;
 
     /* Initialize members of thread_info. */
     list_init(&thread_info.entry);
