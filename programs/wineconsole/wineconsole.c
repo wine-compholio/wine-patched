@@ -747,16 +747,18 @@ static BOOL WINECON_Spawn(struct inner_data* data, LPWSTR cmdLine)
     }
 
     done = CreateProcessW(NULL, cmdLine, NULL, NULL, TRUE, 0L, NULL, NULL, &startup, &info);
+    if (done)
+    {
+        CloseHandle(info.hProcess);
+        CloseHandle(info.hThread);
+    }
 
     /* we no longer need the handles passed to the child for the console */
     CloseHandle(startup.hStdInput);
     CloseHandle(startup.hStdOutput);
     CloseHandle(startup.hStdError);
 
-    CloseHandle(info.hProcess);
-    CloseHandle(info.hThread);
-
-    return done;
+    return !done;
 }
 
 struct wc_init {
@@ -852,9 +854,9 @@ int PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, INT nCmdSh
     {
     case from_event:
         /* case of wineconsole <evt>, signal process that created us that we're up and running */
-        if (!(data = WINECON_Init(hInst, 0, NULL, wci.backend, nCmdShow))) return 0;
-	ret = SetEvent(wci.event);
-	if (!ret) WINE_ERR("SetEvent failed.\n");
+        if (!(data = WINECON_Init(hInst, 0, NULL, wci.backend, nCmdShow))) return 1;
+        ret = !SetEvent(wci.event);
+        if (ret != 0) WINE_ERR("SetEvent failed.\n");
         break;
     case from_process_name:
         {
@@ -865,30 +867,30 @@ int PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, INT nCmdSh
 
             buffer = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
             if (!buffer)
-                return 0;
+                return 1;
 
             MultiByteToWideChar(CP_ACP, 0, wci.ptr, -1, buffer, len);
 
             if (!(data = WINECON_Init(hInst, GetCurrentProcessId(), buffer, wci.backend, nCmdShow)))
             {
                 HeapFree(GetProcessHeap(), 0, buffer);
-                return 0;
+                return 1;
             }
             ret = WINECON_Spawn(data, buffer);
             HeapFree(GetProcessHeap(), 0, buffer);
-            if (!ret)
+            if (ret != 0)
             {
                 WINECON_Delete(data);
                 printf_res(IDS_CMD_LAUNCH_FAILED, wine_dbgstr_a(wci.ptr));
-                return 0;
+                return ret;
             }
         }
         break;
     default:
-        return 0;
+        return 1;
     }
 
-    if (ret)
+    if (!ret)
     {
 	WINE_TRACE("calling MainLoop.\n");
 	ret = data->fnMainLoop(data);
