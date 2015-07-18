@@ -64,6 +64,9 @@ struct vcomp_thread_data
 
     /* section */
     unsigned int            section;
+
+    /* dynamic */
+    unsigned int            dynamic;
 };
 
 struct vcomp_team_data
@@ -88,6 +91,14 @@ struct vcomp_task_data
     unsigned int            section;
     int                     num_sections;
     int                     section_index;
+
+    /* dynamic */
+    unsigned int            dynamic;
+    unsigned int            dynamic_first;
+    unsigned int            dynamic_iterations;
+    int                     dynamic_step;
+    unsigned int            dynamic_chunksize;
+    unsigned int            dynamic_min_chunksize;
 };
 
 #if defined(__i386__)
@@ -200,6 +211,7 @@ static struct vcomp_thread_data *vcomp_init_thread_data(void)
     }
 
     data->task.section          = 0;
+    data->task.dynamic          = 0;
 
     thread_data = &data->thread;
     thread_data->team           = NULL;
@@ -208,6 +220,7 @@ static struct vcomp_thread_data *vcomp_init_thread_data(void)
     thread_data->parallel       = FALSE;
     thread_data->fork_threads   = 0;
     thread_data->section        = 1;
+    thread_data->dynamic        = 1;
 
     vcomp_set_thread_data(thread_data);
     return thread_data;
@@ -634,6 +647,66 @@ void CDECL _vcomp_for_static_end(void)
     /* nothing to do here */
 }
 
+void CDECL _vcomp_for_dynamic_init(unsigned int flags, unsigned int first, unsigned int last,
+                                   int step, unsigned int chunksize)
+{
+    struct vcomp_thread_data *thread_data = vcomp_init_thread_data();
+    struct vcomp_task_data *task_data = thread_data->task;
+
+    TRACE("(%u, %u, %u, %d, %u)\n", flags, first, last, step, chunksize);
+
+    EnterCriticalSection(&vcomp_section);
+    thread_data->dynamic++;
+    if ((int)(thread_data->dynamic - task_data->dynamic) > 0)
+    {
+        struct vcomp_team_data *team_data = thread_data->team;
+        int num_threads = team_data ? team_data->num_threads : 1;
+        unsigned int iterations;
+
+        if (flags & 0x40)
+            iterations = 1 + (last - first) / step;
+        else
+        {
+            iterations = 1 + (first - last) / step;
+            step *= -1;
+        }
+
+        task_data->dynamic                  = thread_data->dynamic;
+        task_data->dynamic_first            = first;
+        task_data->dynamic_iterations       = iterations;
+        task_data->dynamic_step             = step;
+        task_data->dynamic_chunksize        = max(1, iterations / num_threads);
+        task_data->dynamic_min_chunksize    = max(1, chunksize);
+    }
+    LeaveCriticalSection(&vcomp_section);
+}
+
+int CDECL _vcomp_for_dynamic_next(unsigned int *begin, unsigned int *end)
+{
+    struct vcomp_thread_data *thread_data = vcomp_init_thread_data();
+    struct vcomp_task_data *task_data = thread_data->task;
+    unsigned int iterations = 0;
+
+    TRACE("(%p, %p)\n", begin, end);
+
+    EnterCriticalSection(&vcomp_section);
+    if (thread_data->dynamic == task_data->dynamic &&
+        task_data->dynamic_iterations != 0)
+    {
+        iterations = min(task_data->dynamic_iterations, task_data->dynamic_chunksize);
+        *begin = task_data->dynamic_first;
+        *end   = task_data->dynamic_first + (iterations - 1) * task_data->dynamic_step;
+
+        task_data->dynamic_iterations -= iterations;
+        task_data->dynamic_first      += iterations * task_data->dynamic_step;
+        task_data->dynamic_chunksize   = max((task_data->dynamic_chunksize * 3 + 2)/4,
+                                             task_data->dynamic_min_chunksize);
+    }
+    LeaveCriticalSection(&vcomp_section);
+
+    return (iterations != 0);
+}
+
 int CDECL omp_in_parallel(void)
 {
     TRACE("()\n");
@@ -711,6 +784,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
     team_data.barrier_count     = 0;
 
     task_data.section           = 0;
+    task_data.dynamic           = 0;
 
     thread_data.team            = &team_data;
     thread_data.task            = &task_data;
@@ -718,6 +792,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
     thread_data.parallel        = ifval || prev_thread_data->parallel;
     thread_data.fork_threads    = 0;
     thread_data.section         = 1;
+    thread_data.dynamic         = 1;
     list_init(&thread_data.entry);
     InitializeConditionVariable(&thread_data.cond);
 
@@ -736,6 +811,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
             data->parallel      = thread_data.parallel;
             data->fork_threads  = 0;
             data->section       = 1;
+            data->dynamic       = 1;
             list_remove(&data->entry);
             list_add_tail(&thread_data.entry, &data->entry);
             WakeAllConditionVariable(&data->cond);
@@ -757,6 +833,7 @@ void WINAPIV _vcomp_fork(BOOL ifval, int nargs, void *wrapper, ...)
             data->parallel      = thread_data.parallel;
             data->fork_threads  = 0;
             data->section       = 1;
+            data->dynamic       = 1;
             InitializeConditionVariable(&data->cond);
 
             thread = CreateThread(NULL, 0, _vcomp_fork_worker, data, 0, NULL);
