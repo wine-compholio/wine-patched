@@ -1047,8 +1047,7 @@ BOOL WINAPI SetEndOfFile( HANDLE hFile )
 BOOL WINAPI SetFileCompletionNotificationModes( HANDLE handle, UCHAR flags )
 {
     FIXME("%p %x - stub\n", handle, flags);
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return FALSE;
+    return TRUE;
 }
 
 
