@@ -647,113 +647,113 @@ ALvoid CDECL wine_alSpeedOfSound(ALfloat value)
 }
 
 /* OpenAL EFX extension functions */
-static ALvoid CDECL wine_alGenFilters(ALsizei n, ALuint* filters)
+ALvoid CDECL wine_alGenFilters(ALsizei n, ALuint* filters)
 {
     alGenFilters(n, filters);
 }
 
-static ALvoid CDECL wine_alDeleteFilters(ALsizei n, const ALuint* filters)
+ALvoid CDECL wine_alDeleteFilters(ALsizei n, const ALuint* filters)
 {
     alDeleteFilters(n, filters);
 }
 
-static ALboolean CDECL wine_alIsFilter(ALuint fid)
+ALboolean CDECL wine_alIsFilter(ALuint fid)
 {
     return alIsFilter(fid);
 }
 
-static ALvoid CDECL wine_alFilterf(ALuint fid, ALenum param, ALfloat value)
+ALvoid CDECL wine_alFilterf(ALuint fid, ALenum param, ALfloat value)
 {
     alFilterf(fid, param, value);
 }
 
-static ALvoid CDECL wine_alFilterfv(ALuint fid, ALenum param, const ALfloat* values)
+ALvoid CDECL wine_alFilterfv(ALuint fid, ALenum param, const ALfloat* values)
 {
     alFilterfv(fid, param, values);
 }
 
-static ALvoid CDECL wine_alFilteri(ALuint fid, ALenum param, ALint value)
+ALvoid CDECL wine_alFilteri(ALuint fid, ALenum param, ALint value)
 {
     alFilteri(fid, param, value);
 }
 
-static ALvoid CDECL wine_alFilteriv(ALuint fid, ALenum param, const ALint* values)
+ALvoid CDECL wine_alFilteriv(ALuint fid, ALenum param, const ALint* values)
 {
     alFilteriv(fid, param, values);
 }
 
-static ALvoid CDECL wine_alGetFilterf(ALuint fid, ALenum param, ALfloat* value)
+ALvoid CDECL wine_alGetFilterf(ALuint fid, ALenum param, ALfloat* value)
 {
     alGetFilterf(fid, param, value);
 }
 
-static ALvoid CDECL wine_alGetFilterfv(ALuint fid, ALenum param, ALfloat* values)
+ALvoid CDECL wine_alGetFilterfv(ALuint fid, ALenum param, ALfloat* values)
 {
     alGetFilterfv(fid, param, values);
 }
 
-static ALvoid CDECL wine_alGetFilteri(ALuint fid, ALenum param, ALint* value)
+ALvoid CDECL wine_alGetFilteri(ALuint fid, ALenum param, ALint* value)
 {
     alGetFilteri(fid, param, value);
 }
 
-static ALvoid CDECL wine_alGetFilteriv(ALuint fid, ALenum param, ALint* values)
+ALvoid CDECL wine_alGetFilteriv(ALuint fid, ALenum param, ALint* values)
 {
     alGetFilteriv(fid, param, values);
 }
 
 
-static ALvoid CDECL wine_alGenEffects(ALsizei n, ALuint* effects)
+ALvoid CDECL wine_alGenEffects(ALsizei n, ALuint* effects)
 {
     alGenEffects(n, effects);
 }
 
-static ALvoid CDECL wine_alDeleteEffects(ALsizei n, const ALuint* effects)
+ALvoid CDECL wine_alDeleteEffects(ALsizei n, const ALuint* effects)
 {
     alDeleteEffects(n, effects);
 }
 
-static ALboolean CDECL wine_alIsEffect(ALuint eid)
+ALboolean CDECL wine_alIsEffect(ALuint eid)
 {
     return alIsEffect(eid);
 }
 
-static ALvoid CDECL wine_alEffectf(ALuint eid, ALenum param, ALfloat value)
+ALvoid CDECL wine_alEffectf(ALuint eid, ALenum param, ALfloat value)
 {
     alEffectf(eid, param, value);
 }
 
-static ALvoid CDECL wine_alEffectfv(ALuint eid, ALenum param, const ALfloat* values)
+ALvoid CDECL wine_alEffectfv(ALuint eid, ALenum param, const ALfloat* values)
 {
     alEffectfv(eid, param, values);
 }
 
-static ALvoid CDECL wine_alEffecti(ALuint eid, ALenum param, ALint value)
+ALvoid CDECL wine_alEffecti(ALuint eid, ALenum param, ALint value)
 {
     alEffecti(eid, param, value);
 }
 
-static ALvoid CDECL wine_alEffectiv(ALuint eid, ALenum param, const ALint* values)
+ALvoid CDECL wine_alEffectiv(ALuint eid, ALenum param, const ALint* values)
 {
     alEffectiv(eid, param, values);
 }
 
-static ALvoid CDECL wine_alGetEffectf(ALuint eid, ALenum param, ALfloat* value)
+ALvoid CDECL wine_alGetEffectf(ALuint eid, ALenum param, ALfloat* value)
 {
     alGetEffectf(eid, param, value);
 }
 
-static ALvoid CDECL wine_alGetEffectfv(ALuint eid, ALenum param, ALfloat* values)
+ALvoid CDECL wine_alGetEffectfv(ALuint eid, ALenum param, ALfloat* values)
 {
     alGetEffectfv(eid, param, values);
 }
 
-static ALvoid CDECL wine_alGetEffecti(ALuint eid, ALenum param, ALint* value)
+ALvoid CDECL wine_alGetEffecti(ALuint eid, ALenum param, ALint* value)
 {
     alGetEffecti(eid, param, value);
 }
 
-static ALvoid CDECL wine_alGetEffectiv(ALuint eid, ALenum param, ALint* values)
+ALvoid CDECL wine_alGetEffectiv(ALuint eid, ALenum param, ALint* values)
 {
     alGetEffectiv(eid, param, values);
 }
