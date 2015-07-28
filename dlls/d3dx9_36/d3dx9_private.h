@@ -196,4 +196,6 @@ void d3dx_create_param_eval(struct d3dx9_base_effect *base_effect, void *byte_co
         unsigned int byte_code_size, D3DXPARAMETER_TYPE type, struct d3dx_param_eval **peval) DECLSPEC_HIDDEN;
 void d3dx_free_param_eval(struct d3dx_param_eval *peval) DECLSPEC_HIDDEN;
 
+HRESULT create_dummy_skin(ID3DXSkinInfo **iface) DECLSPEC_HIDDEN;
+
 #endif /* __WINE_D3DX9_PRIVATE_H */
