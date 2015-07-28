@@ -243,4 +243,6 @@ HRESULT d3dx_param_eval_set_shader_constants(struct IDirect3DDevice9 *device,
         struct d3dx_param_eval *peval, BOOL update_all) DECLSPEC_HIDDEN;
 BOOL is_param_eval_input_dirty(struct d3dx_param_eval *peval) DECLSPEC_HIDDEN;
 
+HRESULT create_dummy_skin(ID3DXSkinInfo **iface) DECLSPEC_HIDDEN;
+
 #endif /* __WINE_D3DX9_PRIVATE_H */
