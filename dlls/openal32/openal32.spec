@@ -95,3 +95,26 @@
 @ cdecl alGetBuffer3f(long long ptr ptr ptr) wine_alGetBuffer3f
 @ cdecl alGetBuffer3i(long long ptr ptr ptr) wine_alGetBuffer3i
 @ cdecl alSpeedOfSound(long) wine_alSpeedOfSound
+# OpenAL EFX extension
+@ cdecl alGenFilters(long ptr) wine_alGenFilters
+@ cdecl alDeleteFilters(long ptr) wine_alDeleteFilters
+@ cdecl alIsFilter(long) wine_alIsFilter
+@ cdecl alFilterf(long long float) wine_alFilterf
+@ cdecl alFilterfv(long long ptr) wine_alFilterfv
+@ cdecl alFilteri(long long long) wine_alFilteri
+@ cdecl alFilteriv(long long ptr) wine_alFilteriv
+@ cdecl alGetFilterf(long long ptr) wine_alGetFilterf
+@ cdecl alGetFilterfv(long long ptr) wine_alGetFilterfv
+@ cdecl alGetFilteri(long long ptr) wine_alGetFilteri
+@ cdecl alGetFilteriv(long long ptr) wine_alGetFilteriv
+@ cdecl alGenEffects(long ptr) wine_alGenEffects
+@ cdecl alDeleteEffects(long ptr) wine_alDeleteEffects
+@ cdecl alIsEffect(long) wine_alIsEffect
+@ cdecl alEffectf(long long float) wine_alEffectf
+@ cdecl alEffectfv(long long ptr) wine_alEffectfv
+@ cdecl alEffecti(long long long) wine_alEffecti
+@ cdecl alEffectiv(long long ptr) wine_alEffectiv
+@ cdecl alGetEffectf(long long ptr) wine_alGetEffectf
+@ cdecl alGetEffectfv(long long ptr) wine_alGetEffectfv
+@ cdecl alGetEffecti(long long ptr) wine_alGetEffecti
+@ cdecl alGetEffectiv(long long ptr) wine_alGetEffectiv
