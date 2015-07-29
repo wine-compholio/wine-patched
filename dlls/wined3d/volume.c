@@ -779,6 +779,7 @@ static HRESULT volume_init(struct wined3d_volume *volume, struct wined3d_texture
     }
 
     volume->container = container;
+    volume->resource.format_flags = container->resource.format_flags;
 
     return WINED3D_OK;
 }
