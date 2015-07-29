@@ -54,6 +54,21 @@ struct request_max_size
 #define LAST_USER_HANDLE  0xffef
 
 
+typedef struct
+{
+    unsigned int last_input_time;
+    unsigned int foreground_wnd_epoch;
+} shmglobal_t;
+
+
+typedef struct
+{
+    int             queue_bits;
+    user_handle_t   input_focus;
+    user_handle_t   input_capture;
+    user_handle_t   input_active;
+} shmlocal_t;
+
 
 typedef union
 {
@@ -701,9 +716,13 @@ struct new_process_request
     unsigned int thread_attr;
     cpu_type_t   cpu;
     data_size_t  info_size;
+    data_size_t  env_size;
+    data_size_t  process_sd_size;
     /* VARARG(info,startup_info,info_size); */
-    /* VARARG(env,unicode_str); */
-    char __pad_52[4];
+    /* VARARG(env,unicode_str,env_size); */
+    /* VARARG(process_sd,security_descriptor,process_sd_size); */
+    /* VARARG(thread_sd,security_descriptor); */
+    char __pad_60[4];
 };
 struct new_process_reply
 {
@@ -892,13 +911,28 @@ struct get_thread_info_reply
     process_id_t pid;
     thread_id_t  tid;
     client_ptr_t teb;
+    client_ptr_t entry_point;
     affinity_t   affinity;
-    timeout_t    creation_time;
-    timeout_t    exit_time;
     int          exit_code;
     int          priority;
     int          last;
-    char __pad_60[4];
+    char __pad_52[4];
+};
+
+
+
+struct get_thread_times_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct get_thread_times_reply
+{
+    struct reply_header __header;
+    timeout_t    creation_time;
+    timeout_t    exit_time;
+    int          unix_pid;
+    int          unix_tid;
 };
 
 
@@ -912,14 +946,16 @@ struct set_thread_info_request
     affinity_t   affinity;
     obj_handle_t token;
     char __pad_36[4];
+    client_ptr_t entry_point;
 };
 struct set_thread_info_reply
 {
     struct reply_header __header;
 };
-#define SET_THREAD_INFO_PRIORITY 0x01
-#define SET_THREAD_INFO_AFFINITY 0x02
-#define SET_THREAD_INFO_TOKEN    0x04
+#define SET_THREAD_INFO_PRIORITY   0x01
+#define SET_THREAD_INFO_AFFINITY   0x02
+#define SET_THREAD_INFO_TOKEN      0x04
+#define SET_THREAD_INFO_ENTRYPOINT 0x08
 
 
 
@@ -1443,6 +1479,18 @@ enum server_fd_type
 
 
 
+struct get_shared_memory_request
+{
+    struct request_header __header;
+    thread_id_t tid;
+};
+struct get_shared_memory_reply
+{
+    struct reply_header __header;
+};
+
+
+
 struct flush_request
 {
     struct request_header __header;
@@ -1484,6 +1532,35 @@ struct unlock_file_request
     file_pos_t   count;
 };
 struct unlock_file_reply
+{
+    struct reply_header __header;
+};
+
+
+
+struct set_file_info_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+    int          unlink;
+    char __pad_20[4];
+};
+struct set_file_info_reply
+{
+    struct reply_header __header;
+};
+
+
+
+struct rename_file_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+    obj_handle_t rootdir;
+    int          link;
+    /* VARARG(unix_name,string); */
+};
+struct rename_file_reply
 {
     struct reply_header __header;
 };
@@ -1540,6 +1617,18 @@ struct accept_into_socket_reply
 
 
 
+struct reuse_socket_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct reuse_socket_reply
+{
+    struct reply_header __header;
+};
+
+
+
 struct set_socket_event_request
 {
     struct request_header __header;
@@ -1587,6 +1676,7 @@ struct get_socket_info_reply
     int type;
     int protocol;
     char __pad_20[4];
+    timeout_t connect_time;
 };
 
 
@@ -2145,8 +2235,16 @@ struct get_mapping_info_reply
     int          protect;
     int          header_size;
     client_ptr_t base;
+    client_ptr_t entry;
+    short int    subsystem;
+    short int    major_subsystem;
+    short int    minor_subsystem;
+    short int    characteristics;
+    short int    dll_characteristics;
+    short int    machine;
     obj_handle_t mapping;
     obj_handle_t shared_file;
+    char __pad_60[4];
 };
 
 
@@ -3262,14 +3360,15 @@ struct create_named_pipe_request
 struct create_named_pipe_reply
 {
     struct reply_header __header;
+    unsigned int   flags;
     obj_handle_t   handle;
-    char __pad_12[4];
 };
 
 
 #define NAMED_PIPE_MESSAGE_STREAM_WRITE 0x0001
 #define NAMED_PIPE_MESSAGE_STREAM_READ  0x0002
 #define NAMED_PIPE_NONBLOCKING_MODE     0x0004
+#define NAMED_PIPE_CLOSED_HANDLE        0x0008
 #define NAMED_PIPE_SERVER_END           0x8000
 
 
@@ -5295,6 +5394,7 @@ enum request
     REQ_get_process_info,
     REQ_set_process_info,
     REQ_get_thread_info,
+    REQ_get_thread_times,
     REQ_set_thread_info,
     REQ_get_dll_info,
     REQ_suspend_thread,
@@ -5327,12 +5427,16 @@ enum request
     REQ_alloc_file_handle,
     REQ_get_handle_unix_name,
     REQ_get_handle_fd,
+    REQ_get_shared_memory,
     REQ_flush,
     REQ_lock_file,
     REQ_unlock_file,
+    REQ_set_file_info,
+    REQ_rename_file,
     REQ_create_socket,
     REQ_accept_socket,
     REQ_accept_into_socket,
+    REQ_reuse_socket,
     REQ_set_socket_event,
     REQ_get_socket_event,
     REQ_get_socket_info,
@@ -5568,6 +5672,7 @@ union generic_request
     struct get_process_info_request get_process_info_request;
     struct set_process_info_request set_process_info_request;
     struct get_thread_info_request get_thread_info_request;
+    struct get_thread_times_request get_thread_times_request;
     struct set_thread_info_request set_thread_info_request;
     struct get_dll_info_request get_dll_info_request;
     struct suspend_thread_request suspend_thread_request;
@@ -5600,12 +5705,16 @@ union generic_request
     struct alloc_file_handle_request alloc_file_handle_request;
     struct get_handle_unix_name_request get_handle_unix_name_request;
     struct get_handle_fd_request get_handle_fd_request;
+    struct get_shared_memory_request get_shared_memory_request;
     struct flush_request flush_request;
     struct lock_file_request lock_file_request;
     struct unlock_file_request unlock_file_request;
+    struct set_file_info_request set_file_info_request;
+    struct rename_file_request rename_file_request;
     struct create_socket_request create_socket_request;
     struct accept_socket_request accept_socket_request;
     struct accept_into_socket_request accept_into_socket_request;
+    struct reuse_socket_request reuse_socket_request;
     struct set_socket_event_request set_socket_event_request;
     struct get_socket_event_request get_socket_event_request;
     struct get_socket_info_request get_socket_info_request;
@@ -5839,6 +5948,7 @@ union generic_reply
     struct get_process_info_reply get_process_info_reply;
     struct set_process_info_reply set_process_info_reply;
     struct get_thread_info_reply get_thread_info_reply;
+    struct get_thread_times_reply get_thread_times_reply;
     struct set_thread_info_reply set_thread_info_reply;
     struct get_dll_info_reply get_dll_info_reply;
     struct suspend_thread_reply suspend_thread_reply;
@@ -5871,12 +5981,16 @@ union generic_reply
     struct alloc_file_handle_reply alloc_file_handle_reply;
     struct get_handle_unix_name_reply get_handle_unix_name_reply;
     struct get_handle_fd_reply get_handle_fd_reply;
+    struct get_shared_memory_reply get_shared_memory_reply;
     struct flush_reply flush_reply;
     struct lock_file_reply lock_file_reply;
     struct unlock_file_reply unlock_file_reply;
+    struct set_file_info_reply set_file_info_reply;
+    struct rename_file_reply rename_file_reply;
     struct create_socket_reply create_socket_reply;
     struct accept_socket_reply accept_socket_reply;
     struct accept_into_socket_reply accept_into_socket_reply;
+    struct reuse_socket_reply reuse_socket_reply;
     struct set_socket_event_reply set_socket_event_reply;
     struct get_socket_event_reply get_socket_event_reply;
     struct get_socket_info_reply get_socket_info_reply;
@@ -6096,6 +6210,6 @@ union generic_reply
     struct terminate_job_reply terminate_job_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 481
+#define SERVER_PROTOCOL_VERSION 482
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
