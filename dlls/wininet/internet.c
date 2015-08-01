@@ -2307,7 +2307,8 @@ static WCHAR *get_proxy_autoconfig_url(void)
     CFRelease( settings );
     return ret;
 #else
-    FIXME( "no support on this platform\n" );
+    static int once;
+    if (!once++) FIXME( "no support on this platform\n" );
     return NULL;
 #endif
 }
