@@ -2328,7 +2328,8 @@ static BOOL get_proxy_autoconfig_url( char *buf, DWORD buflen )
     CFRelease( settings );
     return ret;
 #else
-    FIXME( "no support on this platform\n" );
+    static int once;
+    if (!once++) FIXME( "no support on this platform\n" );
     return FALSE;
 #endif
 }
