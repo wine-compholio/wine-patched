@@ -46,7 +46,7 @@
 @ stub __uncaught_exceptions
 @ stub __vcrt_GetModuleFileNameW
 @ stub __vcrt_GetModuleHandleW
-@ stub __vcrt_InitializeCriticalSectionEx
+@ cdecl -arch=i386,win64 __vcrt_InitializeCriticalSectionEx(ptr long long) MSVCR110__crtInitializeCriticalSectionEx
 @ stub __vcrt_LoadLibraryExW
 @ cdecl -arch=i386 -norelay _chkesp()
 @ cdecl -arch=i386 _except_handler2(ptr ptr ptr ptr)
