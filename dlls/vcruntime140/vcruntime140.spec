@@ -38,8 +38,8 @@
 @ stub __std_type_info_destroy_list
 @ stub __std_type_info_hash
 @ stub __std_type_info_name
-@ stub __telemetry_main_invoke_trigger
-@ stub __telemetry_main_return_trigger
+@ cdecl __telemetry_main_invoke_trigger(ptr)
+@ cdecl __telemetry_main_return_trigger(ptr)
 @ cdecl __unDName(ptr str long ptr ptr long)
 @ cdecl __unDNameEx(ptr str long ptr ptr ptr long)
 @ cdecl __uncaught_exception() MSVCRT___uncaught_exception
