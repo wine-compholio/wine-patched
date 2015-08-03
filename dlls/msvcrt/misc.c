@@ -498,3 +498,19 @@ void CDECL MSVCR120__vacopy(__ms_va_list *dest, __ms_va_list src)
 {
     __ms_va_copy(*dest, src);
 }
+
+/*********************************************************************
+ * __telemetry_main_invoke_trigger (MSVCRT.@)
+ */
+void CDECL __telemetry_main_invoke_trigger(const HINSTANCE hinst)
+{
+    TRACE("(%p)\n", hinst);
+}
+
+/*********************************************************************
+ * __telemetry_main_return_trigger (MSVCRT.@)
+ */
+void CDECL __telemetry_main_return_trigger(const HINSTANCE hinst)
+{
+    TRACE("(%p)\n", hinst);
+}
