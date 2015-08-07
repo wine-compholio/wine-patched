@@ -3045,6 +3045,9 @@ BOOL WINAPI InternetSetOptionW(HINTERNET hInternet, DWORD dwOption,
         ret = (res == ERROR_SUCCESS);
         break;
         }
+    case INTERNET_OPTION_SETTINGS_CHANGED:
+        FIXME("INTERNET_OPTION_SETTINGS_CHANGED; STUB\n");
+        break;
     default:
         FIXME("Option %d STUB\n",dwOption);
         SetLastError(ERROR_INTERNET_INVALID_OPTION);
