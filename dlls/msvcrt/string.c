@@ -497,6 +497,22 @@ double CDECL MSVCRT_strtod( const char *str, char **end )
 }
 
 /*********************************************************************
+ *		strtof_l  (MSVCRT.@)
+ */
+float CDECL MSVCRT_strtof_l( const char *str, char **end, MSVCRT__locale_t locale )
+{
+    return MSVCRT_strtod_l(str, end, locale);
+}
+
+/*********************************************************************
+ *		strtof  (MSVCRT.@)
+ */
+float CDECL MSVCRT_strtof( const char *str, char **end )
+{
+    return MSVCRT_strtof_l(str, end, NULL);
+}
+
+/*********************************************************************
  *		atof  (MSVCRT.@)
  */
 double CDECL MSVCRT_atof( const char *str )
