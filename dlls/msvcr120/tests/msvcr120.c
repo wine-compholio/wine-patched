@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <stdio.h>
+#include <float.h>
+#include <limits.h>
 
 #include <windef.h>
 #include <winbase.h>
@@ -73,6 +75,11 @@ struct MSVCRT_lconv
     wchar_t* _W_negative_sign;
 };
 
+static inline BOOL almost_equal(float d1, float d2)
+{
+    return (d1-d2 > -1e-15 && d1-d2 < 1e-15);
+}
+
 static char* (CDECL *p_setlocale)(int category, const char* locale);
 static struct MSVCRT_lconv* (CDECL *p_localeconv)(void);
 static size_t (CDECL *p_wcstombs_s)(size_t *ret, char* dest, size_t sz, const wchar_t* src, size_t max);
@@ -83,6 +90,8 @@ static wchar_t** (CDECL *p____lc_locale_name_func)(void);
 static unsigned int (CDECL *p__GetConcurrency)(void);
 static void* (CDECL *p__W_Gettnames)(void);
 static void (CDECL *p_free)(void*);
+static float (CDECL *p__strtof_l)(const char *, char **, _locale_t);
+static float (CDECL *p_strtof)(const char *, char **);
 
 static BOOL init(void)
 {
@@ -105,6 +114,8 @@ static BOOL init(void)
     p__GetConcurrency = (void*)GetProcAddress(module,"?_GetConcurrency@details@Concurrency@@YAIXZ");
     p__W_Gettnames = (void*)GetProcAddress(module, "_W_Gettnames");
     p_free = (void*)GetProcAddress(module, "free");
+    p__strtof_l = (void*)GetProcAddress(module, "_strtof_l");
+    p_strtof = (void*)GetProcAddress(module, "strtof");
     return TRUE;
 }
 
@@ -321,6 +332,63 @@ static void test__W_Gettnames(void)
     p_setlocale(LC_ALL, "C");
 }
 
+static void test__strtof(void)
+{
+    const char float1[] = "12.1";
+    const char float2[] = "3.402823466e+38";          /* FLT_MAX */
+    const char float3[] = "-3.402823466e+38";
+    const char float4[] = "1.7976931348623158e+308";  /* DBL_MAX */
+    const char float5[] = "-1.7976931348623158e+308";
+
+    char *end;
+    float f;
+
+    f = FLT_MAX * FLT_MAX;
+    ok(_finite(f) == 0, "_finite failed\n");
+
+    /* strtof */
+    f = p_strtof(float1, &end);
+    ok(almost_equal(f, 12.1), "f = %lf\n", f);
+    ok(end == float1+4, "incorrect end (%d)\n", (int)(end-float1));
+
+    f = p_strtof(float2, &end);
+    ok(almost_equal(f, FLT_MAX), "f = %lf\n", f);
+    ok(end == float2+15, "incorrect end (%d)\n", (int)(end-float2));
+
+    f = p_strtof(float3, &end);
+    ok(almost_equal(f, -FLT_MAX), "f = %lf\n", f);
+    ok(end == float3+16, "incorrect end (%d)\n", (int)(end-float3));
+
+    f = p_strtof(float4, &end);
+    ok(_finite(f) == 0, "f = %lf\n", f);
+    ok(end == float4+23, "incorrect end (%d)\n", (int)(end-float4));
+
+    f = p_strtof(float5, &end);
+    ok(_finite(f) == 0, "f = %lf\n", f);
+    ok(end == float5+24, "incorrect end (%d)\n", (int)(end-float5));
+
+    /* _strtof_l */
+    f = p__strtof_l(float1, &end, NULL);
+    ok(almost_equal(f, 12.1), "f = %lf\n", f);
+    ok(end == float1+4, "incorrect end (%d)\n", (int)(end-float1));
+
+    f = p__strtof_l(float2, &end, NULL);
+    ok(almost_equal(f, FLT_MAX), "f = %lf\n", f);
+    ok(end == float2+15, "incorrect end (%d)\n", (int)(end-float2));
+
+    f = p__strtof_l(float3, &end, NULL);
+    ok(almost_equal(f, -FLT_MAX), "f = %lf\n", f);
+    ok(end == float3+16, "incorrect end (%d)\n", (int)(end-float3));
+
+    f = p__strtof_l(float4, &end, NULL);
+    ok(_finite(f) == 0, "f = %lf\n", f);
+    ok(end == float4+23, "incorrect end (%d)\n", (int)(end-float4));
+
+    f = p__strtof_l(float5, &end, NULL);
+    ok(_finite(f) == 0, "f = %lf\n", f);
+    ok(end == float5+24, "incorrect end (%d)\n", (int)(end-float5));
+}
+
 START_TEST(msvcr120)
 {
     if (!init()) return;
@@ -330,4 +398,5 @@ START_TEST(msvcr120)
     test____lc_locale_name_func();
     test__GetConcurrency();
     test__W_Gettnames();
+    test__strtof();
 }
