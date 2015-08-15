@@ -1143,8 +1143,10 @@ static HRESULT WINAPI ShellFolder2_GetAttributesOf(IShellFolder2* iface, UINT ci
                     SFGAO_HASPROPSHEET|SFGAO_DROPTARGET|SFGAO_FILESYSTEM;
         lstrcpyA(szAbsolutePath, This->m_pszPath);
         pszRelativePath = szAbsolutePath + lstrlenA(szAbsolutePath);
-        for (i=0; i<cidl; i++) {
-            if (!(This->m_dwAttributes & SFGAO_FILESYSTEM)) {
+        for (i=0; i<cidl; i++)
+        {
+            if (!(This->m_dwAttributes & SFGAO_FILESYSTEM))
+            {
                 WCHAR *dos_name;
                 if (!UNIXFS_filename_from_shitemid(apidl[i], pszRelativePath)) 
                     return E_INVALIDARG;
@@ -1153,8 +1155,24 @@ static HRESULT WINAPI ShellFolder2_GetAttributesOf(IShellFolder2* iface, UINT ci
                 else
                     HeapFree( GetProcessHeap(), 0, dos_name );
             }
-            if (_ILIsFolder(apidl[i])) 
-                *rgfInOut |= SFGAO_FOLDER|SFGAO_HASSUBFOLDER|SFGAO_FILESYSANCESTOR;
+            if (_ILIsFolder(apidl[i]))
+            {
+                IEnumIDList *enum_list;
+                IShellFolder2 *child;
+
+                *rgfInOut |= SFGAO_FOLDER|SFGAO_FILESYSANCESTOR;
+
+                if (SUCCEEDED(IShellFolder2_BindToObject(iface, apidl[i], NULL, &IID_IShellFolder2, (void **)&child)))
+                {
+                    if (IShellFolder2_EnumObjects(child, NULL, SHCONTF_FOLDERS|SHCONTF_INCLUDEHIDDEN, &enum_list) == S_OK)
+                    {
+                        if (IEnumIDList_Skip(enum_list, 1) == S_OK)
+                            *rgfInOut |= SFGAO_HASSUBFOLDER;
+                        IEnumIDList_Release(enum_list);
+                    }
+                    IShellFolder2_Release(child);
+                }
+            }
         }
     }
 
