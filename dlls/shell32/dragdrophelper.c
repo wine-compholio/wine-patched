@@ -1,8 +1,9 @@
 /*
  *	file system folder
  *
- *	Copyright 1997			Marcus Meissner
- *	Copyright 1998, 1999, 2002	Juergen Schmied
+ *  Copyright 1997          Marcus Meissner
+ *  Copyright 1998, 1999, 2002 Juergen Schmied
+ *  Copyright 2015          Michael Müller
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -47,45 +48,15 @@ WINE_DEFAULT_DEBUG_CHANNEL (shell);
 *   IDropTargetHelper implementation
 */
 
-typedef struct {
+typedef struct
+{
     IDropTargetHelper IDropTargetHelper_iface;
     LONG ref;
-} IDropTargetHelperImpl;
+} IDragHelperImpl;
 
-static const IDropTargetHelperVtbl vt_IDropTargetHelper;
-
-static inline IDropTargetHelperImpl *impl_from_IDropTargetHelper(IDropTargetHelper *iface)
+static inline IDragHelperImpl *impl_from_IDropTargetHelper(IDropTargetHelper *iface)
 {
-    return CONTAINING_RECORD(iface, IDropTargetHelperImpl, IDropTargetHelper_iface);
-}
-
-/**************************************************************************
-*	IDropTargetHelper_Constructor
-*/
-HRESULT WINAPI IDropTargetHelper_Constructor (IUnknown * pUnkOuter, REFIID riid, LPVOID * ppv)
-{
-    IDropTargetHelperImpl *dth;
-
-    TRACE ("unkOut=%p %s\n", pUnkOuter, shdebugstr_guid (riid));
-
-    if (!ppv)
-	return E_POINTER;
-    if (pUnkOuter)
-	return CLASS_E_NOAGGREGATION;
-
-    dth = LocalAlloc (LMEM_ZEROINIT, sizeof (IDropTargetHelperImpl));
-    if (!dth) return E_OUTOFMEMORY;
-
-    dth->ref = 0;
-    dth->IDropTargetHelper_iface.lpVtbl = &vt_IDropTargetHelper;
-
-    if (FAILED (IDropTargetHelper_QueryInterface (&dth->IDropTargetHelper_iface, riid, ppv))) {
-        LocalFree(dth);
-	return E_NOINTERFACE;
-    }
-
-    TRACE ("--(%p)\n", dth);
-    return S_OK;
+    return CONTAINING_RECORD(iface, IDragHelperImpl, IDropTargetHelper_iface);
 }
 
 /**************************************************************************
@@ -93,28 +64,31 @@ HRESULT WINAPI IDropTargetHelper_Constructor (IUnknown * pUnkOuter, REFIID riid,
  */
 static HRESULT WINAPI IDropTargetHelper_fnQueryInterface (IDropTargetHelper * iface, REFIID riid, LPVOID * ppvObj)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
 
     TRACE ("(%p)->(%s,%p)\n", This, shdebugstr_guid (riid), ppvObj);
 
     *ppvObj = NULL;
 
-    if (IsEqualIID (riid, &IID_IUnknown) || IsEqualIID (riid, &IID_IDropTargetHelper)) {
-	*ppvObj = &This->IDropTargetHelper_iface;
+    if (IsEqualIID (riid, &IID_IUnknown) || IsEqualIID (riid, &IID_IDropTargetHelper))
+    {
+       *ppvObj = &This->IDropTargetHelper_iface;
     }
 
-    if (*ppvObj) {
-	IUnknown_AddRef ((IUnknown *) (*ppvObj));
-	TRACE ("-- Interface: (%p)->(%p)\n", ppvObj, *ppvObj);
-	return S_OK;
+    if (*ppvObj)
+    {
+        IUnknown_AddRef ((IUnknown *) (*ppvObj));
+        TRACE ("-- Interface: (%p)->(%p)\n", ppvObj, *ppvObj);
+        return S_OK;
     }
+
     FIXME ("-- Interface: E_NOINTERFACE\n");
     return E_NOINTERFACE;
 }
 
 static ULONG WINAPI IDropTargetHelper_fnAddRef (IDropTargetHelper * iface)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     ULONG refCount = InterlockedIncrement(&This->ref);
 
     TRACE ("(%p)->(count=%u)\n", This, refCount - 1);
@@ -124,67 +98,94 @@ static ULONG WINAPI IDropTargetHelper_fnAddRef (IDropTargetHelper * iface)
 
 static ULONG WINAPI IDropTargetHelper_fnRelease (IDropTargetHelper * iface)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     ULONG refCount = InterlockedDecrement(&This->ref);
 
     TRACE ("(%p)->(count=%u)\n", This, refCount + 1);
 
-    if (!refCount) {
+    if (!refCount)
+    {
         TRACE ("-- destroying (%p)\n", This);
-        LocalFree (This);
+        HeapFree(GetProcessHeap(), 0, This);
         return 0;
     }
     return refCount;
 }
 
-static HRESULT WINAPI IDropTargetHelper_fnDragEnter (
-        IDropTargetHelper * iface,
-	HWND hwndTarget,
-	IDataObject* pDataObject,
-	POINT* ppt,
-	DWORD dwEffect)
+static HRESULT WINAPI IDropTargetHelper_fnDragEnter (IDropTargetHelper * iface, HWND hwndTarget,
+                                                     IDataObject* pDataObject,POINT* ppt, DWORD dwEffect)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     FIXME ("(%p)->(%p %p %p 0x%08x)\n", This,hwndTarget, pDataObject, ppt, dwEffect);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI IDropTargetHelper_fnDragLeave (IDropTargetHelper * iface)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     FIXME ("(%p)->()\n", This);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI IDropTargetHelper_fnDragOver (IDropTargetHelper * iface, POINT* ppt, DWORD dwEffect)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     FIXME ("(%p)->(%p 0x%08x)\n", This, ppt, dwEffect);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI IDropTargetHelper_fnDrop (IDropTargetHelper * iface, IDataObject* pDataObject, POINT* ppt, DWORD dwEffect)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     FIXME ("(%p)->(%p %p 0x%08x)\n", This, pDataObject, ppt, dwEffect);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI IDropTargetHelper_fnShow (IDropTargetHelper * iface, BOOL fShow)
 {
-    IDropTargetHelperImpl *This = impl_from_IDropTargetHelper(iface);
+    IDragHelperImpl *This = impl_from_IDropTargetHelper(iface);
     FIXME ("(%p)->(%u)\n", This, fShow);
     return E_NOTIMPL;
 }
 
 static const IDropTargetHelperVtbl vt_IDropTargetHelper =
 {
-	IDropTargetHelper_fnQueryInterface,
-	IDropTargetHelper_fnAddRef,
-	IDropTargetHelper_fnRelease,
-	IDropTargetHelper_fnDragEnter,
-	IDropTargetHelper_fnDragLeave,
-        IDropTargetHelper_fnDragOver,
-	IDropTargetHelper_fnDrop,
-	IDropTargetHelper_fnShow
+    IDropTargetHelper_fnQueryInterface,
+    IDropTargetHelper_fnAddRef,
+    IDropTargetHelper_fnRelease,
+    IDropTargetHelper_fnDragEnter,
+    IDropTargetHelper_fnDragLeave,
+    IDropTargetHelper_fnDragOver,
+    IDropTargetHelper_fnDrop,
+    IDropTargetHelper_fnShow
 };
+
+/**************************************************************************
+*   IDropTargetHelper_Constructor
+*/
+HRESULT WINAPI IDropTargetHelper_Constructor (IUnknown * pUnkOuter, REFIID riid, LPVOID * ppv)
+{
+    IDragHelperImpl *dth;
+
+    TRACE ("unkOut=%p %s\n", pUnkOuter, shdebugstr_guid (riid));
+
+    if (!ppv)
+        return E_POINTER;
+    if (pUnkOuter)
+        return CLASS_E_NOAGGREGATION;
+
+    dth = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof (IDragHelperImpl));
+    if (!dth) return E_OUTOFMEMORY;
+
+    dth->ref = 0;
+    dth->IDropTargetHelper_iface.lpVtbl = &vt_IDropTargetHelper;
+
+    if (FAILED(IDropTargetHelper_QueryInterface (&dth->IDropTargetHelper_iface, riid, ppv)))
+    {
+        HeapFree(GetProcessHeap(), 0, dth);
+        return E_NOINTERFACE;
+    }
+
+    TRACE ("--(%p)\n", dth);
+    return S_OK;
+}
