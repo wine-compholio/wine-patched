@@ -150,6 +150,8 @@ static const struct object_ops named_pipe_ops =
 /* server end functions */
 static void pipe_server_dump( struct object *obj, int verbose );
 static struct fd *pipe_server_get_fd( struct object *obj );
+static int pipe_server_link_name( struct object *obj, struct object_name *name, struct object *parent );
+static void pipe_server_unlink_name( struct object *obj, struct object_name *name );
 static int pipe_server_close_handle( struct object *obj, struct process *process, obj_handle_t handle );
 static void pipe_server_destroy( struct object *obj);
 static obj_handle_t pipe_server_flush( struct fd *fd, struct async *async, int blocking );
@@ -173,8 +175,8 @@ static const struct object_ops pipe_server_ops =
     default_get_sd,               /* get_sd */
     default_set_sd,               /* set_sd */
     no_lookup_name,               /* lookup_name */
-    no_link_name,                 /* link_name */
-    NULL,                         /* unlink_name */
+    pipe_server_link_name,        /* link_name */
+    pipe_server_unlink_name,      /* unlink_name */
     no_open_file,                 /* open_file */
     no_alloc_handle,              /* alloc_handle */
     pipe_server_close_handle,     /* close_handle */
@@ -198,6 +200,8 @@ static const struct fd_ops pipe_server_fd_ops =
 static void pipe_client_dump( struct object *obj, int verbose );
 static int pipe_client_signaled( struct object *obj, struct wait_queue_entry *entry );
 static struct fd *pipe_client_get_fd( struct object *obj );
+static int pipe_client_link_name( struct object *obj, struct object_name *name, struct object *parent );
+static void pipe_client_unlink_name( struct object *obj, struct object_name *name );
 static int pipe_client_close_handle( struct object *obj, struct process *process, obj_handle_t handle );
 static void pipe_client_destroy( struct object *obj );
 static obj_handle_t pipe_client_flush( struct fd *fd, struct async *async, int blocking );
@@ -219,8 +223,8 @@ static const struct object_ops pipe_client_ops =
     default_get_sd,               /* get_sd */
     default_set_sd,               /* set_sd */
     no_lookup_name,               /* lookup_name */
-    no_link_name,                 /* link_name */
-    NULL,                         /* unlink_name */
+    pipe_client_link_name,        /* link_name */
+    pipe_client_unlink_name,      /* unlink_name */
     no_open_file,                 /* open_file */
     no_alloc_handle,              /* alloc_handle */
     pipe_client_close_handle,     /* close_handle */
@@ -399,6 +403,17 @@ static void do_disconnect( struct pipe_server *server )
     server->pipe_end.fd = NULL;
 }
 
+static int pipe_server_link_name( struct object *obj, struct object_name *name, struct object *parent )
+{
+    assert( parent->ops == &named_pipe_ops );
+    name->parent = grab_object( parent );
+    return 1;
+}
+
+static void pipe_server_unlink_name( struct object *obj, struct object_name *name )
+{
+}
+
 static int pipe_server_close_handle( struct object *obj, struct process *process, obj_handle_t handle )
 {
 #ifdef __linux__
@@ -440,6 +455,17 @@ static void pipe_server_destroy( struct object *obj)
     if (server->ioctl_fd) release_object( server->ioctl_fd );
     list_remove( &server->entry );
     release_object( server->pipe );
+}
+
+static int pipe_client_link_name( struct object *obj, struct object_name *name, struct object *parent )
+{
+    assert( parent->ops == &named_pipe_ops );
+    name->parent = grab_object( parent );
+    return 1;
+}
+
+static void pipe_client_unlink_name( struct object *obj, struct object_name *name )
+{
 }
 
 static int pipe_client_close_handle( struct object *obj, struct process *process, obj_handle_t handle )
@@ -761,9 +787,10 @@ static void init_pipe_end( struct pipe_end *pipe_end, unsigned int pipe_flags )
 static struct pipe_server *create_pipe_server( struct named_pipe *pipe, unsigned int options,
                                                unsigned int pipe_flags )
 {
+    static const struct unicode_str str = { NULL, 0 };
     struct pipe_server *server;
 
-    server = alloc_object( &pipe_server_ops );
+    server = create_object( &pipe->obj, &pipe_server_ops, &str, NULL );
     if (!server)
         return NULL;
 
@@ -785,11 +812,13 @@ static struct pipe_server *create_pipe_server( struct named_pipe *pipe, unsigned
     return server;
 }
 
-static struct pipe_client *create_pipe_client( unsigned int flags, unsigned int pipe_flags )
+static struct pipe_client *create_pipe_client( struct named_pipe *pipe, unsigned int flags,
+                                               unsigned int pipe_flags )
 {
+    static const struct unicode_str str = { NULL, 0 };
     struct pipe_client *client;
 
-    client = alloc_object( &pipe_client_ops );
+    client = create_object( &pipe->obj, &pipe_client_ops, &str, NULL );
     if (!client)
         return NULL;
 
@@ -888,7 +917,7 @@ static struct object *named_pipe_open_file( struct object *obj, unsigned int acc
         return NULL;
     }
 
-    if ((client = create_pipe_client( options, pipe->flags )))
+    if ((client = create_pipe_client( pipe, options, pipe->flags )))
     {
         type = ((pipe->flags & NAMED_PIPE_MESSAGE_STREAM_WRITE) && is_messagemode_supported()) ?
                SOCK_SEQPACKET : SOCK_STREAM;
