@@ -175,22 +175,25 @@ WCHAR *get_object_full_name( struct object *obj, data_size_t *ret_len )
     data_size_t len = 0;
     char *ret;
 
-    while (ptr && ptr->name)
+    while (ptr)
     {
         struct object_name *name = ptr->name;
-        len += name->len + sizeof(WCHAR);
+        if (name) len += name->len + sizeof(WCHAR);
         ptr = ptr->parent;
     }
     if (!len) return NULL;
     if (!(ret = malloc( len ))) return NULL;
 
     *ret_len = len;
-    while (obj && obj->name)
+    while (obj)
     {
         struct object_name *name = obj->name;
-        memcpy( ret + len - name->len, name->name, name->len );
-        len -= name->len + sizeof(WCHAR);
-        memcpy( ret + len, &backslash, sizeof(WCHAR) );
+        if (name)
+        {
+            memcpy( ret + len - name->len, name->name, name->len );
+            len -= name->len + sizeof(WCHAR);
+            memcpy( ret + len, &backslash, sizeof(WCHAR) );
+        }
         obj = obj->parent;
     }
     return (WCHAR *)ret;
@@ -220,13 +223,13 @@ void *alloc_object( const struct object_ops *ops )
 void *create_object( struct namespace *namespace, const struct object_ops *ops,
                      const struct unicode_str *name, struct object *parent )
 {
+    struct object_name *name_ptr = NULL;
     struct object *obj;
-    struct object_name *name_ptr;
 
-    if (!(name_ptr = alloc_name( name ))) return NULL;
+    if (namespace && !(name_ptr = alloc_name( name ))) return NULL;
     if ((obj = alloc_object( ops )))
     {
-        set_object_name( namespace, obj, name_ptr );
+        if (namespace) set_object_name( namespace, obj, name_ptr );
         if (parent) obj->parent = grab_object( parent );
     }
     else
