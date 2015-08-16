@@ -83,6 +83,7 @@ static const struct {
 	{&CLSID_ExplorerBrowser,ExplorerBrowser_Constructor},
 	{&CLSID_KnownFolderManager, KnownFolderManager_Constructor},
 	{&CLSID_Shell,          IShellDispatch_Constructor},
+	{&CLSID_NewMenu,        NewMenu_Constructor},
 	{NULL, NULL}
 };
 
