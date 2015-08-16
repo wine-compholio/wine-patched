@@ -55,6 +55,7 @@ struct namespace
     struct list         names[1];        /* array of hash entry lists */
 };
 
+static struct list dummy_namespace = LIST_INIT(dummy_namespace);
 
 #ifdef DEBUG_OBJECTS
 static struct list object_list = LIST_INIT(object_list);
@@ -157,9 +158,15 @@ static void free_name( struct object *obj )
 static void set_object_name( struct namespace *namespace,
                              struct object *obj, struct object_name *ptr )
 {
-    int hash = get_name_hash( namespace, ptr->name, ptr->len );
-
-    list_add_head( &namespace->names[hash], &ptr->entry );
+    if (namespace)
+    {
+        int hash = get_name_hash( namespace, ptr->name, ptr->len );
+        list_add_head( &namespace->names[hash], &ptr->entry );
+    }
+    else
+    {
+        list_add_tail( &dummy_namespace, &ptr->entry );
+    }
     ptr->obj = obj;
     obj->name = ptr;
 }
@@ -184,7 +191,7 @@ WCHAR *get_object_full_name( struct object *obj, data_size_t *ret_len )
     while (ptr && ptr->name)
     {
         struct object_name *name = ptr->name;
-        len += name->len + sizeof(WCHAR);
+        if (name->len) len += name->len + sizeof(WCHAR);
         ptr = name->parent;
     }
     if (!len) return NULL;
@@ -194,9 +201,12 @@ WCHAR *get_object_full_name( struct object *obj, data_size_t *ret_len )
     while (obj && obj->name)
     {
         struct object_name *name = obj->name;
-        memcpy( ret + len - name->len, name->name, name->len );
-        len -= name->len + sizeof(WCHAR);
-        memcpy( ret + len, &backslash, sizeof(WCHAR) );
+        if (name->len)
+        {
+            memcpy( ret + len - name->len, name->name, name->len );
+            len -= name->len + sizeof(WCHAR);
+            memcpy( ret + len, &backslash, sizeof(WCHAR) );
+        }
         obj = name->parent;
     }
     return (WCHAR *)ret;
@@ -276,8 +286,11 @@ static void dump_name( struct object *obj )
 
     if (!name) return;
     if (name->parent) dump_name( name->parent );
-    fputs( "\\\\", stderr );
-    dump_strW( name->name, name->len / sizeof(WCHAR), stderr, "[]" );
+    if (name->len)
+    {
+        fputs( "\\\\", stderr );
+        dump_strW( name->name, name->len / sizeof(WCHAR), stderr, "[]" );
+    }
 }
 
 /* dump the name of an object to stderr */

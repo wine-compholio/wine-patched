@@ -765,9 +765,10 @@ static struct pipe_server *get_pipe_server_obj( struct process *process,
 static struct pipe_server *create_pipe_server( struct named_pipe *pipe, unsigned int options,
                                                unsigned int pipe_flags )
 {
+    static const struct unicode_str str = { NULL, 0 };
     struct pipe_server *server;
 
-    server = alloc_object( &pipe_server_ops );
+    server = create_object( NULL, &pipe_server_ops, &str, &pipe->obj );
     if (!server)
         return NULL;
 
@@ -789,11 +790,13 @@ static struct pipe_server *create_pipe_server( struct named_pipe *pipe, unsigned
     return server;
 }
 
-static struct pipe_client *create_pipe_client( unsigned int flags, unsigned int pipe_flags )
+static struct pipe_client *create_pipe_client( struct named_pipe *pipe, unsigned int flags,
+                                               unsigned int pipe_flags )
 {
+    static const struct unicode_str str = { NULL, 0 };
     struct pipe_client *client;
 
-    client = alloc_object( &pipe_client_ops );
+    client = create_object( NULL, &pipe_client_ops, &str, &pipe->obj );
     if (!client)
         return NULL;
 
@@ -879,7 +882,7 @@ static struct object *named_pipe_open_file( struct object *obj, unsigned int acc
         return NULL;
     }
 
-    if ((client = create_pipe_client( options, pipe->flags )))
+    if ((client = create_pipe_client( pipe, options, pipe->flags )))
     {
         type = ((pipe->flags & NAMED_PIPE_MESSAGE_STREAM_WRITE) && is_messagemode_supported()) ?
                SOCK_SEQPACKET : SOCK_STREAM;
