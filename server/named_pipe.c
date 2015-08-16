@@ -743,7 +743,7 @@ static struct named_pipe *create_named_pipe( struct directory *root, const struc
     else
     {
         struct named_pipe_device *dev = (struct named_pipe_device *)obj;
-        if ((pipe = create_object( dev->pipes, &named_pipe_ops, &new_name, NULL )))
+        if ((pipe = create_object( dev->pipes, &named_pipe_ops, &new_name, &dev->obj )))
             clear_error();
     }
 
