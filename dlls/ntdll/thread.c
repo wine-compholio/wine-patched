@@ -610,6 +610,12 @@ void exit_thread( int status )
         if (thread_data->pthread_id)
         {
             pthread_join( thread_data->pthread_id, NULL );
+            if ((ULONG_PTR)thread_data->pthread_stack & 1)
+            {
+                void *addr = (void *)((ULONG_PTR)thread_data->pthread_stack & ~1);
+                SIZE_T size = 0;
+                NtFreeVirtualMemory( GetCurrentProcess(), &addr, &size, MEM_RELEASE );
+            }
             signal_free_thread( teb );
         }
     }
