@@ -1380,23 +1380,18 @@ static void test_file_refcount_child(void)
     ret = fclose(stdout);
     ok(ret == 0, "fclose failed\n");
     ret = GetHandleInformation(h1, &flags);
-todo_wine
     ok(ret, "GetHandleInformation failed\n");
     ret = WriteFile(h1, buffer2, strlen(buffer2), &written, 0);
-todo_wine
     ok(ret, "WriteFile failed\n");
 
     ret = fclose(stdout);
     ok(ret != 0, "fclose should fail\n");
     ret = GetHandleInformation(h1, &flags);
-todo_wine
     ok(ret, "GetHandleInformation failed\n");
     ret = WriteFile(h1, buffer3, strlen(buffer3), &written, 0);
-todo_wine
     ok(ret, "WriteFile failed\n");
 
     ret = fclose(stderr);
-todo_wine
     ok(ret == 0, "fclose failed\n");
     ret = GetHandleInformation(h1, &flags);
     ok(!ret, "GetHandleInformation should fail\n");
@@ -1501,7 +1496,6 @@ static void test_file_refcount( STARTUPINFOA *startup, char *cmdline, const char
     winetest_wait_child_process( proc.hProcess );
 
     data = read_file( hMixFile );
-todo_wine
     ok( !strcmp( data, "test1test2test3" ), "%s: Wrong error data (%s)\n", descr, data );
 
     CloseHandle( hMixFile );
