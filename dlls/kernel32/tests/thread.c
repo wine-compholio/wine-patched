@@ -1742,7 +1742,8 @@ static void test_thread_info(void)
         size = info_size[i];
         if (!size) size = sizeof(buf);
         ret_len = 0;
-        status = pNtQueryInformationThread(thread, i, buf, info_size[i], &ret_len);
+        memset(buf, 0, size);
+        status = pNtQueryInformationThread(thread, i, buf, size, &ret_len);
         if (status == STATUS_NOT_IMPLEMENTED) continue;
         if (status == STATUS_INVALID_INFO_CLASS) continue;
         if (status == STATUS_UNSUCCESSFUL) continue;
