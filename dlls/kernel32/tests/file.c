@@ -4644,6 +4644,27 @@ todo_wine
     CloseHandle(file);
 }
 
+static void test_GetFileAttributesExW(void)
+{
+    static const WCHAR path1[] = {'\\','\\','?','\\',0};
+    static const WCHAR path2[] = {'\\','?','?','\\',0};
+    static const WCHAR path3[] = {'\\','D','o','s','D','e','v','i','c','e','s','\\',0};
+    WIN32_FILE_ATTRIBUTE_DATA info;
+    BOOL ret;
+
+    ret = GetFileAttributesExW(path1, GetFileExInfoStandard, &info);
+    ok(!ret, "GetFileAttributesExW succeeded\n");
+    ok(GetLastError() == ERROR_INVALID_NAME, "Expected error ERROR_INVALID_NAME, got %d\n", GetLastError());
+
+    ret = GetFileAttributesExW(path2, GetFileExInfoStandard, &info);
+    ok(!ret, "GetFileAttributesExW succeeded\n");
+    ok(GetLastError() == ERROR_INVALID_NAME, "Expected error ERROR_INVALID_NAME, got %d\n", GetLastError());
+
+    ret = GetFileAttributesExW(path3, GetFileExInfoStandard, &info);
+    ok(!ret, "GetFileAttributesExW succeeded\n");
+    ok(GetLastError() == ERROR_FILE_NOT_FOUND, "Expected error ERROR_FILE_NOT_FOUND, got %d\n", GetLastError());
+}
+
 START_TEST(file)
 {
     InitFunctionPointers();
@@ -4700,4 +4721,5 @@ START_TEST(file)
     test_GetFinalPathNameByHandleA();
     test_GetFinalPathNameByHandleW();
     test_SetFileInformationByHandle();
+    test_GetFileAttributesExW();
 }
