@@ -393,13 +393,13 @@ static void msvcrt_free_fd(int fd)
   {
     switch (fd)
     {
-    case 0:
+    case MSVCRT_STDIN_FILENO:
         SetStdHandle(STD_INPUT_HANDLE, 0);
         break;
-    case 1:
+    case MSVCRT_STDOUT_FILENO:
         SetStdHandle(STD_OUTPUT_HANDLE, 0);
         break;
-    case 2:
+    case MSVCRT_STDERR_FILENO:
         SetStdHandle(STD_ERROR_HANDLE, 0);
         break;
     }
