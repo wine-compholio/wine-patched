@@ -1007,18 +1007,21 @@ int CDECL MSVCRT__fflush_nolock(MSVCRT_FILE* file)
 int CDECL MSVCRT__close(int fd)
 {
   ioinfo *info = get_ioinfo(fd);
-  int ret;
+  int ret = 0;
 
   TRACE(":fd (%d) handle (%p)\n", fd, info->handle);
   if (!(info->wxflag & WX_OPEN)) {
     ret = -1;
   } else {
-    ret = CloseHandle(info->handle) ? 0 : -1;
-    msvcrt_free_fd(fd);
-    if (ret) {
-      WARN(":failed-last error (%d)\n",GetLastError());
-      msvcrt_set_errno(GetLastError());
+    if ((fd != MSVCRT_STDOUT_FILENO && fd != MSVCRT_STDERR_FILENO) ||
+         get_ioinfo_nolock(MSVCRT_STDOUT_FILENO)->handle != get_ioinfo_nolock(MSVCRT_STDERR_FILENO)->handle) {
+      ret = CloseHandle(info->handle) ? 0 : -1;
+      if (ret) {
+        WARN(":failed-last error (%d)\n",GetLastError());
+        msvcrt_set_errno(GetLastError());
+      }
     }
+    msvcrt_free_fd(fd);
   }
   release_ioinfo(info);
   return ret;
