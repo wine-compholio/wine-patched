@@ -1606,6 +1606,7 @@ BOOL virtual_handle_stack_fault( void *addr )
         BYTE vprot = view->prot[((const char *)page - (const char *)view->base) >> page_shift];
         if (vprot & VPROT_GUARD)
         {
+            if (!view->mapping) vprot |= VPROT_COMMITTED; /* FIXME */
             VIRTUAL_SetProt( view, page, page_size, vprot & ~VPROT_GUARD );
             NtCurrentTeb()->Tib.StackLimit = page;
             if ((char *)page >= (char *)NtCurrentTeb()->DeallocationStack + 2*page_size)
