@@ -10959,6 +10959,57 @@ static void test_compute_normals(void)
     free_test_context(test_context);
 }
 
+static void D3DXCreateAnimationControllerTest(void)
+{
+    HRESULT hr;
+    ID3DXAnimationController *animation;
+    UINT value;
+
+    hr = D3DXCreateAnimationController(0, 0, 0, 0, NULL);
+    todo_wine ok(hr == D3D_OK, "D3DXCreateAnimationController returned %#x, expected D3D_OK\n", hr);
+
+if (0) /* Crashes when animation is Released */
+{
+    hr = D3DXCreateAnimationController(0, 0, 0, 0, &animation);
+    ok(hr == D3D_OK, "D3DXCreateAnimationController returned %#x, expected D3D_OK\n", hr);
+    animation->lpVtbl->Release(animation);
+}
+
+    hr = D3DXCreateAnimationController(1, 1, 1, 1, &animation);
+    ok(hr == D3D_OK, "D3DXCreateAnimationController returned %#x, expected D3D_OK\n", hr);
+
+    value = animation->lpVtbl->GetMaxNumAnimationOutputs(animation);
+    ok(value == 1, "returned %u, expected 1\n", value);
+
+    value = animation->lpVtbl->GetMaxNumAnimationSets(animation);
+    ok(value == 1, "returned %u, expected 1\n", value);
+
+    value = animation->lpVtbl->GetMaxNumTracks(animation);
+    ok(value == 1, "returned %u, expected 1\n", value);
+
+    value = animation->lpVtbl->GetMaxNumEvents(animation);
+    ok(value == 1, "returned %u, expected 1\n", value);
+
+    animation->lpVtbl->Release(animation);
+
+    hr = D3DXCreateAnimationController(100, 101, 102, 103, &animation);
+    ok(hr == D3D_OK, "D3DXCreateAnimationController returned %#x, expected D3D_OK\n", hr);
+
+    value = animation->lpVtbl->GetMaxNumAnimationOutputs(animation);
+    ok(value == 100, "returned %u, expected 100\n", value);
+
+    value = animation->lpVtbl->GetMaxNumAnimationSets(animation);
+    ok(value == 101, "returned %u, expected 101\n", value);
+
+    value = animation->lpVtbl->GetMaxNumTracks(animation);
+    ok(value == 102, "returned %u, expected 102\n", value);
+
+    value = animation->lpVtbl->GetMaxNumEvents(animation);
+    ok(value == 103, "returned %u, expected 103\n", value);
+
+    animation->lpVtbl->Release(animation);
+}
+
 START_TEST(mesh)
 {
     D3DXBoundProbeTest();
@@ -10975,6 +11026,7 @@ START_TEST(mesh)
     D3DXCreateCylinderTest();
     D3DXCreateTextTest();
     D3DXCreateTorusTest();
+    D3DXCreateAnimationControllerTest();
     test_get_decl_length();
     test_get_decl_vertex_size();
     test_fvf_decl_conversion();
