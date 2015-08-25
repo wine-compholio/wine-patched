@@ -3135,6 +3135,9 @@ static HRESULT WINAPI ddraw7_EnumSurfaces(IDirectDraw7 *iface, DWORD Flags,
     if (!Callback)
         return DDERR_INVALIDPARAMS;
 
+    if (!all && !DDSD)
+        return DDERR_INVALIDPARAMS;
+
     wined3d_mutex_lock();
 
     /* Use the _SAFE enumeration, the app may destroy enumerated surfaces */
