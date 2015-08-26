@@ -377,7 +377,8 @@ static const struct column col_bios[] =
     { prop_releasedateW,        CIM_DATETIME },
     { prop_serialnumberW,       CIM_STRING },
     { prop_smbiosbiosversionW,  CIM_STRING },
-    { prop_versionW,            CIM_STRING|COL_FLAG_KEY }
+    { prop_versionW,            CIM_STRING|COL_FLAG_KEY },
+    { prop_nameW,               CIM_STRING }
 };
 static const struct column col_cdromdrive[] =
 {
@@ -666,6 +667,8 @@ static const WCHAR bios_smbiosbiosversionW[] =
     {'W','i','n','e',0};
 static const WCHAR bios_versionW[] =
     {'W','I','N','E',' ',' ',' ','-',' ','1',0};
+static const WCHAR bios_nameW[] =
+    {'W','I','N','E',' ','B','I','O','S',0};
 static const WCHAR cdromdrive_mediatypeW[] =
     {'C','D','-','R','O','M',0};
 static const WCHAR cdromdrive_nameW[] =
@@ -765,6 +768,7 @@ struct record_bios
     const WCHAR *serialnumber;
     const WCHAR *smbiosbiosversion;
     const WCHAR *version;
+    const WCHAR *name;
 };
 struct record_cdromdrive
 {
@@ -1041,7 +1045,7 @@ static const struct record_baseboard data_baseboard[] =
 static const struct record_bios data_bios[] =
 {
     { bios_descriptionW, bios_descriptionW, bios_manufacturerW, bios_releasedateW, bios_serialnumberW,
-      bios_smbiosbiosversionW, bios_versionW }
+      bios_smbiosbiosversionW, bios_versionW, bios_nameW }
 };
 static const struct record_computersystemproduct data_compsysproduct[] =
 {
