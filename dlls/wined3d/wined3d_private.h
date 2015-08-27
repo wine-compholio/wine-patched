@@ -2607,6 +2607,8 @@ struct wined3d_sampler
     GLuint name;
 };
 
+void wined3d_sampler_destroy(struct wined3d_sampler *sampler) DECLSPEC_HIDDEN;
+
 struct wined3d_vertex_declaration_element
 {
     const struct wined3d_format *format;
@@ -2862,6 +2864,7 @@ void wined3d_cs_emit_delete_opengl_contexts(struct wined3d_cs *cs,
         struct wined3d_swapchain *swapchain) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_getdc(struct wined3d_cs *cs, struct wined3d_surface *surface) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_releasedc(struct wined3d_cs *cs, struct wined3d_surface *surface) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_sampler_destroy(struct wined3d_cs *cs, struct wined3d_sampler *sampler) DECLSPEC_HIDDEN;
 
 /* Direct3D terminology with little modifications. We do not have an issued state
  * because only the driver knows about it, but we have a created state because d3d
