@@ -85,6 +85,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_RESOURCE_CLEANUP,
     WINED3D_CS_OP_BUFFER_CLEANUP,
     WINED3D_CS_OP_TEXTURE_CLEANUP,
+    WINED3D_CS_OP_SAMPLER_DESTROY,
     WINED3D_CS_OP_STOP,
 };
 
@@ -504,6 +505,12 @@ struct wined3d_cs_texture_cleanup
 {
     enum wined3d_cs_op opcode;
     struct wined3d_texture *texture;
+};
+
+struct wined3d_cs_sampler_destroy
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_sampler *sampler;
 };
 
 static void wined3d_cs_mt_submit(struct wined3d_cs *cs, size_t size)
@@ -2545,6 +2552,26 @@ void wined3d_cs_emit_texture_cleanup(struct wined3d_cs *cs, struct wined3d_textu
     cs->ops->submit(cs, sizeof(*op));
 }
 
+static UINT wined3d_cs_exec_sampler_destroy(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_sampler_destroy *op = data;
+
+    wined3d_sampler_destroy(op->sampler);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_sampler_destroy(struct wined3d_cs *cs, struct wined3d_sampler *sampler)
+{
+    struct wined3d_cs_sampler_destroy *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_SAMPLER_DESTROY;
+    op->sampler = sampler;
+
+    cs->ops->submit(cs, sizeof(*op));
+}
+
 static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void *data) =
 {
     /* WINED3D_CS_OP_NOP                        */ wined3d_cs_exec_nop,
@@ -2608,6 +2635,7 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_RESOURCE_CLEANUP           */ wined3d_cs_exec_resource_cleanup,
     /* WINED3D_CS_OP_BUFFER_CLEANUP             */ wined3d_cs_exec_buffer_cleanup,
     /* WINED3D_CS_OP_TEXTURE_CLEANUP            */ wined3d_cs_exec_texture_cleanup,
+    /* WINED3D_CS_OP_SAMPLER_DESTROY            */ wined3d_cs_exec_sampler_destroy,
 };
 
 static inline void *_wined3d_cs_mt_require_space(struct wined3d_cs *cs, size_t size, BOOL prio)
