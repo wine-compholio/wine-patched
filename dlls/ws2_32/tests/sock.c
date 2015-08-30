@@ -1119,20 +1119,19 @@ static void test_WithWSAStartup(void)
     ok(res == 0, "WSAStartup() failed unexpectedly: %d\n", res);
 
     /* show that sockets are destroyed automatically after WSACleanup */
-    todo_wine {
     SetLastError(0xdeadbeef);
     res = send(src, "TEST", 4, 0);
     error = WSAGetLastError();
     ok(res == SOCKET_ERROR, "send should have failed\n");
+    todo_wine
     ok(error == WSAENOTSOCK, "expected 10038, got %d\n", error);
 
     SetLastError(0xdeadbeef);
     res = closesocket(dst);
     error = WSAGetLastError();
     ok(res == SOCKET_ERROR, "closesocket should have failed\n");
+    todo_wine
     ok(error == WSAENOTSOCK, "expected 10038, got %d\n", error);
-    }
-
     closesocket(src);
     closesocket(dst);
 
