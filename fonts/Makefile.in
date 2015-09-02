@@ -11,6 +11,7 @@ FONT_SRCS = \
 	system.sfd \
 	tahoma.sfd \
 	tahomabd.sfd \
+	times.sfd \
 	wingding.sfd
 
 # Make sure that make_makefiles sees the generated rules
