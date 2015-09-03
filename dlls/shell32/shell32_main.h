@@ -237,6 +237,7 @@ enum tid_t {
     IShellFolderViewDual3_tid,
     Folder3_tid,
     FolderItem2_tid,
+    FolderItems_tid,
     FolderItemVerb_tid,
     FolderItemVerbs_tid,
     LAST_tid
