@@ -73,6 +73,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_TEXTURE_PRELOAD,
     WINED3D_CS_OP_UPDATE_TEXTURE,
     WINED3D_CS_OP_EVICT_RESOURCE,
+    WINED3D_CS_OP_UPDATE_SUB_RESOURCE,
     WINED3D_CS_OP_STOP,
 };
 
@@ -412,6 +413,15 @@ struct wined3d_cs_evict_resource
 {
     enum wined3d_cs_op opcode;
     struct wined3d_resource *resource;
+};
+
+struct wined3d_cs_update_sub_resource
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_resource *resource;
+    unsigned int sub_resource_idx, row_pitch, depth_pitch;
+    const struct wined3d_box *box;
+    const void *data;
 };
 
 static void wined3d_cs_mt_submit(struct wined3d_cs *cs, size_t size)
@@ -2099,6 +2109,90 @@ void wined3d_cs_emit_evict_resource(struct wined3d_cs *cs, struct wined3d_resour
     cs->ops->submit(cs, sizeof(*op));
 }
 
+static UINT wined3d_cs_exec_update_sub_resource(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_update_sub_resource *op = data;
+
+    struct wined3d_texture_sub_resource *sub_resource;
+    const struct wined3d_gl_info *gl_info;
+    struct wined3d_const_bo_address addr;
+    struct wined3d_context *context;
+    struct wined3d_texture *texture;
+    struct wined3d_surface *surface;
+    POINT dst_point;
+    RECT src_rect;
+    unsigned int width, height, level;
+
+    texture = wined3d_texture_from_resource(op->resource);
+    sub_resource = wined3d_texture_get_sub_resource(texture, op->sub_resource_idx);
+    surface = sub_resource->u.surface;
+
+    level = op->sub_resource_idx % texture->level_count;
+    width = wined3d_texture_get_level_width(texture, level);
+    height = wined3d_texture_get_level_height(texture, level);
+
+    src_rect.left = 0;
+    src_rect.top = 0;
+    if (op->box)
+    {
+        src_rect.right = op->box->right - op->box->left;
+        src_rect.bottom = op->box->bottom - op->box->top;
+        dst_point.x = op->box->left;
+        dst_point.y = op->box->top;
+    }
+    else
+    {
+        src_rect.right = width;
+        src_rect.bottom = height;
+        dst_point.x = 0;
+        dst_point.y = 0;
+    }
+
+    addr.buffer_object = 0;
+    addr.addr = op->data;
+
+    context = context_acquire(texture->resource.device, NULL);
+    gl_info = context->gl_info;
+
+    /* Only load the surface for partial updates. */
+    if (!dst_point.x && !dst_point.y && src_rect.right == width && src_rect.bottom == height)
+        wined3d_texture_prepare_texture(texture, context, FALSE);
+    else
+        wined3d_texture_load_location(texture, op->sub_resource_idx, context, WINED3D_LOCATION_TEXTURE_RGB);
+    wined3d_texture_bind_and_dirtify(texture, context, FALSE);
+
+    wined3d_surface_upload_data(surface, gl_info, texture->resource.format,
+            &src_rect, op->row_pitch, &dst_point, FALSE, &addr);
+
+    context_release(context);
+
+    wined3d_texture_validate_location(texture, op->sub_resource_idx, WINED3D_LOCATION_TEXTURE_RGB);
+    wined3d_texture_invalidate_location(texture, op->sub_resource_idx, ~WINED3D_LOCATION_TEXTURE_RGB);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_update_sub_resource(struct wined3d_cs *cs, struct wined3d_resource *resource,
+        unsigned int sub_resource_idx, const struct wined3d_box *box, const void *data, unsigned int row_pitch,
+        unsigned int depth_pitch)
+{
+    struct wined3d_cs_update_sub_resource *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_UPDATE_SUB_RESOURCE;
+    op->resource = resource;
+    op->sub_resource_idx = sub_resource_idx;
+    op->box = box;
+    op->data = data;
+    op->row_pitch = row_pitch;
+    op->depth_pitch = depth_pitch;
+
+    cs->ops->submit(cs, sizeof(*op));
+    /* The data pointer may go away, need to wait until the data is read. Copying the data may be faster.
+     * Don't forget to copy box as well in this case. */
+    cs->ops->finish(cs);
+}
+
 static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void *data) =
 {
     /* WINED3D_CS_OP_NOP                        */ wined3d_cs_exec_nop,
@@ -2150,6 +2244,7 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_TEXTURE_PRELOAD            */ wined3d_cs_exec_texture_preload,
     /* WINED3D_CS_OP_UPDATE_TEXTURE             */ wined3d_cs_exec_update_texture,
     /* WINED3D_CS_OP_EVICT_RESOURCE             */ wined3d_cs_exec_evict_resource,
+    /* WINED3D_CS_OP_UPDATE_SUB_RESOURCE        */ wined3d_cs_exec_update_sub_resource,
 };
 
 static inline void *_wined3d_cs_mt_require_space(struct wined3d_cs *cs, size_t size, BOOL prio)
