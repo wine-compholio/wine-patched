@@ -1570,6 +1570,7 @@ INT WINAPI WSACleanup(void)
 
     if (!--num_startup)
     {
+        wine_server_close_fds_by_type( FD_TYPE_SOCKET );
         SERVER_START_REQ(socket_cleanup)
         {
             wine_server_call( req );
