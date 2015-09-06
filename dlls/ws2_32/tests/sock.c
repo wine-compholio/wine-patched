@@ -1130,7 +1130,6 @@ static void test_WithWSAStartup(void)
     res = closesocket(dst);
     error = WSAGetLastError();
     ok(res == SOCKET_ERROR, "closesocket should have failed\n");
-    todo_wine
     ok(error == WSAENOTSOCK, "expected 10038, got %d\n", error);
     closesocket(src);
     closesocket(dst);
