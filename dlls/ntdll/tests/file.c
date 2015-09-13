@@ -186,6 +186,9 @@ static void create_file_test(void)
     OBJECT_ATTRIBUTES attr;
     IO_STATUS_BLOCK io;
     UNICODE_STRING nameW;
+    LARGE_INTEGER offset;
+    char buf[32];
+    DWORD ret;
 
     GetCurrentDirectoryW( MAX_PATH, path );
     pRtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL );
@@ -200,6 +203,19 @@ static void create_file_test(void)
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, 0, FILE_SHARE_READ|FILE_SHARE_WRITE,
                             FILE_OPEN, FILE_DIRECTORY_FILE, NULL, 0 );
     ok( !status, "open %s failed %x\n", wine_dbgstr_w(nameW.Buffer), status );
+
+    U(io).Status = 0xdeadbeef;
+    offset.QuadPart = 0;
+    status = pNtReadFile( dir, NULL, NULL, NULL, &io, buf, sizeof(buf), &offset, NULL );
+    ok( status == STATUS_INVALID_DEVICE_REQUEST || status == STATUS_PENDING, "NtReadFile error %08x\n", status );
+    if (status == STATUS_PENDING)
+    {
+        ret = WaitForSingleObject( dir, 1000 );
+        ok( ret == WAIT_OBJECT_0, "WaitForSingleObject error %u\n", ret );
+        ok( U(io).Status == STATUS_INVALID_DEVICE_REQUEST,
+            "expected STATUS_INVALID_DEVICE_REQUEST, got %08x\n", U(io).Status );
+    }
+
     CloseHandle( dir );
 
     status = pNtCreateFile( &dir, GENERIC_READ, &attr, &io, NULL, 0, FILE_SHARE_READ|FILE_SHARE_WRITE,
