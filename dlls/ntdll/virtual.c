@@ -1862,6 +1862,31 @@ void virtual_set_large_address_space(void)
     user_space_limit = working_set_limit = address_space_limit;
 }
 
+static NTSTATUS allocate_memory_remote( HANDLE process, PVOID *ret, ULONG zero_bits,
+                                        SIZE_T *size_ptr, ULONG type, ULONG protect )
+{
+    NTSTATUS status;
+    apc_call_t call;
+    apc_result_t result;
+
+    memset( &call, 0, sizeof(call) );
+
+    call.virtual_alloc.type      = APC_VIRTUAL_ALLOC;
+    call.virtual_alloc.addr      = wine_server_client_ptr( *ret );
+    call.virtual_alloc.size      = *size_ptr;
+    call.virtual_alloc.zero_bits = zero_bits;
+    call.virtual_alloc.op_type   = type;
+    call.virtual_alloc.prot      = protect;
+    status = server_queue_process_apc( process, &call, &result );
+    if (status != STATUS_SUCCESS) return status;
+
+    if (result.virtual_alloc.status == STATUS_SUCCESS)
+    {
+        *ret      = wine_server_get_ptr( result.virtual_alloc.addr );
+        *size_ptr = result.virtual_alloc.size;
+    }
+    return result.virtual_alloc.status;
+}
 
 /***********************************************************************
  *             NtAllocateVirtualMemory   (NTDLL.@)
@@ -1882,28 +1907,7 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG zero_
     if (!size) return STATUS_INVALID_PARAMETER;
 
     if (process != NtCurrentProcess())
-    {
-        apc_call_t call;
-        apc_result_t result;
-
-        memset( &call, 0, sizeof(call) );
-
-        call.virtual_alloc.type      = APC_VIRTUAL_ALLOC;
-        call.virtual_alloc.addr      = wine_server_client_ptr( *ret );
-        call.virtual_alloc.size      = *size_ptr;
-        call.virtual_alloc.zero_bits = zero_bits;
-        call.virtual_alloc.op_type   = type;
-        call.virtual_alloc.prot      = protect;
-        status = server_queue_process_apc( process, &call, &result );
-        if (status != STATUS_SUCCESS) return status;
-
-        if (result.virtual_alloc.status == STATUS_SUCCESS)
-        {
-            *ret      = wine_server_get_ptr( result.virtual_alloc.addr );
-            *size_ptr = result.virtual_alloc.size;
-        }
-        return result.virtual_alloc.status;
-    }
+        return allocate_memory_remote( process, ret, zero_bits, size_ptr, type, protect );
 
     /* Round parameters to a page boundary */
 
