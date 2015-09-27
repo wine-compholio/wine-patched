@@ -3925,10 +3925,11 @@ static void EDIT_WM_SetText(EDITSTATE *es, LPCWSTR text, BOOL unicode)
  */
 static void EDIT_WM_Size(EDITSTATE *es, UINT action, INT width, INT height)
 {
-	if ((action == SIZE_MAXIMIZED) || (action == SIZE_RESTORED)) {
+	if ((action == SIZE_MAXIMIZED) || (action == SIZE_RESTORED))
+	{
 		RECT rc;
-		TRACE("width = %d, height = %d\n", width, height);
-		SetRect(&rc, 0, 0, width, height);
+		/* Approach passes zero as width/height, so don't trust these values */
+		GetClientRect(es->hwndSelf, &rc);
 		EDIT_SetRectNP(es, &rc);
 		EDIT_UpdateText(es, NULL, TRUE);
 	}
