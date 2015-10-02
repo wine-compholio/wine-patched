@@ -53,6 +53,8 @@
 @ stdcall FreeAddrInfoW(ptr)
 @ stdcall GetAddrInfoW(wstr wstr ptr ptr)
 @ stdcall GetNameInfoW(ptr long ptr long ptr long long)
+@ stdcall InetPtonA(long str ptr) WS_inet_pton
+@ stdcall InetPtonW(long wstr ptr)
 @ stdcall WSApSetPostRoutine(ptr)
 @ stdcall WPUCompleteOverlappedRequest(long ptr long long ptr)
 @ stdcall WSAAccept(long ptr ptr ptr long)
@@ -121,4 +123,4 @@
 @ stdcall getaddrinfo(str str ptr ptr) WS_getaddrinfo
 @ stdcall getnameinfo(ptr long ptr long ptr long long) WS_getnameinfo
 @ stdcall inet_ntop(long ptr ptr long) WS_inet_ntop
-@ stdcall inet_pton(long ptr ptr) WS_inet_pton
+@ stdcall inet_pton(long str ptr) WS_inet_pton
