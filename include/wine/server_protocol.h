@@ -54,6 +54,21 @@ struct request_max_size
 #define LAST_USER_HANDLE  0xffef
 
 
+typedef struct
+{
+    unsigned int last_input_time;
+    unsigned int foreground_wnd_epoch;
+} shmglobal_t;
+
+
+typedef struct
+{
+    int             queue_bits;
+    user_handle_t   input_focus;
+    user_handle_t   input_capture;
+    user_handle_t   input_active;
+} shmlocal_t;
+
 
 typedef union
 {
@@ -701,9 +716,13 @@ struct new_process_request
     unsigned int thread_attr;
     cpu_type_t   cpu;
     data_size_t  info_size;
+    data_size_t  env_size;
+    data_size_t  process_sd_size;
     /* VARARG(info,startup_info,info_size); */
-    /* VARARG(env,unicode_str); */
-    char __pad_52[4];
+    /* VARARG(env,unicode_str,env_size); */
+    /* VARARG(process_sd,security_descriptor,process_sd_size); */
+    /* VARARG(thread_sd,security_descriptor); */
+    char __pad_60[4];
 };
 struct new_process_reply
 {
@@ -912,6 +931,8 @@ struct get_thread_times_reply
     struct reply_header __header;
     timeout_t    creation_time;
     timeout_t    exit_time;
+    int          unix_pid;
+    int          unix_tid;
 };
 
 
@@ -1053,6 +1074,16 @@ struct close_handle_reply
     struct reply_header __header;
 };
 
+
+struct socket_cleanup_request
+{
+    struct request_header __header;
+    char __pad_12[4];
+};
+struct socket_cleanup_reply
+{
+    struct reply_header __header;
+};
 
 
 struct set_handle_info_request
@@ -1458,6 +1489,18 @@ enum server_fd_type
 
 
 
+struct get_shared_memory_request
+{
+    struct request_header __header;
+    thread_id_t tid;
+};
+struct get_shared_memory_reply
+{
+    struct reply_header __header;
+};
+
+
+
 struct flush_request
 {
     struct request_header __header;
@@ -1555,6 +1598,18 @@ struct accept_into_socket_reply
 
 
 
+struct reuse_socket_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct reuse_socket_reply
+{
+    struct reply_header __header;
+};
+
+
+
 struct set_socket_event_request
 {
     struct request_header __header;
@@ -1602,6 +1657,7 @@ struct get_socket_info_reply
     int type;
     int protocol;
     char __pad_20[4];
+    timeout_t connect_time;
 };
 
 
@@ -2160,8 +2216,16 @@ struct get_mapping_info_reply
     int          protect;
     int          header_size;
     client_ptr_t base;
+    client_ptr_t entry;
+    short int    subsystem;
+    short int    major_subsystem;
+    short int    minor_subsystem;
+    short int    characteristics;
+    short int    dll_characteristics;
+    short int    machine;
     obj_handle_t mapping;
     obj_handle_t shared_file;
+    char __pad_60[4];
 };
 
 
@@ -3277,14 +3341,15 @@ struct create_named_pipe_request
 struct create_named_pipe_reply
 {
     struct reply_header __header;
+    unsigned int   flags;
     obj_handle_t   handle;
-    char __pad_12[4];
 };
 
 
 #define NAMED_PIPE_MESSAGE_STREAM_WRITE 0x0001
 #define NAMED_PIPE_MESSAGE_STREAM_READ  0x0002
 #define NAMED_PIPE_NONBLOCKING_MODE     0x0004
+#define NAMED_PIPE_CLOSED_HANDLE        0x0008
 #define NAMED_PIPE_SERVER_END           0x8000
 
 
@@ -5109,6 +5174,19 @@ struct set_fd_name_info_reply
 
 
 
+struct set_fd_eof_info_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+    file_pos_t   eof;
+};
+struct set_fd_eof_info_reply
+{
+    struct reply_header __header;
+};
+
+
+
 struct get_window_layered_info_request
 {
     struct request_header __header;
@@ -5349,6 +5427,7 @@ enum request
     REQ_queue_apc,
     REQ_get_apc_result,
     REQ_close_handle,
+    REQ_socket_cleanup,
     REQ_set_handle_info,
     REQ_dup_handle,
     REQ_open_process,
@@ -5372,12 +5451,14 @@ enum request
     REQ_alloc_file_handle,
     REQ_get_handle_unix_name,
     REQ_get_handle_fd,
+    REQ_get_shared_memory,
     REQ_flush,
     REQ_lock_file,
     REQ_unlock_file,
     REQ_create_socket,
     REQ_accept_socket,
     REQ_accept_into_socket,
+    REQ_reuse_socket,
     REQ_set_socket_event,
     REQ_get_socket_event,
     REQ_get_socket_info,
@@ -5583,6 +5664,7 @@ enum request
     REQ_add_fd_completion,
     REQ_set_fd_disp_info,
     REQ_set_fd_name_info,
+    REQ_set_fd_eof_info,
     REQ_get_window_layered_info,
     REQ_set_window_layered_info,
     REQ_alloc_user_handle,
@@ -5625,6 +5707,7 @@ union generic_request
     struct queue_apc_request queue_apc_request;
     struct get_apc_result_request get_apc_result_request;
     struct close_handle_request close_handle_request;
+    struct socket_cleanup_request socket_cleanup_request;
     struct set_handle_info_request set_handle_info_request;
     struct dup_handle_request dup_handle_request;
     struct open_process_request open_process_request;
@@ -5648,12 +5731,14 @@ union generic_request
     struct alloc_file_handle_request alloc_file_handle_request;
     struct get_handle_unix_name_request get_handle_unix_name_request;
     struct get_handle_fd_request get_handle_fd_request;
+    struct get_shared_memory_request get_shared_memory_request;
     struct flush_request flush_request;
     struct lock_file_request lock_file_request;
     struct unlock_file_request unlock_file_request;
     struct create_socket_request create_socket_request;
     struct accept_socket_request accept_socket_request;
     struct accept_into_socket_request accept_into_socket_request;
+    struct reuse_socket_request reuse_socket_request;
     struct set_socket_event_request set_socket_event_request;
     struct get_socket_event_request get_socket_event_request;
     struct get_socket_info_request get_socket_info_request;
@@ -5859,6 +5944,7 @@ union generic_request
     struct add_fd_completion_request add_fd_completion_request;
     struct set_fd_disp_info_request set_fd_disp_info_request;
     struct set_fd_name_info_request set_fd_name_info_request;
+    struct set_fd_eof_info_request set_fd_eof_info_request;
     struct get_window_layered_info_request get_window_layered_info_request;
     struct set_window_layered_info_request set_window_layered_info_request;
     struct alloc_user_handle_request alloc_user_handle_request;
@@ -5899,6 +5985,7 @@ union generic_reply
     struct queue_apc_reply queue_apc_reply;
     struct get_apc_result_reply get_apc_result_reply;
     struct close_handle_reply close_handle_reply;
+    struct socket_cleanup_reply socket_cleanup_reply;
     struct set_handle_info_reply set_handle_info_reply;
     struct dup_handle_reply dup_handle_reply;
     struct open_process_reply open_process_reply;
@@ -5922,12 +6009,14 @@ union generic_reply
     struct alloc_file_handle_reply alloc_file_handle_reply;
     struct get_handle_unix_name_reply get_handle_unix_name_reply;
     struct get_handle_fd_reply get_handle_fd_reply;
+    struct get_shared_memory_reply get_shared_memory_reply;
     struct flush_reply flush_reply;
     struct lock_file_reply lock_file_reply;
     struct unlock_file_reply unlock_file_reply;
     struct create_socket_reply create_socket_reply;
     struct accept_socket_reply accept_socket_reply;
     struct accept_into_socket_reply accept_into_socket_reply;
+    struct reuse_socket_reply reuse_socket_reply;
     struct set_socket_event_reply set_socket_event_reply;
     struct get_socket_event_reply get_socket_event_reply;
     struct get_socket_info_reply get_socket_info_reply;
@@ -6133,6 +6222,7 @@ union generic_reply
     struct add_fd_completion_reply add_fd_completion_reply;
     struct set_fd_disp_info_reply set_fd_disp_info_reply;
     struct set_fd_name_info_reply set_fd_name_info_reply;
+    struct set_fd_eof_info_reply set_fd_eof_info_reply;
     struct get_window_layered_info_reply get_window_layered_info_reply;
     struct set_window_layered_info_reply set_window_layered_info_reply;
     struct alloc_user_handle_reply alloc_user_handle_reply;
@@ -6149,6 +6239,6 @@ union generic_reply
     struct terminate_job_reply terminate_job_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 487
+#define SERVER_PROTOCOL_VERSION 488
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
