@@ -260,6 +260,23 @@ extern HANDLE keyed_event DECLSPEC_HIDDEN;
                        "ret $(4*" #args ")" ) /* fake ret to make copy protections happy */
 #endif
 
+#if defined(__i386__)
+
+#define SYSCALL( name ) __syscall_ ## name
+#define DEFINE_SYSCALL_ENTRYPOINT( name, args ) \
+    __ASM_GLOBAL_FUNC( name, \
+                       "movl $" __ASM_NAME("__syscall_") #name ",%eax\n\t"  \
+                       "movl $" __ASM_NAME("call_syscall_func") ",%edx\n\t" \
+                       "call *%edx\n\t"                                     \
+                       "ret $(4*" #args ")" )
+
+#else /* defined(__i386__) */
+
+#define SYSCALL( name ) name
+#define DEFINE_SYSCALL_ENTRYPOINT( name, args ) /* nothing */
+
+#endif /* defined(__i386__) */
+
 #define HASH_STRING_ALGORITHM_DEFAULT  0
 #define HASH_STRING_ALGORITHM_X65599   1
 #define HASH_STRING_ALGORITHM_INVALID  0xffffffff

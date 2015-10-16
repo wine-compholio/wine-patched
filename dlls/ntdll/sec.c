@@ -1588,8 +1588,9 @@ RtlImpersonateSelf(SECURITY_IMPERSONATION_LEVEL ImpersonationLevel)
 /******************************************************************************
  *  NtImpersonateAnonymousToken      [NTDLL.@]
  */
+DEFINE_SYSCALL_ENTRYPOINT( NtImpersonateAnonymousToken, 1 );
 NTSTATUS WINAPI
-NtImpersonateAnonymousToken(HANDLE thread)
+SYSCALL(NtImpersonateAnonymousToken)(HANDLE thread)
 {
     FIXME("(%p): stub\n", thread);
     return STATUS_NOT_IMPLEMENTED;
@@ -1622,8 +1623,9 @@ NtImpersonateAnonymousToken(HANDLE thread)
  *  The SecurityDescriptor must have a valid owner and groups present,
  *  otherwise the function will fail.
  */
+DEFINE_SYSCALL_ENTRYPOINT( NtAccessCheck, 8 );
 NTSTATUS WINAPI
-NtAccessCheck(
+SYSCALL(NtAccessCheck)(
     PSECURITY_DESCRIPTOR SecurityDescriptor,
     HANDLE ClientToken,
     ACCESS_MASK DesiredAccess,
@@ -1711,7 +1713,8 @@ NtAccessCheck(
  *  NTSTATUS code.
  *
  */
-NTSTATUS WINAPI NtSetSecurityObject(HANDLE Handle,
+DEFINE_SYSCALL_ENTRYPOINT( NtSetSecurityObject, 3 );
+NTSTATUS WINAPI SYSCALL(NtSetSecurityObject)(HANDLE Handle,
         SECURITY_INFORMATION SecurityInformation,
         PSECURITY_DESCRIPTOR SecurityDescriptor)
 {
