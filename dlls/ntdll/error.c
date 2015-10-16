@@ -29,6 +29,7 @@
 #include "windef.h"
 #include "winternl.h"
 #include "winerror.h"
+#include "ntdll_misc.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
@@ -132,7 +133,8 @@ DWORD WINAPI RtlGetLastWin32Error(void)
 /**********************************************************************
  *      NtRaiseHardError (NTDLL.@)
  */
-NTSTATUS WINAPI NtRaiseHardError( NTSTATUS ErrorStatus, ULONG NumberOfParameters,
+DEFINE_SYSCALL_ENTRYPOINT( NtRaiseHardError, 6 );
+NTSTATUS WINAPI SYSCALL(NtRaiseHardError)( NTSTATUS ErrorStatus, ULONG NumberOfParameters,
                                   PUNICODE_STRING UnicodeStringParameterMask, PVOID *Parameters,
                                   HARDERROR_RESPONSE_OPTION ResponseOption, PHARDERROR_RESPONSE Response )
 {

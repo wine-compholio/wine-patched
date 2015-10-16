@@ -2875,7 +2875,8 @@ DEFINE_REGS_ENTRYPOINT( RtlUnwind, 4 )
 /*******************************************************************
  *		NtRaiseException (NTDLL.@)
  */
-NTSTATUS WINAPI NtRaiseException( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL first_chance )
+DEFINE_SYSCALL_ENTRYPOINT( NtRaiseException, 3 );
+NTSTATUS WINAPI SYSCALL(NtRaiseException)( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL first_chance )
 {
     NTSTATUS status = raise_exception( rec, context, first_chance );
     if (status == STATUS_SUCCESS)
@@ -3113,5 +3114,13 @@ __ASM_GLOBAL_FUNC(call_exception_handler,
                    __ASM_CFI(".cfi_def_cfa %esp,4\n\t")
                    __ASM_CFI(".cfi_same_value %ebp\n\t")
                   "ret $20" )            /* (*4) */
+
+/**********************************************************************
+ *    call_syscall_func   (internal)
+ */
+__ASM_GLOBAL_FUNC( call_syscall_func,
+                   "addl $4,%esp\n\t"
+                   "jmp *%eax\n\t"
+                   "ret" )
 
 #endif  /* __i386__ */
