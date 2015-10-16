@@ -37,7 +37,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(environ);
 /******************************************************************************
  *  NtQuerySystemEnvironmentValue		[NTDLL.@]
  */
-NTSYSAPI NTSTATUS WINAPI NtQuerySystemEnvironmentValue(PUNICODE_STRING VariableName,
+DEFINE_SYSCALL_ENTRYPOINT( NtQuerySystemEnvironmentValue, 4 );
+NTSYSAPI NTSTATUS WINAPI SYSCALL(NtQuerySystemEnvironmentValue)(PUNICODE_STRING VariableName,
                                                        PWCHAR Value,
                                                        ULONG ValueBufferLength,
                                                        PULONG RequiredLength)
@@ -49,7 +50,8 @@ NTSYSAPI NTSTATUS WINAPI NtQuerySystemEnvironmentValue(PUNICODE_STRING VariableN
 /******************************************************************************
  *  NtQuerySystemEnvironmentValueEx		[NTDLL.@]
  */
-NTSYSAPI NTSTATUS WINAPI NtQuerySystemEnvironmentValueEx(PUNICODE_STRING name, LPGUID vendor,
+DEFINE_SYSCALL_ENTRYPOINT( NtQuerySystemEnvironmentValueEx, 5 );
+NTSYSAPI NTSTATUS WINAPI SYSCALL(NtQuerySystemEnvironmentValueEx)(PUNICODE_STRING name, LPGUID vendor,
                                                          PVOID value, PULONG retlength, PULONG attrib)
 {
     FIXME("(%s, %s, %p, %p, %p), stub\n", debugstr_us(name), debugstr_guid(vendor), value, retlength, attrib);
