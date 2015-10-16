@@ -3344,7 +3344,8 @@ PVOID WINAPI RtlPcToFileHeader( PVOID pc, PVOID *address )
  *           NtLoadDriver   (NTDLL.@)
  *           ZwLoadDriver   (NTDLL.@)
  */
-NTSTATUS WINAPI NtLoadDriver( const UNICODE_STRING *DriverServiceName )
+DEFINE_SYSCALL_ENTRYPOINT( NtLoadDriver, 1 );
+NTSTATUS WINAPI SYSCALL(NtLoadDriver)( const UNICODE_STRING *DriverServiceName )
 {
     FIXME("(%p), stub!\n",DriverServiceName);
     return STATUS_NOT_IMPLEMENTED;
@@ -3355,7 +3356,8 @@ NTSTATUS WINAPI NtLoadDriver( const UNICODE_STRING *DriverServiceName )
  *           NtUnloadDriver   (NTDLL.@)
  *           ZwUnloadDriver   (NTDLL.@)
  */
-NTSTATUS WINAPI NtUnloadDriver( const UNICODE_STRING *DriverServiceName )
+DEFINE_SYSCALL_ENTRYPOINT( NtUnloadDriver, 1 );
+NTSTATUS WINAPI SYSCALL(NtUnloadDriver)( const UNICODE_STRING *DriverServiceName )
 {
     FIXME("(%p), stub!\n",DriverServiceName);
     return STATUS_NOT_IMPLEMENTED;
