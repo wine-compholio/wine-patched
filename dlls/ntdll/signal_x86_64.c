@@ -3709,7 +3709,8 @@ EXCEPTION_DISPOSITION WINAPI __C_specific_handler( EXCEPTION_RECORD *rec,
 /*******************************************************************
  *		NtRaiseException (NTDLL.@)
  */
-NTSTATUS WINAPI NtRaiseException( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL first_chance )
+DEFINE_SYSCALL_ENTRYPOINT( NtRaiseException, 3 );
+NTSTATUS WINAPI SYSCALL(NtRaiseException)( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL first_chance )
 {
     NTSTATUS status = raise_exception( rec, context, first_chance );
     if (status == STATUS_SUCCESS) NtSetContextThread( GetCurrentThread(), context );

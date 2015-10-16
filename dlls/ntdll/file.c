@@ -310,7 +310,8 @@ static NTSTATUS FILE_CreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATT
  *  Success: 0. FileHandle and IoStatusBlock are updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtOpenFile( PHANDLE handle, ACCESS_MASK access,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenFile, 6 );
+NTSTATUS WINAPI SYSCALL(NtOpenFile)( PHANDLE handle, ACCESS_MASK access,
                             POBJECT_ATTRIBUTES attr, PIO_STATUS_BLOCK io,
                             ULONG sharing, ULONG options )
 {
@@ -342,7 +343,8 @@ NTSTATUS WINAPI NtOpenFile( PHANDLE handle, ACCESS_MASK access,
  *  Success: 0. handle and io are updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtCreateFile( PHANDLE handle, ACCESS_MASK access, POBJECT_ATTRIBUTES attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateFile, 11 );
+NTSTATUS WINAPI SYSCALL(NtCreateFile)( PHANDLE handle, ACCESS_MASK access, POBJECT_ATTRIBUTES attr,
                               PIO_STATUS_BLOCK io, PLARGE_INTEGER alloc_size,
                               ULONG attributes, ULONG sharing, ULONG disposition,
                               ULONG options, PVOID ea_buffer, ULONG ea_length )
@@ -931,7 +933,8 @@ static NTSTATUS get_io_avail_mode( HANDLE handle, enum server_fd_type type, BOOL
  *           The number of bytes read.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtReadFile(HANDLE hFile, HANDLE hEvent,
+DEFINE_SYSCALL_ENTRYPOINT( NtReadFile, 9 );
+NTSTATUS WINAPI SYSCALL(NtReadFile)(HANDLE hFile, HANDLE hEvent,
                            PIO_APC_ROUTINE apc, void* apc_user,
                            PIO_STATUS_BLOCK io_status, void* buffer, ULONG length,
                            PLARGE_INTEGER offset, PULONG key)
@@ -1113,7 +1116,8 @@ err:
  *  NtReadFileScatter   [NTDLL.@]
  *  ZwReadFileScatter   [NTDLL.@]
  */
-NTSTATUS WINAPI NtReadFileScatter( HANDLE file, HANDLE event, PIO_APC_ROUTINE apc, void *apc_user,
+DEFINE_SYSCALL_ENTRYPOINT( NtReadFileScatter, 9 );
+NTSTATUS WINAPI SYSCALL(NtReadFileScatter)( HANDLE file, HANDLE event, PIO_APC_ROUTINE apc, void *apc_user,
                                    PIO_STATUS_BLOCK io_status, FILE_SEGMENT_ELEMENT *segments,
                                    ULONG length, PLARGE_INTEGER offset, PULONG key )
 {
@@ -1315,7 +1319,8 @@ static NTSTATUS set_pending_write( HANDLE device )
  *           The number of bytes written.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtWriteFile(HANDLE hFile, HANDLE hEvent,
+DEFINE_SYSCALL_ENTRYPOINT( NtWriteFile, 9 );
+NTSTATUS WINAPI SYSCALL(NtWriteFile)(HANDLE hFile, HANDLE hEvent,
                             PIO_APC_ROUTINE apc, void* apc_user,
                             PIO_STATUS_BLOCK io_status, 
                             const void* buffer, ULONG length,
@@ -1526,7 +1531,8 @@ err:
  *  NtWriteFileGather   [NTDLL.@]
  *  ZwWriteFileGather   [NTDLL.@]
  */
-NTSTATUS WINAPI NtWriteFileGather( HANDLE file, HANDLE event, PIO_APC_ROUTINE apc, void *apc_user,
+DEFINE_SYSCALL_ENTRYPOINT( NtWriteFileGather, 9 );
+NTSTATUS WINAPI SYSCALL(NtWriteFileGather)( HANDLE file, HANDLE event, PIO_APC_ROUTINE apc, void *apc_user,
                                    PIO_STATUS_BLOCK io_status, FILE_SEGMENT_ELEMENT *segments,
                                    ULONG length, PLARGE_INTEGER offset, PULONG key )
 {
@@ -1715,7 +1721,8 @@ static void ignore_server_ioctl_struct_holes (ULONG code, const void *in_buffer,
  *  Success: 0. IoStatusBlock is updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtDeviceIoControlFile(HANDLE handle, HANDLE event,
+DEFINE_SYSCALL_ENTRYPOINT( NtDeviceIoControlFile, 10 );
+NTSTATUS WINAPI SYSCALL(NtDeviceIoControlFile)(HANDLE handle, HANDLE event,
                                       PIO_APC_ROUTINE apc, PVOID apc_context,
                                       PIO_STATUS_BLOCK io, ULONG code,
                                       PVOID in_buffer, ULONG in_size,
@@ -1779,7 +1786,8 @@ NTSTATUS WINAPI NtDeviceIoControlFile(HANDLE handle, HANDLE event,
  *  Success: 0. IoStatusBlock is updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc,
+DEFINE_SYSCALL_ENTRYPOINT( NtFsControlFile, 10 );
+NTSTATUS WINAPI SYSCALL(NtFsControlFile)(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc,
                                 PVOID apc_context, PIO_STATUS_BLOCK io, ULONG code,
                                 PVOID in_buffer, ULONG in_size, PVOID out_buffer, ULONG out_size)
 {
@@ -2024,7 +2032,8 @@ static NTSTATUS read_changes_apc( void *user, IO_STATUS_BLOCK *iosb,
 /******************************************************************************
  *  NtNotifyChangeDirectoryFile [NTDLL.@]
  */
-NTSTATUS WINAPI NtNotifyChangeDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc,
+DEFINE_SYSCALL_ENTRYPOINT( NtNotifyChangeDirectoryFile, 9 );
+NTSTATUS WINAPI SYSCALL(NtNotifyChangeDirectoryFile)( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc,
                                              void *apc_context, PIO_STATUS_BLOCK iosb, void *buffer,
                                              ULONG buffer_size, ULONG filter, BOOLEAN subtree )
 {
@@ -2083,7 +2092,8 @@ NTSTATUS WINAPI NtNotifyChangeDirectoryFile( HANDLE handle, HANDLE event, PIO_AP
  *  Success: 0. IoStatusBlock is updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtSetVolumeInformationFile(
+DEFINE_SYSCALL_ENTRYPOINT( NtSetVolumeInformationFile, 5 );
+NTSTATUS WINAPI SYSCALL(NtSetVolumeInformationFile)(
 	IN HANDLE FileHandle,
 	PIO_STATUS_BLOCK IoStatusBlock,
 	PVOID FsInformation,
@@ -2388,7 +2398,8 @@ static NTSTATUS fill_name_info( const ANSI_STRING *unix_name, FILE_NAME_INFORMAT
  *  Success: 0. IoStatusBlock and FileInformation are updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryInformationFile, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryInformationFile)( HANDLE hFile, PIO_STATUS_BLOCK io,
                                         PVOID ptr, LONG len, FILE_INFORMATION_CLASS class )
 {
     static const size_t info_sizes[] =
@@ -2726,7 +2737,8 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
  *  Success: 0. io is updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtSetInformationFile(HANDLE handle, PIO_STATUS_BLOCK io,
+DEFINE_SYSCALL_ENTRYPOINT( NtSetInformationFile, 5 );
+NTSTATUS WINAPI SYSCALL(NtSetInformationFile)(HANDLE handle, PIO_STATUS_BLOCK io,
                                      PVOID ptr, ULONG len, FILE_INFORMATION_CLASS class)
 {
     int fd, needs_close;
@@ -3023,7 +3035,8 @@ NTSTATUS WINAPI NtSetInformationFile(HANDLE handle, PIO_STATUS_BLOCK io,
 /******************************************************************************
  *              NtQueryFullAttributesFile   (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryFullAttributesFile, 2 );
+NTSTATUS WINAPI SYSCALL(NtQueryFullAttributesFile)( const OBJECT_ATTRIBUTES *attr,
                                            FILE_NETWORK_OPEN_INFORMATION *info )
 {
     ANSI_STRING unix_name;
@@ -3067,7 +3080,8 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
  *              NtQueryAttributesFile   (NTDLL.@)
  *              ZwQueryAttributesFile   (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_BASIC_INFORMATION *info )
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryAttributesFile, 2 );
+NTSTATUS WINAPI SYSCALL(NtQueryAttributesFile)( const OBJECT_ATTRIBUTES *attr, FILE_BASIC_INFORMATION *info )
 {
     ANSI_STRING unix_name;
     NTSTATUS status;
@@ -3288,7 +3302,8 @@ static NTSTATUS get_device_info( int fd, FILE_FS_DEVICE_INFORMATION *info )
  *  Success: 0. io and buffer are updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, PIO_STATUS_BLOCK io,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryVolumeInformationFile, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryVolumeInformationFile)( HANDLE handle, PIO_STATUS_BLOCK io,
                                               PVOID buffer, ULONG length,
                                               FS_INFORMATION_CLASS info_class )
 {
@@ -3436,7 +3451,8 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, PIO_STATUS_BLOCK io
  *  Success: 0. Atrributes read into buffer
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtQueryEaFile( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer, ULONG length,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryEaFile, 9 );
+NTSTATUS WINAPI SYSCALL(NtQueryEaFile)( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer, ULONG length,
                                BOOLEAN single_entry, PVOID ea_list, ULONG ea_list_len,
                                PULONG ea_index, BOOLEAN restart )
 {
@@ -3462,7 +3478,8 @@ NTSTATUS WINAPI NtQueryEaFile( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer
  *  Success: 0. Attributes are updated
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtSetEaFile( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer, ULONG length )
+DEFINE_SYSCALL_ENTRYPOINT( NtSetEaFile, 4 );
+NTSTATUS WINAPI SYSCALL(NtSetEaFile)( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer, ULONG length )
 {
     FIXME("(%p,%p,%p,%d) stub\n", hFile, iosb, buffer, length);
     return STATUS_ACCESS_DENIED;
@@ -3482,7 +3499,8 @@ NTSTATUS WINAPI NtSetEaFile( HANDLE hFile, PIO_STATUS_BLOCK iosb, PVOID buffer, 
  *  Success: 0. IoStatusBlock is updated.
  *  Failure: An NTSTATUS error code describing the error.
  */
-NTSTATUS WINAPI NtFlushBuffersFile( HANDLE hFile, IO_STATUS_BLOCK* IoStatusBlock )
+DEFINE_SYSCALL_ENTRYPOINT( NtFlushBuffersFile, 2 );
+NTSTATUS WINAPI SYSCALL(NtFlushBuffersFile)( HANDLE hFile, IO_STATUS_BLOCK* IoStatusBlock )
 {
     NTSTATUS ret;
     HANDLE hEvent = NULL;
@@ -3524,7 +3542,8 @@ NTSTATUS WINAPI NtFlushBuffersFile( HANDLE hFile, IO_STATUS_BLOCK* IoStatusBlock
  *
  *
  */
-NTSTATUS WINAPI NtLockFile( HANDLE hFile, HANDLE lock_granted_event,
+DEFINE_SYSCALL_ENTRYPOINT( NtLockFile, 10 );
+NTSTATUS WINAPI SYSCALL(NtLockFile)( HANDLE hFile, HANDLE lock_granted_event,
                             PIO_APC_ROUTINE apc, void* apc_user,
                             PIO_STATUS_BLOCK io_status, PLARGE_INTEGER offset,
                             PLARGE_INTEGER count, ULONG* key, BOOLEAN dont_wait,
@@ -3596,7 +3615,8 @@ NTSTATUS WINAPI NtLockFile( HANDLE hFile, HANDLE lock_granted_event,
  *
  *
  */
-NTSTATUS WINAPI NtUnlockFile( HANDLE hFile, PIO_STATUS_BLOCK io_status,
+DEFINE_SYSCALL_ENTRYPOINT( NtUnlockFile, 5 );
+NTSTATUS WINAPI SYSCALL(NtUnlockFile)( HANDLE hFile, PIO_STATUS_BLOCK io_status,
                               PLARGE_INTEGER offset, PLARGE_INTEGER count,
                               PULONG key )
 {
@@ -3627,7 +3647,8 @@ NTSTATUS WINAPI NtUnlockFile( HANDLE hFile, PIO_STATUS_BLOCK io_status,
  *
  *
  */
-NTSTATUS WINAPI NtCreateNamedPipeFile( PHANDLE handle, ULONG access,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateNamedPipeFile, 14 );
+NTSTATUS WINAPI SYSCALL(NtCreateNamedPipeFile)( PHANDLE handle, ULONG access,
                                        POBJECT_ATTRIBUTES attr, PIO_STATUS_BLOCK iosb,
                                        ULONG sharing, ULONG dispo, ULONG options,
                                        ULONG pipe_type, ULONG read_mode, 
@@ -3686,7 +3707,8 @@ NTSTATUS WINAPI NtCreateNamedPipeFile( PHANDLE handle, ULONG access,
  *
  *
  */
-NTSTATUS WINAPI NtDeleteFile( POBJECT_ATTRIBUTES ObjectAttributes )
+DEFINE_SYSCALL_ENTRYPOINT( NtDeleteFile, 1 );
+NTSTATUS WINAPI SYSCALL(NtDeleteFile)( POBJECT_ATTRIBUTES ObjectAttributes )
 {
     NTSTATUS status;
     HANDLE hFile;
@@ -3706,7 +3728,8 @@ NTSTATUS WINAPI NtDeleteFile( POBJECT_ATTRIBUTES ObjectAttributes )
  *
  *
  */
-NTSTATUS WINAPI NtCancelIoFileEx( HANDLE hFile, PIO_STATUS_BLOCK iosb, PIO_STATUS_BLOCK io_status )
+DEFINE_SYSCALL_ENTRYPOINT( NtCancelIoFileEx, 3 );
+NTSTATUS WINAPI SYSCALL(NtCancelIoFileEx)( HANDLE hFile, PIO_STATUS_BLOCK iosb, PIO_STATUS_BLOCK io_status )
 {
     TRACE("%p %p %p\n", hFile, iosb, io_status );
 
@@ -3727,7 +3750,8 @@ NTSTATUS WINAPI NtCancelIoFileEx( HANDLE hFile, PIO_STATUS_BLOCK iosb, PIO_STATU
  *
  *
  */
-NTSTATUS WINAPI NtCancelIoFile( HANDLE hFile, PIO_STATUS_BLOCK io_status )
+DEFINE_SYSCALL_ENTRYPOINT( NtCancelIoFile, 2 );
+NTSTATUS WINAPI SYSCALL(NtCancelIoFile)( HANDLE hFile, PIO_STATUS_BLOCK io_status )
 {
     TRACE("%p %p\n", hFile, io_status );
 
@@ -3760,7 +3784,8 @@ NTSTATUS WINAPI NtCancelIoFile( HANDLE hFile, PIO_STATUS_BLOCK io_status )
  * RETURNS
  *  An NT status code
  */
-NTSTATUS WINAPI NtCreateMailslotFile(PHANDLE pHandle, ULONG DesiredAccess,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateMailslotFile, 8 );
+NTSTATUS WINAPI SYSCALL(NtCreateMailslotFile)(PHANDLE pHandle, ULONG DesiredAccess,
      POBJECT_ATTRIBUTES attr, PIO_STATUS_BLOCK IoStatusBlock,
      ULONG CreateOptions, ULONG MailslotQuota, ULONG MaxMessageSize,
      PLARGE_INTEGER TimeOut)

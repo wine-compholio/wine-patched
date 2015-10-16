@@ -49,7 +49,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(reg);
  * NtCreateKey [NTDLL.@]
  * ZwCreateKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtCreateKey( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateKey, 7 );
+NTSTATUS WINAPI SYSCALL(NtCreateKey)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
                              ULONG TitleIndex, const UNICODE_STRING *class, ULONG options,
                              PULONG dispos )
 {
@@ -84,7 +85,8 @@ NTSTATUS WINAPI NtCreateKey( PHANDLE retkey, ACCESS_MASK access, const OBJECT_AT
     return ret;
 }
 
-NTSTATUS WINAPI NtCreateKeyTransacted( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateKeyTransacted, 8 );
+NTSTATUS WINAPI SYSCALL(NtCreateKeyTransacted)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
                                        ULONG TitleIndex, const UNICODE_STRING *class, ULONG options,
                                        HANDLE transacted, ULONG *dispos )
 {
@@ -93,7 +95,8 @@ NTSTATUS WINAPI NtCreateKeyTransacted( PHANDLE retkey, ACCESS_MASK access, const
     return STATUS_NOT_IMPLEMENTED;
 }
 
-NTSTATUS WINAPI NtRenameKey( HANDLE handle, UNICODE_STRING *name )
+DEFINE_SYSCALL_ENTRYPOINT( NtRenameKey, 2 );
+NTSTATUS WINAPI SYSCALL(NtRenameKey)( HANDLE handle, UNICODE_STRING *name )
 {
     FIXME( "(%p %s)\n", handle, debugstr_us(name) );
     return STATUS_NOT_IMPLEMENTED;
@@ -150,7 +153,8 @@ static NTSTATUS open_key( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRI
  * NtOpenKeyEx [NTDLL.@]
  * ZwOpenKeyEx [NTDLL.@]
  */
-NTSTATUS WINAPI NtOpenKeyEx( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr, ULONG options )
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenKeyEx, 4 );
+NTSTATUS WINAPI SYSCALL(NtOpenKeyEx)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr, ULONG options )
 {
     return open_key( retkey, access, attr, options );
 }
@@ -163,19 +167,22 @@ NTSTATUS WINAPI NtOpenKeyEx( PHANDLE retkey, ACCESS_MASK access, const OBJECT_AT
  *   IN		ACCESS_MASK		access
  *   IN		POBJECT_ATTRIBUTES 	attr
  */
-NTSTATUS WINAPI NtOpenKey( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr )
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenKey, 3 );
+NTSTATUS WINAPI SYSCALL(NtOpenKey)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr )
 {
     return open_key( retkey, access, attr, 0 );
 }
 
-NTSTATUS WINAPI NtOpenKeyTransactedEx( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenKeyTransactedEx, 5 );
+NTSTATUS WINAPI SYSCALL(NtOpenKeyTransactedEx)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
                                        ULONG options, HANDLE transaction )
 {
     FIXME( "(%p %x %p %x %p)\n", retkey, access, attr, options, transaction );
     return STATUS_NOT_IMPLEMENTED;
 }
 
-NTSTATUS WINAPI NtOpenKeyTransacted( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenKeyTransacted, 4 );
+NTSTATUS WINAPI SYSCALL(NtOpenKeyTransacted)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
                                      HANDLE transaction )
 {
     return NtOpenKeyTransactedEx( retkey, access, attr, 0, transaction );
@@ -197,7 +204,8 @@ NTSTATUS WINAPI RtlpNtOpenKey( PHANDLE retkey, ACCESS_MASK access, OBJECT_ATTRIB
  * NtDeleteKey [NTDLL.@]
  * ZwDeleteKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtDeleteKey( HANDLE hkey )
+DEFINE_SYSCALL_ENTRYPOINT( NtDeleteKey, 1 );
+NTSTATUS WINAPI SYSCALL(NtDeleteKey)( HANDLE hkey )
 {
     NTSTATUS ret;
 
@@ -226,7 +234,8 @@ NTSTATUS WINAPI RtlpNtMakeTemporaryKey( HANDLE hkey )
  * NtDeleteValueKey [NTDLL.@]
  * ZwDeleteValueKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtDeleteValueKey( HANDLE hkey, const UNICODE_STRING *name )
+DEFINE_SYSCALL_ENTRYPOINT( NtDeleteValueKey, 2 );
+NTSTATUS WINAPI SYSCALL(NtDeleteValueKey)( HANDLE hkey, const UNICODE_STRING *name )
 {
     NTSTATUS ret;
 
@@ -370,7 +379,8 @@ static NTSTATUS enumerate_key( HANDLE handle, int index, KEY_INFORMATION_CLASS i
  * NOTES
  *  the name copied into the buffer is NOT 0-terminated
  */
-NTSTATUS WINAPI NtEnumerateKey( HANDLE handle, ULONG index, KEY_INFORMATION_CLASS info_class,
+DEFINE_SYSCALL_ENTRYPOINT( NtEnumerateKey, 6 );
+NTSTATUS WINAPI SYSCALL(NtEnumerateKey)( HANDLE handle, ULONG index, KEY_INFORMATION_CLASS info_class,
                                 void *info, DWORD length, DWORD *result_len )
 {
     /* -1 means query key, so avoid it here */
@@ -429,7 +439,8 @@ NTSTATUS WINAPI RtlpNtEnumerateSubKey( HANDLE handle, UNICODE_STRING *out, ULONG
  * NtQueryKey [NTDLL.@]
  * ZwQueryKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtQueryKey( HANDLE handle, KEY_INFORMATION_CLASS info_class,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryKey, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryKey)( HANDLE handle, KEY_INFORMATION_CLASS info_class,
                             void *info, DWORD length, DWORD *result_len )
 {
     return enumerate_key( handle, -1, info_class, info, length, result_len );
@@ -484,7 +495,8 @@ static void copy_key_value_info( KEY_VALUE_INFORMATION_CLASS info_class, void *i
  *  NtEnumerateValueKey	[NTDLL.@]
  *  ZwEnumerateValueKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtEnumerateValueKey( HANDLE handle, ULONG index,
+DEFINE_SYSCALL_ENTRYPOINT( NtEnumerateValueKey, 6 );
+NTSTATUS WINAPI SYSCALL(NtEnumerateValueKey)( HANDLE handle, ULONG index,
                                      KEY_VALUE_INFORMATION_CLASS info_class,
                                      void *info, DWORD length, DWORD *result_len )
 {
@@ -532,7 +544,8 @@ NTSTATUS WINAPI NtEnumerateValueKey( HANDLE handle, ULONG index,
  * NOTES
  *  the name in the KeyValueInformation is never set
  */
-NTSTATUS WINAPI NtQueryValueKey( HANDLE handle, const UNICODE_STRING *name,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryValueKey, 6 );
+NTSTATUS WINAPI SYSCALL(NtQueryValueKey)( HANDLE handle, const UNICODE_STRING *name,
                                  KEY_VALUE_INFORMATION_CLASS info_class,
                                  void *info, DWORD length, DWORD *result_len )
 {
@@ -634,7 +647,8 @@ NTSTATUS WINAPI RtlpNtQueryValueKey( HANDLE handle, ULONG *result_type, PBYTE de
  *  NtFlushKey	[NTDLL.@]
  *  ZwFlushKey  [NTDLL.@]
  */
-NTSTATUS WINAPI NtFlushKey(HANDLE key)
+DEFINE_SYSCALL_ENTRYPOINT( NtFlushKey, 1 );
+NTSTATUS WINAPI SYSCALL(NtFlushKey)(HANDLE key)
 {
     NTSTATUS ret;
 
@@ -654,7 +668,8 @@ NTSTATUS WINAPI NtFlushKey(HANDLE key)
  *  NtLoadKey	[NTDLL.@]
  *  ZwLoadKey   [NTDLL.@]
  */
-NTSTATUS WINAPI NtLoadKey( const OBJECT_ATTRIBUTES *attr, OBJECT_ATTRIBUTES *file )
+DEFINE_SYSCALL_ENTRYPOINT( NtLoadKey, 2 );
+NTSTATUS WINAPI SYSCALL(NtLoadKey)( const OBJECT_ATTRIBUTES *attr, OBJECT_ATTRIBUTES *file )
 {
     NTSTATUS ret;
     HANDLE hive;
@@ -687,7 +702,8 @@ NTSTATUS WINAPI NtLoadKey( const OBJECT_ATTRIBUTES *attr, OBJECT_ATTRIBUTES *fil
  *  NtNotifyChangeMultipleKeys  [NTDLL.@]
  *  ZwNotifyChangeMultipleKeys  [NTDLL.@]
  */
-NTSTATUS WINAPI NtNotifyChangeMultipleKeys(
+DEFINE_SYSCALL_ENTRYPOINT( NtNotifyChangeMultipleKeys, 12 );
+NTSTATUS WINAPI SYSCALL(NtNotifyChangeMultipleKeys)(
         HANDLE KeyHandle,
         ULONG Count,
         OBJECT_ATTRIBUTES *SubordinateObjects,
@@ -743,7 +759,8 @@ NTSTATUS WINAPI NtNotifyChangeMultipleKeys(
  *  NtNotifyChangeKey	[NTDLL.@]
  *  ZwNotifyChangeKey   [NTDLL.@]
  */
-NTSTATUS WINAPI NtNotifyChangeKey(
+DEFINE_SYSCALL_ENTRYPOINT( NtNotifyChangeKey, 10 );
+NTSTATUS WINAPI SYSCALL(NtNotifyChangeKey)(
 	IN HANDLE KeyHandle,
 	IN HANDLE Event,
 	IN PIO_APC_ROUTINE ApcRoutine OPTIONAL,
@@ -765,7 +782,8 @@ NTSTATUS WINAPI NtNotifyChangeKey(
  * ZwQueryMultipleValueKey
  */
 
-NTSTATUS WINAPI NtQueryMultipleValueKey(
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryMultipleValueKey, 6 );
+NTSTATUS WINAPI SYSCALL(NtQueryMultipleValueKey)(
 	HANDLE KeyHandle,
 	PKEY_MULTIPLE_VALUE_INFORMATION ListOfValuesToQuery,
 	ULONG NumberOfItems,
@@ -783,7 +801,8 @@ NTSTATUS WINAPI NtQueryMultipleValueKey(
  * NtReplaceKey [NTDLL.@]
  * ZwReplaceKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtReplaceKey(
+DEFINE_SYSCALL_ENTRYPOINT( NtReplaceKey, 3 );
+NTSTATUS WINAPI SYSCALL(NtReplaceKey)(
 	IN POBJECT_ATTRIBUTES ObjectAttributes,
 	IN HANDLE Key,
 	IN POBJECT_ATTRIBUTES ReplacedObjectAttributes)
@@ -796,7 +815,8 @@ NTSTATUS WINAPI NtReplaceKey(
  * NtRestoreKey [NTDLL.@]
  * ZwRestoreKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtRestoreKey(
+DEFINE_SYSCALL_ENTRYPOINT( NtRestoreKey, 3 );
+NTSTATUS WINAPI SYSCALL(NtRestoreKey)(
 	HANDLE KeyHandle,
 	HANDLE FileHandle,
 	ULONG RestoreFlags)
@@ -809,7 +829,8 @@ NTSTATUS WINAPI NtRestoreKey(
  * NtSaveKey [NTDLL.@]
  * ZwSaveKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtSaveKey(IN HANDLE KeyHandle, IN HANDLE FileHandle)
+DEFINE_SYSCALL_ENTRYPOINT( NtSaveKey, 2 );
+NTSTATUS WINAPI SYSCALL(NtSaveKey)(IN HANDLE KeyHandle, IN HANDLE FileHandle)
 {
     NTSTATUS ret;
 
@@ -829,7 +850,8 @@ NTSTATUS WINAPI NtSaveKey(IN HANDLE KeyHandle, IN HANDLE FileHandle)
  * NtSetInformationKey [NTDLL.@]
  * ZwSetInformationKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtSetInformationKey(
+DEFINE_SYSCALL_ENTRYPOINT( NtSetInformationKey, 4 );
+NTSTATUS WINAPI SYSCALL(NtSetInformationKey)(
 	IN HANDLE KeyHandle,
 	IN const int KeyInformationClass,
 	IN PVOID KeyInformation,
@@ -849,7 +871,8 @@ NTSTATUS WINAPI NtSetInformationKey(
  *   win95 does not care about count for REG_SZ and finds out the len by itself (js)
  *   NT does definitely care (aj)
  */
-NTSTATUS WINAPI NtSetValueKey( HANDLE hkey, const UNICODE_STRING *name, ULONG TitleIndex,
+DEFINE_SYSCALL_ENTRYPOINT( NtSetValueKey, 6 );
+NTSTATUS WINAPI SYSCALL(NtSetValueKey)( HANDLE hkey, const UNICODE_STRING *name, ULONG TitleIndex,
                                ULONG type, const void *data, ULONG count )
 {
     NTSTATUS ret;
@@ -888,7 +911,8 @@ NTSTATUS WINAPI RtlpNtSetValueKey( HANDLE hkey, ULONG type, const void *data,
  * NtUnloadKey [NTDLL.@]
  * ZwUnloadKey [NTDLL.@]
  */
-NTSTATUS WINAPI NtUnloadKey(IN POBJECT_ATTRIBUTES attr)
+DEFINE_SYSCALL_ENTRYPOINT( NtUnloadKey, 1 );
+NTSTATUS WINAPI SYSCALL(NtUnloadKey)(IN POBJECT_ATTRIBUTES attr)
 {
     NTSTATUS ret;
 
@@ -1495,7 +1519,8 @@ NTSTATUS WINAPI RtlWriteRegistryValue( ULONG RelativeTo, PCWSTR path, PCWSTR nam
  *  unless there is some app which explicitly depends on that, there is
  *  no good reason to reproduce that.
  */
-NTSTATUS WINAPI NtQueryLicenseValue( const UNICODE_STRING *name, ULONG *result_type,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryLicenseValue, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryLicenseValue)( const UNICODE_STRING *name, ULONG *result_type,
                                      PVOID data, ULONG length, ULONG *result_len )
 {
     static const WCHAR LicenseInformationW[] = {'M','a','c','h','i','n','e','\\',
