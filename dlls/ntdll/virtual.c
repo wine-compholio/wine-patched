@@ -1921,7 +1921,8 @@ void virtual_set_large_address_space(void)
  *             NtAllocateVirtualMemory   (NTDLL.@)
  *             ZwAllocateVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG zero_bits,
+DEFINE_SYSCALL_ENTRYPOINT( NtAllocateVirtualMemory, 6 );
+NTSTATUS WINAPI SYSCALL(NtAllocateVirtualMemory)( HANDLE process, PVOID *ret, ULONG zero_bits,
                                          SIZE_T *size_ptr, ULONG type, ULONG protect )
 {
     void *base;
@@ -2060,7 +2061,8 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG zero_
  *             NtFreeVirtualMemory   (NTDLL.@)
  *             ZwFreeVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtFreeVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T *size_ptr, ULONG type )
+DEFINE_SYSCALL_ENTRYPOINT( NtFreeVirtualMemory, 4 );
+NTSTATUS WINAPI SYSCALL(NtFreeVirtualMemory)( HANDLE process, PVOID *addr_ptr, SIZE_T *size_ptr, ULONG type )
 {
     struct file_view *view;
     char *base;
@@ -2171,7 +2173,8 @@ static BOOL is_compatible_protection( const struct file_view *view, ULONG new_pr
  *             NtProtectVirtualMemory   (NTDLL.@)
  *             ZwProtectVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T *size_ptr,
+DEFINE_SYSCALL_ENTRYPOINT( NtProtectVirtualMemory, 5 );
+NTSTATUS WINAPI SYSCALL(NtProtectVirtualMemory)( HANDLE process, PVOID *addr_ptr, SIZE_T *size_ptr,
                                         ULONG new_prot, ULONG *old_prot )
 {
     struct file_view *view;
@@ -2299,7 +2302,8 @@ static int get_free_mem_state_callback( void *start, size_t size, void *arg )
  *             NtQueryVirtualMemory   (NTDLL.@)
  *             ZwQueryVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryVirtualMemory, 6 );
+NTSTATUS WINAPI SYSCALL(NtQueryVirtualMemory)( HANDLE process, LPCVOID addr,
                                       MEMORY_INFORMATION_CLASS info_class, PVOID buffer,
                                       SIZE_T len, SIZE_T *res_len )
 {
@@ -2444,7 +2448,8 @@ NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
  *             NtLockVirtualMemory   (NTDLL.@)
  *             ZwLockVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtLockVirtualMemory( HANDLE process, PVOID *addr, SIZE_T *size, ULONG unknown )
+DEFINE_SYSCALL_ENTRYPOINT( NtLockVirtualMemory, 4 );
+NTSTATUS WINAPI SYSCALL(NtLockVirtualMemory)( HANDLE process, PVOID *addr, SIZE_T *size, ULONG unknown )
 {
     NTSTATUS status = STATUS_SUCCESS;
 
@@ -2481,7 +2486,8 @@ NTSTATUS WINAPI NtLockVirtualMemory( HANDLE process, PVOID *addr, SIZE_T *size, 
  *             NtUnlockVirtualMemory   (NTDLL.@)
  *             ZwUnlockVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtUnlockVirtualMemory( HANDLE process, PVOID *addr, SIZE_T *size, ULONG unknown )
+DEFINE_SYSCALL_ENTRYPOINT( NtUnlockVirtualMemory, 4 );
+NTSTATUS WINAPI SYSCALL(NtUnlockVirtualMemory)( HANDLE process, PVOID *addr, SIZE_T *size, ULONG unknown )
 {
     NTSTATUS status = STATUS_SUCCESS;
 
@@ -2518,7 +2524,8 @@ NTSTATUS WINAPI NtUnlockVirtualMemory( HANDLE process, PVOID *addr, SIZE_T *size
  *             NtCreateSection   (NTDLL.@)
  *             ZwCreateSection   (NTDLL.@)
  */
-NTSTATUS WINAPI NtCreateSection( HANDLE *handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateSection, 7 );
+NTSTATUS WINAPI SYSCALL(NtCreateSection)( HANDLE *handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
                                  const LARGE_INTEGER *size, ULONG protect,
                                  ULONG sec_flags, HANDLE file )
 {
@@ -2559,7 +2566,8 @@ NTSTATUS WINAPI NtCreateSection( HANDLE *handle, ACCESS_MASK access, const OBJEC
  *             NtOpenSection   (NTDLL.@)
  *             ZwOpenSection   (NTDLL.@)
  */
-NTSTATUS WINAPI NtOpenSection( HANDLE *handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr )
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenSection, 3 );
+NTSTATUS WINAPI SYSCALL(NtOpenSection)( HANDLE *handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr )
 {
     NTSTATUS ret;
 
@@ -2584,7 +2592,8 @@ NTSTATUS WINAPI NtOpenSection( HANDLE *handle, ACCESS_MASK access, const OBJECT_
  *             NtMapViewOfSection   (NTDLL.@)
  *             ZwMapViewOfSection   (NTDLL.@)
  */
-NTSTATUS WINAPI NtMapViewOfSection( HANDLE handle, HANDLE process, PVOID *addr_ptr, ULONG zero_bits,
+DEFINE_SYSCALL_ENTRYPOINT( NtMapViewOfSection, 10 );
+NTSTATUS WINAPI SYSCALL(NtMapViewOfSection)( HANDLE handle, HANDLE process, PVOID *addr_ptr, ULONG zero_bits,
                                     SIZE_T commit_size, const LARGE_INTEGER *offset_ptr, SIZE_T *size_ptr,
                                     SECTION_INHERIT inherit, ULONG alloc_type, ULONG protect )
 {
@@ -2782,7 +2791,8 @@ done:
  *             NtUnmapViewOfSection   (NTDLL.@)
  *             ZwUnmapViewOfSection   (NTDLL.@)
  */
-NTSTATUS WINAPI NtUnmapViewOfSection( HANDLE process, PVOID addr )
+DEFINE_SYSCALL_ENTRYPOINT( NtUnmapViewOfSection, 2 );
+NTSTATUS WINAPI SYSCALL(NtUnmapViewOfSection)( HANDLE process, PVOID addr )
 {
     struct file_view *view;
     NTSTATUS status = STATUS_NOT_MAPPED_VIEW;
@@ -2818,7 +2828,8 @@ NTSTATUS WINAPI NtUnmapViewOfSection( HANDLE process, PVOID addr )
  *             NtFlushVirtualMemory   (NTDLL.@)
  *             ZwFlushVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtFlushVirtualMemory( HANDLE process, LPCVOID *addr_ptr,
+DEFINE_SYSCALL_ENTRYPOINT( NtFlushVirtualMemory, 4 );
+NTSTATUS WINAPI SYSCALL(NtFlushVirtualMemory)( HANDLE process, LPCVOID *addr_ptr,
                                       SIZE_T *size_ptr, ULONG unknown )
 {
     struct file_view *view;
@@ -2866,7 +2877,8 @@ NTSTATUS WINAPI NtFlushVirtualMemory( HANDLE process, LPCVOID *addr_ptr,
  *             NtGetWriteWatch   (NTDLL.@)
  *             ZwGetWriteWatch   (NTDLL.@)
  */
-NTSTATUS WINAPI NtGetWriteWatch( HANDLE process, ULONG flags, PVOID base, SIZE_T size, PVOID *addresses,
+DEFINE_SYSCALL_ENTRYPOINT( NtGetWriteWatch, 7 );
+NTSTATUS WINAPI SYSCALL(NtGetWriteWatch)( HANDLE process, ULONG flags, PVOID base, SIZE_T size, PVOID *addresses,
                                  ULONG_PTR *count, ULONG *granularity )
 {
     struct file_view *view;
@@ -2914,7 +2926,8 @@ NTSTATUS WINAPI NtGetWriteWatch( HANDLE process, ULONG flags, PVOID base, SIZE_T
  *             NtResetWriteWatch   (NTDLL.@)
  *             ZwResetWriteWatch   (NTDLL.@)
  */
-NTSTATUS WINAPI NtResetWriteWatch( HANDLE process, PVOID base, SIZE_T size )
+DEFINE_SYSCALL_ENTRYPOINT( NtResetWriteWatch, 3 );
+NTSTATUS WINAPI SYSCALL(NtResetWriteWatch)( HANDLE process, PVOID base, SIZE_T size )
 {
     struct file_view *view;
     NTSTATUS status = STATUS_SUCCESS;
@@ -2943,7 +2956,8 @@ NTSTATUS WINAPI NtResetWriteWatch( HANDLE process, PVOID base, SIZE_T size )
  *             NtReadVirtualMemory   (NTDLL.@)
  *             ZwReadVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtReadVirtualMemory( HANDLE process, const void *addr, void *buffer,
+DEFINE_SYSCALL_ENTRYPOINT( NtReadVirtualMemory, 5 );
+NTSTATUS WINAPI SYSCALL(NtReadVirtualMemory)( HANDLE process, const void *addr, void *buffer,
                                      SIZE_T size, SIZE_T *bytes_read )
 {
     NTSTATUS status;
@@ -2973,7 +2987,8 @@ NTSTATUS WINAPI NtReadVirtualMemory( HANDLE process, const void *addr, void *buf
  *             NtWriteVirtualMemory   (NTDLL.@)
  *             ZwWriteVirtualMemory   (NTDLL.@)
  */
-NTSTATUS WINAPI NtWriteVirtualMemory( HANDLE process, void *addr, const void *buffer,
+DEFINE_SYSCALL_ENTRYPOINT( NtWriteVirtualMemory, 5 );
+NTSTATUS WINAPI SYSCALL(NtWriteVirtualMemory)( HANDLE process, void *addr, const void *buffer,
                                       SIZE_T size, SIZE_T *bytes_written )
 {
     NTSTATUS status;
@@ -3003,7 +3018,8 @@ NTSTATUS WINAPI NtWriteVirtualMemory( HANDLE process, void *addr, const void *bu
  *             NtAreMappedFilesTheSame   (NTDLL.@)
  *             ZwAreMappedFilesTheSame   (NTDLL.@)
  */
-NTSTATUS WINAPI NtAreMappedFilesTheSame(PVOID addr1, PVOID addr2)
+DEFINE_SYSCALL_ENTRYPOINT( NtAreMappedFilesTheSame, 2 );
+NTSTATUS WINAPI SYSCALL(NtAreMappedFilesTheSame)(PVOID addr1, PVOID addr2)
 {
     struct file_view *view1, *view2;
     struct stat st1, st2;

@@ -31,6 +31,7 @@
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
 #include "windef.h"
+#include "ntdll_misc.h"
 
 #include "wine/server.h"
 #include "wine/unicode.h"
@@ -311,7 +312,8 @@ NTSTATUS WINAPI RtlPinAtomInAtomTable( RTL_ATOM_TABLE table, RTL_ATOM atom )
 /******************************************************************
  *		NtAddAtom (NTDLL.@)
  */
-NTSTATUS WINAPI NtAddAtom( const WCHAR* name, ULONG length, RTL_ATOM* atom )
+DEFINE_SYSCALL_ENTRYPOINT( NtAddAtom, 3 );
+NTSTATUS WINAPI SYSCALL(NtAddAtom)( const WCHAR* name, ULONG length, RTL_ATOM* atom )
 {
     NTSTATUS    status;
 
@@ -335,7 +337,8 @@ NTSTATUS WINAPI NtAddAtom( const WCHAR* name, ULONG length, RTL_ATOM* atom )
 /******************************************************************
  *		NtDeleteAtom (NTDLL.@)
  */
-NTSTATUS WINAPI NtDeleteAtom(RTL_ATOM atom)
+DEFINE_SYSCALL_ENTRYPOINT( NtDeleteAtom, 1 );
+NTSTATUS WINAPI SYSCALL(NtDeleteAtom)(RTL_ATOM atom)
 {
     NTSTATUS    status;
 
@@ -352,7 +355,8 @@ NTSTATUS WINAPI NtDeleteAtom(RTL_ATOM atom)
 /******************************************************************
  *		NtFindAtom (NTDLL.@)
  */
-NTSTATUS WINAPI NtFindAtom( const WCHAR* name, ULONG length, RTL_ATOM* atom )
+DEFINE_SYSCALL_ENTRYPOINT( NtFindAtom, 3 );
+NTSTATUS WINAPI SYSCALL(NtFindAtom)( const WCHAR* name, ULONG length, RTL_ATOM* atom )
 {
     NTSTATUS    status;
 
@@ -376,7 +380,8 @@ NTSTATUS WINAPI NtFindAtom( const WCHAR* name, ULONG length, RTL_ATOM* atom )
 /******************************************************************
  *		NtQueryInformationAtom (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryInformationAtom( RTL_ATOM atom, ATOM_INFORMATION_CLASS class,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryInformationAtom, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryInformationAtom)( RTL_ATOM atom, ATOM_INFORMATION_CLASS class,
                                         PVOID ptr, ULONG size, PULONG psize )
 {
     NTSTATUS status;
