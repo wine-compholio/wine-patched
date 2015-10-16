@@ -270,6 +270,19 @@ extern HANDLE keyed_event DECLSPEC_HIDDEN;
                        "call *%edx\n\t"                                     \
                        "ret $(4*" #args ")" )
 
+#define DECLARE_SYSCALL_ENTRYPOINT( name ) \
+    extern typeof( name ) __syscall_ ## name
+
+DECLARE_SYSCALL_ENTRYPOINT( NtAllocateVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtFlushVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtFreeVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtLockVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtMapViewOfSection );
+DECLARE_SYSCALL_ENTRYPOINT( NtProtectVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtQueryVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtUnlockVirtualMemory );
+DECLARE_SYSCALL_ENTRYPOINT( NtUnmapViewOfSection );
+
 #else /* defined(__i386__) */
 
 #define SYSCALL( name ) name
