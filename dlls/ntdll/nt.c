@@ -124,7 +124,7 @@ NTSTATUS WINAPI SYSCALL(NtOpenProcessToken)(
 	DWORD DesiredAccess,
 	HANDLE *TokenHandle)
 {
-    return NtOpenProcessTokenEx( ProcessHandle, DesiredAccess, 0, TokenHandle );
+    return SYSCALL(NtOpenProcessTokenEx)( ProcessHandle, DesiredAccess, 0, TokenHandle );
 }
 
 /******************************************************************************
@@ -163,7 +163,7 @@ NTSTATUS WINAPI SYSCALL(NtOpenThreadToken)(
 	BOOLEAN OpenAsSelf,
 	HANDLE *TokenHandle)
 {
-    return NtOpenThreadTokenEx( ThreadHandle, DesiredAccess, OpenAsSelf, 0, TokenHandle );
+    return SYSCALL(NtOpenThreadTokenEx)( ThreadHandle, DesiredAccess, OpenAsSelf, 0, TokenHandle );
 }
 
 /******************************************************************************

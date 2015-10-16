@@ -185,7 +185,7 @@ DEFINE_SYSCALL_ENTRYPOINT( NtOpenKeyTransacted, 4 );
 NTSTATUS WINAPI SYSCALL(NtOpenKeyTransacted)( PHANDLE retkey, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
                                      HANDLE transaction )
 {
-    return NtOpenKeyTransactedEx( retkey, access, attr, 0, transaction );
+    return SYSCALL(NtOpenKeyTransactedEx)( retkey, access, attr, 0, transaction );
 }
 
 /******************************************************************************
@@ -772,7 +772,7 @@ NTSTATUS WINAPI SYSCALL(NtNotifyChangeKey)(
 	IN ULONG Length,
 	IN BOOLEAN Asynchronous)
 {
-    return NtNotifyChangeMultipleKeys(KeyHandle, 0, NULL, Event, ApcRoutine, ApcContext,
+    return SYSCALL(NtNotifyChangeMultipleKeys)(KeyHandle, 0, NULL, Event, ApcRoutine, ApcContext,
                                       IoStatusBlock, CompletionFilter, WatchSubtree,
                                       ChangeBuffer, Length, Asynchronous);
 }
