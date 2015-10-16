@@ -211,7 +211,9 @@ struct dds_header
     struct dds_pixel_format pixel_format;
     DWORD caps;
     DWORD caps2;
-    DWORD reserved2[3];
+    DWORD caps3;
+    DWORD caps4;
+    DWORD reserved2;
 };
 
 /* fills dds_header with reasonable default values */
@@ -1231,6 +1233,7 @@ static void test_D3DXSaveSurfaceToFileInMemory(IDirect3DDevice9 *device)
     RECT rect;
     ID3DXBuffer *buffer;
     IDirect3DSurface9 *surface;
+    struct dds_header *header;
 
     hr = IDirect3DDevice9_CreateOffscreenPlainSurface(device, 4, 4, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &surface, NULL);
     if (FAILED(hr)) {
@@ -1245,6 +1248,35 @@ static void test_D3DXSaveSurfaceToFileInMemory(IDirect3DDevice9 *device)
     if (SUCCEEDED(hr)) {
         DWORD size = ID3DXBuffer_GetBufferSize(buffer);
         ok(size > 0, "ID3DXBuffer_GetBufferSize returned %u, expected > 0\n", size);
+        ID3DXBuffer_Release(buffer);
+    }
+
+    SetRect(&rect, 0, 0, 0, 0);
+    hr = D3DXSaveSurfaceToFileInMemory(&buffer, D3DXIFF_DDS, surface, NULL, &rect);
+    todo_wine ok(hr == D3D_OK || broken(hr == D3DERR_INVALIDCALL), "D3DXSaveSurfaceToFileInMemory returned %#x, expected %#x\n", hr, D3D_OK);
+    if (SUCCEEDED(hr)) {
+        header = ID3DXBuffer_GetBufferPointer(buffer);
+
+        ok(header->magic == MAKEFOURCC('D','D','S',' '), "Invalid DDS signature\n");
+        todo_wine ok(header->size == 124, "Invalid DDS size %d\n", header->size);
+        ok(header->height == 0, "Wrong height %d\n", header->height);
+        ok(header->width == 0, "Wrong width %d\n", header->width);
+        ok(header->flags == (DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PIXELFORMAT),
+           "Wrong flags %x\n", header->flags);
+        ID3DXBuffer_Release(buffer);
+    }
+
+    hr = D3DXSaveSurfaceToFileInMemory(&buffer, D3DXIFF_DDS, surface, NULL, NULL);
+    ok(hr == D3D_OK || broken(hr == D3DERR_INVALIDCALL), "D3DXSaveSurfaceToFileInMemory returned %#x, expected %#x\n", hr, D3D_OK);
+    if (SUCCEEDED(hr)) {
+        header = ID3DXBuffer_GetBufferPointer(buffer);
+
+        ok(header->magic == MAKEFOURCC('D','D','S',' '), "Invalid DDS signature\n");
+        todo_wine ok(header->size == 124, "Invalid DDS size %d\n", header->size);
+        ok(header->height == 4, "Wrong height %d\n", header->height);
+        ok(header->width == 4, "Wrong width %d\n", header->width);
+        todo_wine ok(header->flags == (DDS_CAPS | DDS_HEIGHT | DDS_WIDTH | DDS_PIXELFORMAT),
+                     "Wrong flags %x\n", header->flags);
         ID3DXBuffer_Release(buffer);
     }
 
