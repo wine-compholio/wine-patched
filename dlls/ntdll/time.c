@@ -457,7 +457,8 @@ void WINAPI RtlTimeToElapsedTimeFields( const LARGE_INTEGER *Time, PTIME_FIELDS 
  *   Success: STATUS_SUCCESS.
  *   Failure: An NTSTATUS error code indicating the problem.
  */
-NTSTATUS WINAPI NtQuerySystemTime( PLARGE_INTEGER Time )
+DEFINE_SYSCALL_ENTRYPOINT( NtQuerySystemTime, 1 );
+NTSTATUS WINAPI SYSCALL(NtQuerySystemTime)( PLARGE_INTEGER Time )
 {
     struct timeval now;
 
@@ -470,7 +471,8 @@ NTSTATUS WINAPI NtQuerySystemTime( PLARGE_INTEGER Time )
 /******************************************************************************
  *  NtQueryPerformanceCounter	[NTDLL.@]
  */
-NTSTATUS WINAPI NtQueryPerformanceCounter( LARGE_INTEGER *counter, LARGE_INTEGER *frequency )
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryPerformanceCounter, 2 );
+NTSTATUS WINAPI SYSCALL(NtQueryPerformanceCounter)( LARGE_INTEGER *counter, LARGE_INTEGER *frequency )
 {
     if (!counter) return STATUS_ACCESS_VIOLATION;
 
@@ -484,7 +486,8 @@ NTSTATUS WINAPI NtQueryPerformanceCounter( LARGE_INTEGER *counter, LARGE_INTEGER
  * NtGetTickCount   (NTDLL.@)
  * ZwGetTickCount   (NTDLL.@)
  */
-ULONG WINAPI NtGetTickCount(void)
+DEFINE_SYSCALL_ENTRYPOINT( NtGetTickCount, 0 );
+ULONG WINAPI SYSCALL(NtGetTickCount)(void)
 {
     return monotonic_counter() / TICKSPERMSEC;
 }
@@ -936,7 +939,8 @@ NTSTATUS WINAPI RtlSetTimeZoneInformation( const RTL_TIME_ZONE_INFORMATION *tzin
  *   Success: STATUS_SUCCESS.
  *   Failure: An NTSTATUS error code indicating the problem.
  */
-NTSTATUS WINAPI NtSetSystemTime(const LARGE_INTEGER *NewTime, LARGE_INTEGER *OldTime)
+DEFINE_SYSCALL_ENTRYPOINT( NtSetSystemTime, 2 );
+NTSTATUS WINAPI SYSCALL(NtSetSystemTime)(const LARGE_INTEGER *NewTime, LARGE_INTEGER *OldTime)
 {
     struct timeval tv;
     time_t tm_t;

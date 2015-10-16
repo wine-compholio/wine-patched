@@ -40,6 +40,7 @@
 #include "winbase.h"
 #include "winnt.h"
 #include "winternl.h"
+#include "ntdll_misc.h"
 #include "wine/exception.h"
 #include "wine/unicode.h"
 #include "wine/debug.h"
@@ -454,7 +455,8 @@ NTSTATUS WINAPI RtlFormatMessage( LPWSTR Message, UCHAR MaxWidth,
 /**********************************************************************
  *	NtQueryDefaultLocale  (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryDefaultLocale( BOOLEAN user, LCID *lcid )
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryDefaultLocale, 2 );
+NTSTATUS WINAPI SYSCALL(NtQueryDefaultLocale)( BOOLEAN user, LCID *lcid )
 {
     *lcid = user ? user_lcid : system_lcid;
     return STATUS_SUCCESS;
@@ -464,7 +466,8 @@ NTSTATUS WINAPI NtQueryDefaultLocale( BOOLEAN user, LCID *lcid )
 /**********************************************************************
  *	NtSetDefaultLocale  (NTDLL.@)
  */
-NTSTATUS WINAPI NtSetDefaultLocale( BOOLEAN user, LCID lcid )
+DEFINE_SYSCALL_ENTRYPOINT( NtSetDefaultLocale, 2 );
+NTSTATUS WINAPI SYSCALL(NtSetDefaultLocale)( BOOLEAN user, LCID lcid )
 {
     if (user) user_lcid = lcid;
     else
@@ -479,7 +482,8 @@ NTSTATUS WINAPI NtSetDefaultLocale( BOOLEAN user, LCID lcid )
 /**********************************************************************
  *	NtQueryDefaultUILanguage  (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryDefaultUILanguage( LANGID *lang )
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryDefaultUILanguage, 1 );
+NTSTATUS WINAPI SYSCALL(NtQueryDefaultUILanguage)( LANGID *lang )
 {
     *lang = user_ui_language;
     return STATUS_SUCCESS;
@@ -489,7 +493,8 @@ NTSTATUS WINAPI NtQueryDefaultUILanguage( LANGID *lang )
 /**********************************************************************
  *	NtSetDefaultUILanguage  (NTDLL.@)
  */
-NTSTATUS WINAPI NtSetDefaultUILanguage( LANGID lang )
+DEFINE_SYSCALL_ENTRYPOINT( NtSetDefaultUILanguage, 1 );
+NTSTATUS WINAPI SYSCALL(NtSetDefaultUILanguage)( LANGID lang )
 {
     user_ui_language = lang;
     return STATUS_SUCCESS;
@@ -499,7 +504,8 @@ NTSTATUS WINAPI NtSetDefaultUILanguage( LANGID lang )
 /**********************************************************************
  *	NtQueryInstallUILanguage  (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryInstallUILanguage( LANGID *lang )
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryInstallUILanguage, 1 );
+NTSTATUS WINAPI SYSCALL(NtQueryInstallUILanguage)( LANGID *lang )
 {
     *lang = system_ui_language;
     return STATUS_SUCCESS;
