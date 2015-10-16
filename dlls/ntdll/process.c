@@ -57,7 +57,8 @@ static ULONG execute_flags = MEM_EXECUTE_OPTION_DISABLE;
  *
  *  Native applications must kill themselves when done
  */
-NTSTATUS WINAPI NtTerminateProcess( HANDLE handle, LONG exit_code )
+DEFINE_SYSCALL_ENTRYPOINT( NtTerminateProcess, 2 );
+NTSTATUS WINAPI SYSCALL(NtTerminateProcess)( HANDLE handle, LONG exit_code )
 {
     NTSTATUS ret;
     BOOL self;
@@ -145,7 +146,8 @@ static void fill_VM_COUNTERS(VM_COUNTERS* pvmi)
 *  ZwQueryInformationProcess		[NTDLL.@]
 *
 */
-NTSTATUS WINAPI NtQueryInformationProcess(
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryInformationProcess, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryInformationProcess)(
 	IN HANDLE ProcessHandle,
 	IN PROCESSINFOCLASS ProcessInformationClass,
 	OUT PVOID ProcessInformation,
@@ -515,7 +517,8 @@ NTSTATUS WINAPI NtQueryInformationProcess(
  * NtSetInformationProcess [NTDLL.@]
  * ZwSetInformationProcess [NTDLL.@]
  */
-NTSTATUS WINAPI NtSetInformationProcess(
+DEFINE_SYSCALL_ENTRYPOINT( NtSetInformationProcess, 4 );
+NTSTATUS WINAPI SYSCALL(NtSetInformationProcess)(
 	IN HANDLE ProcessHandle,
 	IN PROCESSINFOCLASS ProcessInformationClass,
 	IN PVOID ProcessInformation,
@@ -605,7 +608,8 @@ NTSTATUS WINAPI NtSetInformationProcess(
  * NtFlushInstructionCache [NTDLL.@]
  * ZwFlushInstructionCache [NTDLL.@]
  */
-NTSTATUS WINAPI NtFlushInstructionCache(
+DEFINE_SYSCALL_ENTRYPOINT( NtFlushInstructionCache, 3 );
+NTSTATUS WINAPI SYSCALL(NtFlushInstructionCache)(
         IN HANDLE ProcessHandle,
         IN LPCVOID BaseAddress,
         IN SIZE_T Size)
@@ -626,7 +630,8 @@ NTSTATUS WINAPI NtFlushInstructionCache(
  *		NtOpenProcess [NTDLL.@]
  *		ZwOpenProcess [NTDLL.@]
  */
-NTSTATUS  WINAPI NtOpenProcess(PHANDLE handle, ACCESS_MASK access,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenProcess, 4 );
+NTSTATUS  WINAPI SYSCALL(NtOpenProcess)(PHANDLE handle, ACCESS_MASK access,
                                const OBJECT_ATTRIBUTES* attr, const CLIENT_ID* cid)
 {
     NTSTATUS    status;
