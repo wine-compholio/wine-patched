@@ -50,7 +50,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
  * NtQueryObject [NTDLL.@]
  * ZwQueryObject [NTDLL.@]
  */
-NTSTATUS WINAPI NtQueryObject(IN HANDLE handle,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryObject, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryObject)(IN HANDLE handle,
                               IN OBJECT_INFORMATION_CLASS info_class,
                               OUT PVOID ptr, IN ULONG len, OUT PULONG used_len)
 {
@@ -221,7 +222,8 @@ NTSTATUS WINAPI NtQueryObject(IN HANDLE handle,
  *		ZwSetInformationObject [NTDLL.@]
  *
  */
-NTSTATUS WINAPI NtSetInformationObject(IN HANDLE handle,
+DEFINE_SYSCALL_ENTRYPOINT( NtSetInformationObject, 4 );
+NTSTATUS WINAPI SYSCALL(NtSetInformationObject)(IN HANDLE handle,
                                        IN OBJECT_INFORMATION_CLASS info_class,
                                        IN PVOID ptr, IN ULONG len)
 {
@@ -263,8 +265,9 @@ NTSTATUS WINAPI NtSetInformationObject(IN HANDLE handle,
  * An ntdll analogue to GetKernelObjectSecurity().
  *
  */
+DEFINE_SYSCALL_ENTRYPOINT( NtQuerySecurityObject, 5 );
 NTSTATUS WINAPI
-NtQuerySecurityObject(
+SYSCALL(NtQuerySecurityObject)(
 	IN HANDLE Object,
 	IN SECURITY_INFORMATION RequestedInformation,
 	OUT PSECURITY_DESCRIPTOR pSecurityDescriptor,
@@ -349,7 +352,8 @@ NtQuerySecurityObject(
  *  NtDuplicateObject		[NTDLL.@]
  *  ZwDuplicateObject		[NTDLL.@]
  */
-NTSTATUS WINAPI NtDuplicateObject( HANDLE source_process, HANDLE source,
+DEFINE_SYSCALL_ENTRYPOINT( NtDuplicateObject, 7 );
+NTSTATUS WINAPI SYSCALL(NtDuplicateObject)( HANDLE source_process, HANDLE source,
                                    HANDLE dest_process, PHANDLE dest,
                                    ACCESS_MASK access, ULONG attributes, ULONG options )
 {
@@ -405,7 +409,8 @@ NTSTATUS close_handle( HANDLE handle )
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtClose( HANDLE Handle )
+DEFINE_SYSCALL_ENTRYPOINT( NtClose, 1 );
+NTSTATUS WINAPI SYSCALL(NtClose)( HANDLE Handle )
 {
     return close_handle( Handle );
 }
@@ -429,7 +434,8 @@ NTSTATUS WINAPI NtClose( HANDLE Handle )
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtOpenDirectoryObject(PHANDLE DirectoryHandle, ACCESS_MASK DesiredAccess,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenDirectoryObject, 3 );
+NTSTATUS WINAPI SYSCALL(NtOpenDirectoryObject)(PHANDLE DirectoryHandle, ACCESS_MASK DesiredAccess,
                                       POBJECT_ATTRIBUTES ObjectAttributes)
 {
     NTSTATUS ret;
@@ -477,7 +483,8 @@ NTSTATUS WINAPI NtOpenDirectoryObject(PHANDLE DirectoryHandle, ACCESS_MASK Desir
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtCreateDirectoryObject(PHANDLE DirectoryHandle, ACCESS_MASK DesiredAccess,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateDirectoryObject, 3 );
+NTSTATUS WINAPI SYSCALL(NtCreateDirectoryObject)(PHANDLE DirectoryHandle, ACCESS_MASK DesiredAccess,
                                         POBJECT_ATTRIBUTES ObjectAttributes)
 {
     NTSTATUS ret;
@@ -519,7 +526,8 @@ NTSTATUS WINAPI NtCreateDirectoryObject(PHANDLE DirectoryHandle, ACCESS_MASK Des
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtQueryDirectoryObject(HANDLE handle, PDIRECTORY_BASIC_INFORMATION buffer,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryDirectoryObject, 7 );
+NTSTATUS WINAPI SYSCALL(NtQueryDirectoryObject)(HANDLE handle, PDIRECTORY_BASIC_INFORMATION buffer,
                                        ULONG size, BOOLEAN single_entry, BOOLEAN restart,
                                        PULONG context, PULONG ret_size)
 {
@@ -584,7 +592,8 @@ NTSTATUS WINAPI NtQueryDirectoryObject(HANDLE handle, PDIRECTORY_BASIC_INFORMATI
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN ACCESS_MASK DesiredAccess,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenSymbolicLinkObject, 3 );
+NTSTATUS WINAPI SYSCALL(NtOpenSymbolicLinkObject)(OUT PHANDLE LinkHandle, IN ACCESS_MASK DesiredAccess,
                                          IN POBJECT_ATTRIBUTES ObjectAttributes)
 {
     NTSTATUS ret;
@@ -633,7 +642,8 @@ NTSTATUS WINAPI NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN ACCESS_MASK 
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtCreateSymbolicLinkObject(OUT PHANDLE SymbolicLinkHandle,IN ACCESS_MASK DesiredAccess,
+DEFINE_SYSCALL_ENTRYPOINT( NtCreateSymbolicLinkObject, 4 );
+NTSTATUS WINAPI SYSCALL(NtCreateSymbolicLinkObject)(OUT PHANDLE SymbolicLinkHandle,IN ACCESS_MASK DesiredAccess,
 	                                   IN POBJECT_ATTRIBUTES ObjectAttributes,
                                            IN PUNICODE_STRING TargetName)
 {
@@ -681,7 +691,8 @@ NTSTATUS WINAPI NtCreateSymbolicLinkObject(OUT PHANDLE SymbolicLinkHandle,IN ACC
  *  Success: ERROR_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtQuerySymbolicLinkObject( HANDLE handle, PUNICODE_STRING target, PULONG length )
+DEFINE_SYSCALL_ENTRYPOINT( NtQuerySymbolicLinkObject, 3 );
+NTSTATUS WINAPI SYSCALL(NtQuerySymbolicLinkObject)( HANDLE handle, PUNICODE_STRING target, PULONG length )
 {
     NTSTATUS ret;
 
@@ -709,7 +720,8 @@ NTSTATUS WINAPI NtQuerySymbolicLinkObject( HANDLE handle, PUNICODE_STRING target
 /******************************************************************************
  *  NtAllocateUuids   [NTDLL.@]
  */
-NTSTATUS WINAPI NtAllocateUuids(
+DEFINE_SYSCALL_ENTRYPOINT( NtAllocateUuids, 3 );
+NTSTATUS WINAPI SYSCALL(NtAllocateUuids)(
         PULARGE_INTEGER Time,
         PULONG Range,
         PULONG Sequence)
@@ -731,7 +743,8 @@ NTSTATUS WINAPI NtAllocateUuids(
  *  Success: STATUS_SUCCESS.
  *  Failure: An NTSTATUS error code.
  */
-NTSTATUS WINAPI NtMakeTemporaryObject( HANDLE Handle )
+DEFINE_SYSCALL_ENTRYPOINT( NtMakeTemporaryObject, 1 );
+NTSTATUS WINAPI SYSCALL(NtMakeTemporaryObject)( HANDLE Handle )
 {
     FIXME("(%p), stub.\n", Handle);
     return STATUS_SUCCESS;
