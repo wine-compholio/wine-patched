@@ -176,7 +176,6 @@ union file_directory_info
 };
 
 static BOOL show_dot_files;
-static RTL_RUN_ONCE init_once = RTL_RUN_ONCE_INIT;
 
 /* at some point we may want to allow Winelib apps to set this */
 static const BOOL is_case_sensitive = FALSE;
@@ -1152,11 +1151,11 @@ static BOOLEAN get_dir_case_sensitivity( const char *dir )
 
 
 /***********************************************************************
- *           init_options
+ *           DIR_init_options
  *
  * Initialize the show_dot_files options.
  */
-static DWORD WINAPI init_options( RTL_RUN_ONCE *once, void *param, void **context )
+void DIR_init_options(void)
 {
     static const WCHAR WineW[] = {'S','o','f','t','w','a','r','e','\\','W','i','n','e',0};
     static const WCHAR ShowDotFilesW[] = {'S','h','o','w','D','o','t','F','i','l','e','s',0};
@@ -1195,7 +1194,6 @@ static DWORD WINAPI init_options( RTL_RUN_ONCE *once, void *param, void **contex
 #ifdef linux
     ignore_file( "/sys" );
 #endif
-    return TRUE;
 }
 
 
@@ -1207,8 +1205,6 @@ static DWORD WINAPI init_options( RTL_RUN_ONCE *once, void *param, void **contex
 BOOL DIR_is_hidden_file( const UNICODE_STRING *name )
 {
     WCHAR *p, *end;
-
-    RtlRunOnceExecuteOnce( &init_once, init_options, NULL, NULL );
 
     if (show_dot_files) return FALSE;
 
@@ -2251,8 +2247,6 @@ NTSTATUS WINAPI SYSCALL(NtQueryDirectoryFile)( HANDLE handle, HANDLE event,
         return io->u.Status;
 
     io->Information = 0;
-
-    RtlRunOnceExecuteOnce( &init_once, init_options, NULL, NULL );
 
     RtlEnterCriticalSection( &dir_section );
 
