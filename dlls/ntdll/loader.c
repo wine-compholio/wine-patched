@@ -3427,6 +3427,7 @@ void __wine_process_init(void)
     umask( FILE_umask );
 
     load_global_options();
+    DIR_init_options();
 
     /* setup the load callback and create ntdll modref */
     wine_dll_set_callback( load_builtin_callback );
