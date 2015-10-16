@@ -600,7 +600,8 @@ ULONG WINAPI RtlGetNtGlobalFlags(void)
  *              NtOpenThread   (NTDLL.@)
  *              ZwOpenThread   (NTDLL.@)
  */
-NTSTATUS WINAPI NtOpenThread( HANDLE *handle, ACCESS_MASK access,
+DEFINE_SYSCALL_ENTRYPOINT( NtOpenThread, 4 );
+NTSTATUS WINAPI SYSCALL(NtOpenThread)( HANDLE *handle, ACCESS_MASK access,
                               const OBJECT_ATTRIBUTES *attr, const CLIENT_ID *id )
 {
     NTSTATUS ret;
@@ -622,7 +623,8 @@ NTSTATUS WINAPI NtOpenThread( HANDLE *handle, ACCESS_MASK access,
  *              NtSuspendThread   (NTDLL.@)
  *              ZwSuspendThread   (NTDLL.@)
  */
-NTSTATUS WINAPI NtSuspendThread( HANDLE handle, PULONG count )
+DEFINE_SYSCALL_ENTRYPOINT( NtSuspendThread, 2 );
+NTSTATUS WINAPI SYSCALL(NtSuspendThread)( HANDLE handle, PULONG count )
 {
     NTSTATUS ret;
 
@@ -640,7 +642,8 @@ NTSTATUS WINAPI NtSuspendThread( HANDLE handle, PULONG count )
  *              NtResumeThread   (NTDLL.@)
  *              ZwResumeThread   (NTDLL.@)
  */
-NTSTATUS WINAPI NtResumeThread( HANDLE handle, PULONG count )
+DEFINE_SYSCALL_ENTRYPOINT( NtResumeThread, 2 );
+NTSTATUS WINAPI SYSCALL(NtResumeThread)( HANDLE handle, PULONG count )
 {
     NTSTATUS ret;
 
@@ -658,7 +661,8 @@ NTSTATUS WINAPI NtResumeThread( HANDLE handle, PULONG count )
  *              NtAlertResumeThread   (NTDLL.@)
  *              ZwAlertResumeThread   (NTDLL.@)
  */
-NTSTATUS WINAPI NtAlertResumeThread( HANDLE handle, PULONG count )
+DEFINE_SYSCALL_ENTRYPOINT( NtAlertResumeThread, 2 );
+NTSTATUS WINAPI SYSCALL(NtAlertResumeThread)( HANDLE handle, PULONG count )
 {
     FIXME( "stub: should alert thread %p\n", handle );
     return NtResumeThread( handle, count );
@@ -669,7 +673,8 @@ NTSTATUS WINAPI NtAlertResumeThread( HANDLE handle, PULONG count )
  *              NtAlertThread   (NTDLL.@)
  *              ZwAlertThread   (NTDLL.@)
  */
-NTSTATUS WINAPI NtAlertThread( HANDLE handle )
+DEFINE_SYSCALL_ENTRYPOINT( NtAlertThread, 1 );
+NTSTATUS WINAPI SYSCALL(NtAlertThread)( HANDLE handle )
 {
     FIXME( "stub: %p\n", handle );
     return STATUS_NOT_IMPLEMENTED;
@@ -680,7 +685,8 @@ NTSTATUS WINAPI NtAlertThread( HANDLE handle )
  *              NtTerminateThread  (NTDLL.@)
  *              ZwTerminateThread  (NTDLL.@)
  */
-NTSTATUS WINAPI NtTerminateThread( HANDLE handle, LONG exit_code )
+DEFINE_SYSCALL_ENTRYPOINT( NtTerminateThread, 2 );
+NTSTATUS WINAPI SYSCALL(NtTerminateThread)( HANDLE handle, LONG exit_code )
 {
     NTSTATUS ret;
     BOOL self;
@@ -702,7 +708,8 @@ NTSTATUS WINAPI NtTerminateThread( HANDLE handle, LONG exit_code )
 /******************************************************************************
  *              NtQueueApcThread  (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueueApcThread( HANDLE handle, PNTAPCFUNC func, ULONG_PTR arg1,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueueApcThread, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueueApcThread)( HANDLE handle, PNTAPCFUNC func, ULONG_PTR arg1,
                                   ULONG_PTR arg2, ULONG_PTR arg3 )
 {
     NTSTATUS ret;
@@ -729,7 +736,8 @@ NTSTATUS WINAPI NtQueueApcThread( HANDLE handle, PNTAPCFUNC func, ULONG_PTR arg1
  *              NtSetContextThread  (NTDLL.@)
  *              ZwSetContextThread  (NTDLL.@)
  */
-NTSTATUS WINAPI NtSetContextThread( HANDLE handle, const CONTEXT *context )
+DEFINE_SYSCALL_ENTRYPOINT( NtSetContextThread, 2 );
+NTSTATUS WINAPI SYSCALL(NtSetContextThread)( HANDLE handle, const CONTEXT *context )
 {
     NTSTATUS ret;
     DWORD dummy, i;
@@ -826,7 +834,8 @@ static inline unsigned int get_server_context_flags( DWORD flags )
  *              NtGetContextThread  (NTDLL.@)
  *              ZwGetContextThread  (NTDLL.@)
  */
-NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
+DEFINE_SYSCALL_ENTRYPOINT( NtGetContextThread, 2 );
+NTSTATUS WINAPI SYSCALL(NtGetContextThread)( HANDLE handle, CONTEXT *context )
 {
     NTSTATUS ret;
     DWORD dummy, i;
@@ -915,7 +924,8 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
  *              NtQueryInformationThread  (NTDLL.@)
  *              ZwQueryInformationThread  (NTDLL.@)
  */
-NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryInformationThread, 5 );
+NTSTATUS WINAPI SYSCALL(NtQueryInformationThread)( HANDLE handle, THREADINFOCLASS class,
                                           void *data, ULONG length, ULONG *ret_len )
 {
     NTSTATUS status;
@@ -1159,7 +1169,8 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
  *              NtSetInformationThread  (NTDLL.@)
  *              ZwSetInformationThread  (NTDLL.@)
  */
-NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
+DEFINE_SYSCALL_ENTRYPOINT( NtSetInformationThread, 4 );
+NTSTATUS WINAPI SYSCALL(NtSetInformationThread)( HANDLE handle, THREADINFOCLASS class,
                                         LPCVOID data, ULONG length )
 {
     NTSTATUS status;
@@ -1318,7 +1329,8 @@ NTSTATUS WINAPI NtSetInformationThread( HANDLE handle, THREADINFOCLASS class,
  * Return the processor, on which the thread is running
  *
  */
-ULONG WINAPI NtGetCurrentProcessorNumber(void)
+DEFINE_SYSCALL_ENTRYPOINT( NtGetCurrentProcessorNumber, 0 );
+ULONG WINAPI SYSCALL(NtGetCurrentProcessorNumber)(void)
 {
     ULONG processor;
 

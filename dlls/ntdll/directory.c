@@ -2210,7 +2210,8 @@ done:
  *  NtQueryDirectoryFile	[NTDLL.@]
  *  ZwQueryDirectoryFile	[NTDLL.@]
  */
-NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event,
+DEFINE_SYSCALL_ENTRYPOINT( NtQueryDirectoryFile, 11 );
+NTSTATUS WINAPI SYSCALL(NtQueryDirectoryFile)( HANDLE handle, HANDLE event,
                                       PIO_APC_ROUTINE apc_routine, PVOID apc_context,
                                       PIO_STATUS_BLOCK io,
                                       PVOID buffer, ULONG length,
