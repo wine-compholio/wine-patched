@@ -1958,7 +1958,7 @@ DWORD WINAPI WNetGetUniversalNameW ( LPCWSTR lpLocalPath, DWORD dwInfoLevel,
         break;
     }
     case REMOTE_NAME_INFO_LEVEL:
-        err = WN_NO_NETWORK;
+        err = WN_NOT_CONNECTED;
         break;
 
     default:
