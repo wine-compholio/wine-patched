@@ -173,6 +173,7 @@ union file_directory_info
     FILE_FULL_DIRECTORY_INFORMATION    full;
     FILE_ID_BOTH_DIRECTORY_INFORMATION id_both;
     FILE_ID_FULL_DIRECTORY_INFORMATION id_full;
+    FILE_NAMES_INFORMATION names;
 };
 
 static BOOL show_dot_files;
@@ -254,6 +255,8 @@ static inline unsigned int dir_info_size( FILE_INFORMATION_CLASS class, unsigned
         return (FIELD_OFFSET( FILE_ID_BOTH_DIRECTORY_INFORMATION, FileName[len] ) + 7) & ~7;
     case FileIdFullDirectoryInformation:
         return (FIELD_OFFSET( FILE_ID_FULL_DIRECTORY_INFORMATION, FileName[len] ) + 7) & ~7;
+    case FileNamesInformation:
+        return (FIELD_OFFSET( FILE_NAMES_INFORMATION, FileName[len] ) + 7) & ~7;
     default:
         assert(0);
         return 0;
@@ -1473,6 +1476,11 @@ static union file_directory_info *append_entry( void *info_ptr, IO_STATUS_BLOCK 
         filename = info->id_both.FileName;
         break;
 
+    case FileNamesInformation:
+        info->names.FileNameLength = long_len * sizeof(WCHAR);
+        filename = info->names.FileName;
+        break;
+
     default:
         assert(0);
         return NULL;
@@ -2232,6 +2240,7 @@ NTSTATUS WINAPI SYSCALL(NtQueryDirectoryFile)( HANDLE handle, HANDLE event,
     case FileFullDirectoryInformation:
     case FileIdBothDirectoryInformation:
     case FileIdFullDirectoryInformation:
+    case FileNamesInformation:
         if (length < dir_info_size( info_class, 1 )) return io->u.Status = STATUS_INFO_LENGTH_MISMATCH;
         if (!buffer) return io->u.Status = STATUS_ACCESS_VIOLATION;
         break;
