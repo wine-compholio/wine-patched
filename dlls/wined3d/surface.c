@@ -4692,7 +4692,8 @@ static HRESULT surface_cpu_blt(struct wined3d_surface *dst_surface, const RECT *
                 && (srcwidth != dstwidth || srcheight != dstheight))
         {
             /* Can happen when d3d9 apps do a StretchRect() call which isn't handled in GL. */
-            FIXME("Filter %s not supported in software blit.\n", debug_d3dtexturefiltertype(filter));
+            static int once;
+            if (!once++) FIXME("Filter %s not supported in software blit.\n", debug_d3dtexturefiltertype(filter));
         }
 
         xinc = (srcwidth << 16) / dstwidth;
