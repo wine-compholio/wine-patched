@@ -4637,3 +4637,12 @@ BOOL WINAPI ChangeWindowMessageFilterEx( HWND hwnd, UINT message, DWORD action, 
     FIXME( "%p %x %d %p\n", hwnd, message, action, changefilter );
     return TRUE;
 }
+
+/******************************************************************
+ *      SetCoalescableTimer (USER32.@)
+ */
+UINT_PTR WINAPI SetCoalescableTimer( HWND hwnd, UINT_PTR id, UINT timeout, TIMERPROC proc, ULONG tolerance )
+{
+    FIXME( "%p %lx %u %p %u: semi-stub\n", hwnd, id, timeout, proc, tolerance );
+    return SetTimer( hwnd, id, timeout, proc );
+}
