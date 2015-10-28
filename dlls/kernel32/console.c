@@ -3239,6 +3239,15 @@ DWORD WINAPI GetNumberOfConsoleFonts(void)
     return 1;
 }
 
+
+BOOL WINAPI SetConsoleKeyShortcuts(BOOL set, BYTE keys, void *unknown1, DWORD unknown2)
+{
+    FIXME(": (%u %u %p %u) stub!\n", set, keys, unknown1, unknown2);
+    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+    return FALSE;
+}
+
+
 BOOL WINAPI GetCurrentConsoleFont(HANDLE hConsole, BOOL maxwindow, LPCONSOLE_FONT_INFO fontinfo)
 {
     BOOL ret;
