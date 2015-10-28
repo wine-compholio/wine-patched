@@ -155,3 +155,13 @@ KIRQL WINAPI KeGetCurrentIrql(VOID)
     FIXME( " stub!\n");
     return 0;
 }
+
+ULONGLONG WINAPI KeQueryPerformanceCounter(LARGE_INTEGER *frequency)
+{
+    LARGE_INTEGER counter;
+
+    TRACE("(%p)\n", frequency);
+
+    NtQueryPerformanceCounter(&counter, frequency);
+    return counter.QuadPart;
+}
