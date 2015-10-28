@@ -161,3 +161,13 @@ ULONG WINAPI READ_PORT_ULONG(ULONG *port)
     FIXME("(%p) stub!\n", port);
     return 0;
 }
+
+ULONGLONG WINAPI KeQueryPerformanceCounter(LARGE_INTEGER *frequency)
+{
+    LARGE_INTEGER counter;
+
+    TRACE("(%p)\n", frequency);
+
+    NtQueryPerformanceCounter(&counter, frequency);
+    return counter.QuadPart;
+}
