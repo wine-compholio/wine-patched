@@ -324,14 +324,15 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
     for (i = 0; i < rt_count; ++i)
     {
         struct wined3d_rendertarget_view *rtv = fb->render_targets[i];
-        struct wined3d_surface *rt = wined3d_rendertarget_view_get_surface(rtv);
 
-        if (rt && rtv->format->id != WINED3DFMT_NULL)
+        if (rtv && rtv->format->id != WINED3DFMT_NULL)
         {
+            struct wined3d_texture *rt = wined3d_texture_from_resource(fb->render_targets[i]->resource);
+
             if (flags & WINED3DCLEAR_TARGET && !is_full_clear(target, draw_rect, rect_count ? clear_rect : NULL))
-                surface_load_location(rt, context, rtv->resource->draw_binding);
+                wined3d_texture_load_location(rt, rtv->sub_resource_idx, context, rtv->resource->draw_binding);
             else
-                wined3d_texture_prepare_location(rt->container, rtv->sub_resource_idx,
+                wined3d_texture_prepare_location(rt, rtv->sub_resource_idx,
                         context, rtv->resource->draw_binding);
         }
     }
@@ -4157,7 +4158,7 @@ void CDECL wined3d_device_update_sub_resource(struct wined3d_device *device, str
     if (!dst_point.x && !dst_point.y && src_rect.right == width && src_rect.bottom == height)
         wined3d_texture_prepare_texture(texture, context, FALSE);
     else
-        surface_load_location(surface, context, WINED3D_LOCATION_TEXTURE_RGB);
+        wined3d_texture_load_location(texture, sub_resource_idx, context, WINED3D_LOCATION_TEXTURE_RGB);
     wined3d_texture_bind_and_dirtify(texture, context, FALSE);
 
     wined3d_surface_upload_data(surface, gl_info, resource->format,
