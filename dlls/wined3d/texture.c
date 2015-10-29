@@ -1428,7 +1428,8 @@ static void texture2d_upload_data(struct wined3d_texture *texture, unsigned int 
 static BOOL texture2d_load_location(struct wined3d_texture *texture, unsigned int sub_resource_idx,
         struct wined3d_context *context, DWORD location)
 {
-    return SUCCEEDED(surface_load_location(texture->sub_resources[sub_resource_idx].u.surface, context, location));
+    surface_load_location(texture->sub_resources[sub_resource_idx].u.surface, context, location);
+    return TRUE;
 }
 
 /* Context activation is done by the caller. */
