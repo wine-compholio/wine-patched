@@ -317,7 +317,7 @@ static void wined3d_texture_update_map_binding(struct wined3d_texture *texture)
     for (i = 0; i < sub_count; ++i)
     {
         if (texture->sub_resources[i].locations == texture->resource.map_binding
-                && !texture->texture_ops->texture_load_location(texture, i, context, map_binding))
+                && !wined3d_texture_load_location(texture, i, context, map_binding))
             ERR("Failed to load location %s.\n", wined3d_debug_location(map_binding));
         if (texture->resource.map_binding == WINED3D_LOCATION_BUFFER)
             wined3d_texture_remove_buffer_object(texture, i, context->gl_info);
@@ -786,7 +786,7 @@ void wined3d_texture_load(struct wined3d_texture *texture,
         TRACE("Reloading because of color key value change.\n");
         for (i = 0; i < sub_count; i++)
         {
-            if (!texture->texture_ops->texture_load_location(texture, i, context, texture->resource.map_binding))
+            if (!wined3d_texture_load_location(texture, i, context, texture->resource.map_binding))
                 ERR("Failed to load location %s.\n", wined3d_debug_location(texture->resource.map_binding));
             else
                 wined3d_texture_invalidate_location(texture, i, ~texture->resource.map_binding);
@@ -804,7 +804,7 @@ void wined3d_texture_load(struct wined3d_texture *texture,
     /* Reload the surfaces if the texture is marked dirty. */
     for (i = 0; i < sub_count; ++i)
     {
-        if (!texture->texture_ops->texture_load_location(texture, i, context,
+        if (!wined3d_texture_load_location(texture, i, context,
                 srgb ? WINED3D_LOCATION_TEXTURE_SRGB : WINED3D_LOCATION_TEXTURE_RGB))
             ERR("Failed to load location (srgb %#x).\n", srgb);
     }
@@ -1285,7 +1285,7 @@ HRESULT CDECL wined3d_texture_add_dirty_region(struct wined3d_texture *texture,
         WARN("Ignoring dirty_region %s.\n", debug_box(dirty_region));
 
     context = context_acquire(texture->resource.device, NULL);
-    if (!texture->texture_ops->texture_load_location(texture, sub_resource_idx,
+    if (!wined3d_texture_load_location(texture, sub_resource_idx,
             context, texture->resource.map_binding))
     {
         ERR("Failed to load location %s.\n", wined3d_debug_location(texture->resource.map_binding));
@@ -1331,6 +1331,7 @@ static HRESULT wined3d_texture_upload_data(struct wined3d_texture *texture,
     return WINED3D_OK;
 }
 
+/* Context activation is done by the caller. */
 static void texture2d_upload_data(struct wined3d_texture *texture, unsigned int sub_resource_idx,
         const struct wined3d_context *context, const struct wined3d_sub_resource_data *data)
 {
@@ -1525,7 +1526,7 @@ static void wined3d_texture_unload(struct wined3d_resource *resource)
         struct wined3d_texture_sub_resource *sub_resource = &texture->sub_resources[i];
 
         if (resource->pool != WINED3D_POOL_DEFAULT
-                && texture->texture_ops->texture_load_location(texture, i, context, resource->map_binding))
+                && wined3d_texture_load_location(texture, i, context, resource->map_binding))
         {
             wined3d_texture_invalidate_location(texture, i, ~resource->map_binding);
         }
@@ -1644,7 +1645,7 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
     {
         if (resource->usage & WINED3DUSAGE_DYNAMIC)
             WARN_(d3d_perf)("Mapping a dynamic texture without WINED3D_MAP_DISCARD.\n");
-        ret = texture->texture_ops->texture_load_location(texture,
+        ret = wined3d_texture_load_location(texture,
                 sub_resource_idx, context, texture->resource.map_binding);
     }
 
@@ -2004,6 +2005,7 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
     return WINED3D_OK;
 }
 
+/* Context activation is done by the caller. */
 static void texture3d_upload_data(struct wined3d_texture *texture, unsigned int sub_resource_idx,
         const struct wined3d_context *context, const struct wined3d_sub_resource_data *data)
 {
@@ -2632,4 +2634,11 @@ HRESULT CDECL wined3d_texture_release_dc(struct wined3d_texture *texture, unsign
         texture->flags &= ~WINED3D_TEXTURE_DC_IN_USE;
 
     return WINED3D_OK;
+}
+
+/* Context activation is done by the caller. Context may be NULL. */
+BOOL wined3d_texture_load_location(struct wined3d_texture *texture, unsigned int sub_resource_idx,
+        struct wined3d_context *context, DWORD location)
+{
+    return texture->texture_ops->texture_load_location(texture, sub_resource_idx, context, location);
 }

@@ -327,7 +327,7 @@ static void swapchain_blit(const struct wined3d_swapchain *swapchain,
         if (texture->resource.multisample_type)
         {
             location = WINED3D_LOCATION_RB_RESOLVED;
-            surface_load_location(back_buffer, context, location);
+            wined3d_texture_load_location(texture, 0, context, location);
         }
 
         context_apply_fbo_state_blit(context, GL_READ_FRAMEBUFFER, back_buffer, NULL, location);
@@ -556,14 +556,15 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
      */
     if (!swapchain->render_to_fbo && render_to_fbo && wined3d_settings.offscreen_rendering_mode == ORM_FBO)
     {
-        surface_load_location(back_buffer, context, WINED3D_LOCATION_TEXTURE_RGB);
+        wined3d_texture_load_location(back_buffer->container, 0, context, WINED3D_LOCATION_TEXTURE_RGB);
         wined3d_texture_invalidate_location(back_buffer->container, 0, WINED3D_LOCATION_DRAWABLE);
         swapchain->render_to_fbo = TRUE;
         swapchain_update_draw_bindings(swapchain);
     }
     else
     {
-        surface_load_location(back_buffer, context, back_buffer->container->resource.draw_binding);
+        wined3d_texture_load_location(swapchain->back_buffers[0], 0, context,
+                swapchain->back_buffers[0]->resource.draw_binding);
     }
 
     if (swapchain->render_to_fbo)
