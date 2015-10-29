@@ -3188,7 +3188,7 @@ static void surface_load_renderbuffer(struct wined3d_surface *surface, struct wi
 }
 
 /* Context activation is done by the caller. Context may be NULL in ddraw-only mode. */
-HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_context *context, DWORD location)
+void surface_load_location(struct wined3d_surface *surface, struct wined3d_context *context, DWORD location)
 {
     unsigned int sub_resource_idx = surface_get_sub_resource_idx(surface);
     struct wined3d_texture *texture = surface->container;
@@ -3206,7 +3206,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
             || (surface->ds_current_size.cx == surface_w && surface->ds_current_size.cy == surface_h)))
     {
         TRACE("Location (%#x) is already up to date.\n", location);
-        return WINED3D_OK;
+        return;
     }
 
     if (WARN_ON(d3d))
@@ -3244,7 +3244,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
 
         FIXME("Unimplemented copy from %s to %s for depth/stencil buffers.\n",
                 wined3d_debug_location(sub_resource->locations), wined3d_debug_location(location));
-        return WINED3DERR_INVALIDCALL;
+        return;
     }
 
     switch (location)
@@ -3257,7 +3257,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
 
         case WINED3D_LOCATION_DRAWABLE:
             if (FAILED(hr = surface_load_drawable(surface, context)))
-                return hr;
+                return;
             break;
 
         case WINED3D_LOCATION_RB_RESOLVED:
@@ -3269,7 +3269,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, struct wined3d_co
         case WINED3D_LOCATION_TEXTURE_SRGB:
             if (FAILED(hr = surface_load_texture(surface, context,
                     location == WINED3D_LOCATION_TEXTURE_SRGB)))
-                return hr;
+                return;
             break;
 
         default:
@@ -3286,7 +3286,7 @@ done:
         surface->ds_current_size.cy = surface_h;
     }
 
-    return WINED3D_OK;
+    return;
 }
 
 static HRESULT ffp_blit_alloc(struct wined3d_device *device) { return WINED3D_OK; }
