@@ -384,7 +384,12 @@ static const strarray* get_lddllflags( const struct options *opts, const strarra
         strarray_add( flags, "-bundle" );
         strarray_add( flags, "-multiply_defined" );
         strarray_add( flags, "suppress" );
-        if (opts->target_cpu == CPU_POWERPC)
+        if (opts->target_cpu == CPU_x86)
+        {
+            strarray_add( flags, "-read_only_relocs" );
+            strarray_add( flags, "suppress" );
+        }
+        else if (opts->target_cpu == CPU_POWERPC)
         {
             strarray_add( flags, "-read_only_relocs" );
             strarray_add( flags, "warning" );
