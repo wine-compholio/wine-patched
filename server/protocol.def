@@ -3277,6 +3277,22 @@ enum coords_relative
     VARARG(sd,security_descriptor); /* retrieved security descriptor */
 @END
 
+
+struct handle_info
+{
+    process_id_t owner;
+    obj_handle_t handle;
+    unsigned int access;
+};
+
+/* Return a list of all opened handles */
+@REQ(get_system_handles)
+@REPLY
+    unsigned int    count;        /* number of handles */
+    VARARG(data,bytes);           /* array of handle_infos */
+@END
+
+
 /* Create a mailslot */
 @REQ(create_mailslot)
     unsigned int   access;        /* wanted access rights */
