@@ -123,3 +123,14 @@ BOOL WINAPI SfcIsKeyProtected(HKEY hKey, LPCWSTR lpSubKey, REGSAM samDesired)
     SetLastError(ERROR_FILE_NOT_FOUND);
     return FALSE;
 }
+
+/******************************************************************
+ *              SfcGetNextProtectedFile     [sfc_os.@]
+ */
+BOOL WINAPI SfcGetNextProtectedFile(HANDLE rpc, PROTECTED_FILE_DATA *data)
+{
+    FIXME("(%p, %p) stub\n", rpc, data);
+
+    SetLastError(ERROR_NO_MORE_FILES);
+    return FALSE;
+}
