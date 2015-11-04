@@ -3569,7 +3569,7 @@ static HRESULT wined3d_device_update_texture_3d(struct wined3d_device *device,
 
     for (i = 0; i < level_count; ++i)
     {
-        if (FAILED(hr = wined3d_resource_map(&src_texture->resource,
+        if (FAILED(hr = wined3d_resource_sub_resource_map(&src_texture->resource,
                 src_level + i, &src, NULL, WINED3D_MAP_READONLY)))
             goto done;
 
@@ -3578,7 +3578,7 @@ static HRESULT wined3d_device_update_texture_3d(struct wined3d_device *device,
         wined3d_volume_upload_data(dst_texture->sub_resources[i].u.volume, context, &data);
         wined3d_texture_invalidate_location(dst_texture, i, ~WINED3D_LOCATION_TEXTURE_RGB);
 
-        if (FAILED(hr = wined3d_resource_unmap(&src_texture->resource, src_level + i)))
+        if (FAILED(hr = wined3d_resource_sub_resource_unmap(&src_texture->resource, src_level + i)))
             goto done;
     }
 
@@ -4288,7 +4288,7 @@ static struct wined3d_texture *wined3d_device_create_cursor_texture(struct wined
     struct wined3d_texture *texture;
     HRESULT hr;
 
-    if (FAILED(wined3d_resource_map(&cursor_image->resource, sub_resource_idx, &map_desc, NULL, WINED3D_MAP_READONLY)))
+    if (FAILED(wined3d_resource_sub_resource_map(&cursor_image->resource, sub_resource_idx, &map_desc, NULL, WINED3D_MAP_READONLY)))
     {
         ERR("Failed to map source texture.\n");
         return NULL;
@@ -4311,7 +4311,7 @@ static struct wined3d_texture *wined3d_device_create_cursor_texture(struct wined
 
     hr = wined3d_texture_create(device, &desc, 1, WINED3D_TEXTURE_CREATE_MAPPABLE,
             &data, NULL, &wined3d_null_parent_ops, &texture);
-    wined3d_resource_unmap(&cursor_image->resource, sub_resource_idx);
+    wined3d_resource_sub_resource_unmap(&cursor_image->resource, sub_resource_idx);
     if (FAILED(hr))
     {
         ERR("Failed to create cursor texture.\n");
@@ -4392,7 +4392,7 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
             return E_OUTOFMEMORY;
         memset(mask_bits, 0xff, mask_size);
 
-        wined3d_resource_map(&texture->resource, sub_resource_idx, &map_desc, NULL,
+        wined3d_resource_sub_resource_map(&texture->resource, sub_resource_idx, &map_desc, NULL,
                 WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY);
         cursor_info.fIcon = FALSE;
         cursor_info.xHotspot = x_hotspot;
@@ -4401,7 +4401,7 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
                 cursor_image->resource.height, 1, 1, mask_bits);
         cursor_info.hbmColor = CreateBitmap(cursor_image->resource.width,
                 cursor_image->resource.height, 1, 32, map_desc.data);
-        wined3d_resource_unmap(&texture->resource, sub_resource_idx);
+        wined3d_resource_sub_resource_unmap(&texture->resource, sub_resource_idx);
 
         /* Create our cursor and clean up. */
         cursor = CreateIconIndirect(&cursor_info);

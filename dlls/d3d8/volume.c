@@ -146,7 +146,7 @@ static HRESULT WINAPI d3d8_volume_LockBox(IDirect3DVolume8 *iface,
             iface, locked_box, box, flags);
 
     wined3d_mutex_lock();
-    if (FAILED(hr = wined3d_resource_map(wined3d_texture_get_resource(volume->wined3d_texture),
+    if (FAILED(hr = wined3d_resource_sub_resource_map(wined3d_texture_get_resource(volume->wined3d_texture),
             volume->sub_resource_idx, &map_desc, (const struct wined3d_box *)box, flags)))
         map_desc.data = NULL;
     wined3d_mutex_unlock();
@@ -166,7 +166,7 @@ static HRESULT WINAPI d3d8_volume_UnlockBox(IDirect3DVolume8 *iface)
     TRACE("iface %p.\n", iface);
 
     wined3d_mutex_lock();
-    hr = wined3d_resource_unmap(wined3d_texture_get_resource(volume->wined3d_texture), volume->sub_resource_idx);
+    hr = wined3d_resource_sub_resource_unmap(wined3d_texture_get_resource(volume->wined3d_texture), volume->sub_resource_idx);
     wined3d_mutex_unlock();
 
     if (hr == WINEDDERR_NOTLOCKED)

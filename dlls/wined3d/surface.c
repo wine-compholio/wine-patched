@@ -1882,25 +1882,25 @@ static struct wined3d_texture *surface_convert_format(struct wined3d_texture *sr
     memset(&src_map, 0, sizeof(src_map));
     memset(&dst_map, 0, sizeof(dst_map));
 
-    if (FAILED(wined3d_resource_map(&src_texture->resource, sub_resource_idx,
+    if (FAILED(wined3d_resource_sub_resource_map(&src_texture->resource, sub_resource_idx,
             &src_map, NULL, WINED3D_MAP_READONLY)))
     {
         ERR("Failed to map the source texture.\n");
         wined3d_texture_decref(dst_texture);
         return NULL;
     }
-    if (FAILED(wined3d_resource_map(&dst_texture->resource, 0, &dst_map, NULL, 0)))
+    if (FAILED(wined3d_resource_sub_resource_map(&dst_texture->resource, 0, &dst_map, NULL, 0)))
     {
         ERR("Failed to map the destination texture.\n");
-        wined3d_resource_unmap(&src_texture->resource, sub_resource_idx);
+        wined3d_resource_sub_resource_unmap(&src_texture->resource, sub_resource_idx);
         wined3d_texture_decref(dst_texture);
         return NULL;
     }
 
     conv->convert(src_map.data, dst_map.data, src_map.row_pitch, dst_map.row_pitch, desc.width, desc.height);
 
-    wined3d_resource_unmap(&dst_texture->resource, 0);
-    wined3d_resource_unmap(&src_texture->resource, sub_resource_idx);
+    wined3d_resource_sub_resource_unmap(&dst_texture->resource, 0);
+    wined3d_resource_sub_resource_unmap(&src_texture->resource, sub_resource_idx);
 
     return dst_texture;
 }
@@ -3795,7 +3795,7 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
     if (src_texture == dst_texture && src_sub_resource_idx == dst_sub_resource_idx)
     {
         same_sub_resource = TRUE;
-        wined3d_resource_map(&dst_texture->resource, dst_sub_resource_idx, &dst_map, NULL, 0);
+        wined3d_resource_sub_resource_map(&dst_texture->resource, dst_sub_resource_idx, &dst_map, NULL, 0);
         src_map = dst_map;
         src_format = dst_texture->resource.format;
         dst_format = src_format;
@@ -3820,7 +3820,7 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
                 src_texture = converted_texture;
                 src_sub_resource_idx = 0;
             }
-            wined3d_resource_map(&src_texture->resource, src_sub_resource_idx, &src_map, NULL, WINED3D_MAP_READONLY);
+            wined3d_resource_sub_resource_map(&src_texture->resource, src_sub_resource_idx, &src_map, NULL, WINED3D_MAP_READONLY);
             src_format = src_texture->resource.format;
             src_fmt_flags = src_texture->resource.format_flags;
         }
@@ -3830,7 +3830,7 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
             src_fmt_flags = dst_fmt_flags;
         }
 
-        wined3d_resource_map(&dst_texture->resource, dst_sub_resource_idx, &dst_map, dst_box, 0);
+        wined3d_resource_sub_resource_map(&dst_texture->resource, dst_sub_resource_idx, &dst_map, dst_box, 0);
     }
 
     bpp = dst_format->byte_count;
@@ -4246,9 +4246,9 @@ error:
         FIXME("    Unsupported flags %#x.\n", flags);
 
 release:
-    wined3d_resource_unmap(&dst_texture->resource, dst_sub_resource_idx);
+    wined3d_resource_sub_resource_unmap(&dst_texture->resource, dst_sub_resource_idx);
     if (src_texture && !same_sub_resource)
-        wined3d_resource_unmap(&src_texture->resource, src_sub_resource_idx);
+        wined3d_resource_sub_resource_unmap(&src_texture->resource, src_sub_resource_idx);
     if (converted_texture)
         wined3d_texture_decref(converted_texture);
 
