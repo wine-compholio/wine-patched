@@ -181,10 +181,10 @@
 @ cdecl wined3d_resource_get_desc(ptr ptr)
 @ cdecl wined3d_resource_get_parent(ptr)
 @ cdecl wined3d_resource_get_priority(ptr)
-@ cdecl wined3d_resource_map(ptr long ptr ptr long)
 @ cdecl wined3d_resource_set_parent(ptr ptr)
 @ cdecl wined3d_resource_set_priority(ptr long)
-@ cdecl wined3d_resource_unmap(ptr long)
+@ cdecl wined3d_resource_sub_resource_map(ptr long ptr ptr long)
+@ cdecl wined3d_resource_sub_resource_unmap(ptr long)
 
 @ cdecl wined3d_rendertarget_view_create(ptr ptr ptr ptr ptr)
 @ cdecl wined3d_rendertarget_view_create_from_sub_resource(ptr long ptr ptr ptr)
