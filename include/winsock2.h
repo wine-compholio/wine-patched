@@ -113,7 +113,6 @@ extern "C" {
 #define SD_BOTH                    0x02
 
 /* Constants for WSAPoll() */
-#ifndef __WINE_WINE_PORT_H
 #ifndef USE_WS_PREFIX
 #define POLLERR                    0x0001
 #define POLLHUP                    0x0002
@@ -136,7 +135,6 @@ extern "C" {
 #define WS_POLLPRI                 0x0400
 #define WS_POLLIN                  (WS_POLLRDNORM|WS_POLLRDBAND)
 #define WS_POLLOUT                 (WS_POLLWRNORM)
-#endif
 #endif
 
 /* Constants for WSAIoctl() */
