@@ -105,6 +105,11 @@ ULONG CDECL wined3d_swapchain_decref(struct wined3d_swapchain *swapchain)
 
     if (!refcount)
     {
+        struct wined3d_device *device = swapchain->device;
+
+        if (wined3d_settings.cs_multithreaded)
+            device->cs->ops->finish(device->cs);
+
         swapchain_cleanup(swapchain);
         swapchain->parent_ops->wined3d_object_destroyed(swapchain->parent);
         HeapFree(GetProcessHeap(), 0, swapchain);
@@ -1307,6 +1312,7 @@ HRESULT CDECL wined3d_swapchain_resize_buffers(struct wined3d_swapchain *swapcha
         enum wined3d_multisample_type multisample_type, unsigned int multisample_quality)
 {
     BOOL update_desc = FALSE;
+    struct wined3d_device *device = swapchain->device;
 
     TRACE("swapchain %p, buffer_count %u, width %u, height %u, format %s, "
             "multisample_type %#x, multisample_quality %#x.\n",
@@ -1317,6 +1323,9 @@ HRESULT CDECL wined3d_swapchain_resize_buffers(struct wined3d_swapchain *swapcha
 
     if (buffer_count && buffer_count != swapchain->desc.backbuffer_count)
         FIXME("Cannot change the back buffer count yet.\n");
+
+    if (wined3d_settings.cs_multithreaded)
+        device->cs->ops->finish(device->cs);
 
     if (!width || !height)
     {
