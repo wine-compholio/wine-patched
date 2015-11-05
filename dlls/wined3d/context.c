@@ -985,7 +985,7 @@ static BOOL context_set_pixel_format(struct wined3d_context *context, HDC dc, BO
     if (dc == context->hdc && context->hdc_is_private && context->hdc_has_format)
         return TRUE;
 
-    current = gl_info->gl_ops.wgl.p_wglGetPixelFormat(dc);
+    current = GetPixelFormat(dc);
     if (current == format) goto success;
 
     if (!current)
@@ -1390,7 +1390,7 @@ static void context_enter(struct wined3d_context *context)
             context->needs_set = 1;
         }
         else if (!context->needs_set && !(context->hdc_is_private && context->hdc_has_format)
-                    && context->pixel_format != context->gl_info->gl_ops.wgl.p_wglGetPixelFormat(context->hdc))
+                    && context->pixel_format != GetPixelFormat(context->hdc))
             context->needs_set = 1;
     }
 }
@@ -1770,9 +1770,9 @@ struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
         goto out;
     }
 
-    ret->gl_info = gl_info;
-
     context_enter(ret);
+
+    ret->gl_info = gl_info;
 
     if (!context_set_pixel_format(ret, hdc, hdc_is_private, pixel_format))
     {
