@@ -141,6 +141,8 @@ static void context_attach_depth_stencil_fbo(struct wined3d_context *context,
             {
                 case WINED3D_LOCATION_TEXTURE_RGB:
                 case WINED3D_LOCATION_TEXTURE_SRGB:
+                    wined3d_texture_prepare_texture(depth_stencil->container, context, FALSE);
+
                     if (format_flags & WINED3DFMT_FLAG_DEPTH)
                     {
                         gl_info->fbo_ops.glFramebufferTexture2D(fbo_target, GL_DEPTH_ATTACHMENT,
@@ -159,11 +161,13 @@ static void context_attach_depth_stencil_fbo(struct wined3d_context *context,
                     break;
 
                 case WINED3D_LOCATION_RB_MULTISAMPLE:
+                    surface_prepare_rb(depth_stencil, gl_info, TRUE);
                     context_attach_depth_stencil_rb(gl_info, fbo_target,
                             format_flags, depth_stencil->rb_multisample);
                     break;
 
                 case WINED3D_LOCATION_RB_RESOLVED:
+                    surface_prepare_rb(depth_stencil, gl_info, FALSE);
                     context_attach_depth_stencil_rb(gl_info, fbo_target,
                             format_flags, depth_stencil->rb_resolved);
                     break;
@@ -213,6 +217,7 @@ static void context_attach_surface_fbo(struct wined3d_context *context,
             case WINED3D_LOCATION_TEXTURE_RGB:
             case WINED3D_LOCATION_TEXTURE_SRGB:
                 srgb = location == WINED3D_LOCATION_TEXTURE_SRGB;
+                wined3d_texture_prepare_texture(surface->container, context, srgb);
                 gl_info->fbo_ops.glFramebufferTexture2D(fbo_target, GL_COLOR_ATTACHMENT0 + idx,
                         surface->texture_target, surface_get_texture_name(surface, gl_info, srgb),
                         surface->texture_level);
@@ -220,12 +225,14 @@ static void context_attach_surface_fbo(struct wined3d_context *context,
                 break;
 
             case WINED3D_LOCATION_RB_MULTISAMPLE:
+                surface_prepare_rb(surface, gl_info, TRUE);
                 gl_info->fbo_ops.glFramebufferRenderbuffer(fbo_target, GL_COLOR_ATTACHMENT0 + idx,
                         GL_RENDERBUFFER, surface->rb_multisample);
                 checkGLcall("glFramebufferRenderbuffer()");
                 break;
 
             case WINED3D_LOCATION_RB_RESOLVED:
+                surface_prepare_rb(surface, gl_info, FALSE);
                 gl_info->fbo_ops.glFramebufferRenderbuffer(fbo_target, GL_COLOR_ATTACHMENT0 + idx,
                         GL_RENDERBUFFER, surface->rb_resolved);
                 checkGLcall("glFramebufferRenderbuffer()");
