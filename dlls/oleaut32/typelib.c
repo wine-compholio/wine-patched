@@ -6436,6 +6436,34 @@ __ASM_GLOBAL_FUNC( call_method,
 /* same function but returning floating point */
 static double (CDECL * const call_double_method)(void*,int,const DWORD_PTR*) = (void *)call_method;
 
+DWORD _invoke(FARPROC func, CALLCONV callconv, int nrargs, DWORD_PTR *args)
+{
+    DWORD res;
+
+    if (TRACE_ON(ole))
+    {
+        int i;
+        TRACE("Calling %p(", func);
+        for (i=0; i<min(nrargs, 30); i++) TRACE("%016lx,", args[i]);
+        if (nrargs > 30) TRACE("...");
+        TRACE(")\n");
+    }
+
+    switch (callconv) {
+    case CC_STDCALL:
+    case CC_CDECL:
+        res = call_method(func, nrargs, args);
+        break;
+    default:
+        FIXME("unsupported calling convention %d\n", callconv);
+        res = -1;
+        break;
+    }
+
+    TRACE("returns %08x\n", res);
+    return res;
+}
+
 #elif defined(__arm__)
 
 extern LONGLONG CDECL call_method( void *func, int nb_stk_args, const DWORD *stk_args, const DWORD *reg_args );
