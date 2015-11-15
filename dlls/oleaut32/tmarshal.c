@@ -2135,7 +2135,7 @@ static HRESULT WINAPI
 TMStubImpl_Invoke(
     LPRPCSTUBBUFFER iface, RPCOLEMESSAGE* xmsg,IRpcChannelBuffer*rpcchanbuf)
 {
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
     int		i;
     const FUNCDESC *fdesc;
     TMStubImpl *This = impl_from_IRpcStubBuffer(iface);
