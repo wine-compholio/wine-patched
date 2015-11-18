@@ -203,12 +203,15 @@ void device_switch_onscreen_ds(struct wined3d_device *device,
 {
     if (device->onscreen_depth_stencil)
     {
-        surface_load_location(device->onscreen_depth_stencil, context, WINED3D_LOCATION_TEXTURE_RGB);
+        struct wined3d_texture *texture = device->onscreen_depth_stencil->container;
+        wined3d_texture_load_location(texture,
+                surface_get_sub_resource_idx(device->onscreen_depth_stencil),
+                context, WINED3D_LOCATION_TEXTURE_RGB);
 
         surface_modify_ds_location(device->onscreen_depth_stencil, WINED3D_LOCATION_TEXTURE_RGB,
                 device->onscreen_depth_stencil->ds_current_size.cx,
                 device->onscreen_depth_stencil->ds_current_size.cy);
-        wined3d_texture_decref(device->onscreen_depth_stencil->container);
+        wined3d_texture_decref(texture);
     }
     device->onscreen_depth_stencil = depth_stencil;
     wined3d_texture_incref(device->onscreen_depth_stencil->container);
@@ -283,7 +286,7 @@ static void prepare_ds_clear(struct wined3d_surface *ds, struct wined3d_context 
     }
 
     /* Full load. */
-    surface_load_location(ds, context, location);
+    wined3d_texture_load_location(ds->container, surface_get_sub_resource_idx(ds), context, location);
     SetRect(out_rect, 0, 0, ds->ds_current_size.cx, ds->ds_current_size.cy);
 }
 
