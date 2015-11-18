@@ -457,7 +457,7 @@ static void wined3d_swapchain_rotate(struct wined3d_swapchain *swapchain, struct
         sub_resource = &texture->sub_resources[0];
 
         if (!(sub_resource->locations & supported_locations))
-            surface_load_location(sub_resource->u.surface, context, texture->resource.draw_binding);
+            wined3d_texture_load_location(texture, 0, context, texture->resource.draw_binding);
 
         texture_prev->texture_rgb = texture->texture_rgb;
         texture_prev->rb_multisample = texture->rb_multisample;
@@ -637,12 +637,12 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
 
 static void swapchain_gl_frontbuffer_updated(struct wined3d_swapchain *swapchain)
 {
-    struct wined3d_surface *surface;
+    struct wined3d_texture *texture = swapchain->front_buffer;
+    struct wined3d_surface *surface = texture->sub_resources[0].u.surface;
     struct wined3d_context *context;
 
-    surface = swapchain->front_buffer->sub_resources[0].u.surface;
     context = context_acquire(swapchain->device, surface);
-    surface_load_location(surface, context, surface->container->resource.draw_binding);
+    wined3d_texture_load_location(texture, 0, context, texture->resource.draw_binding);
     context_release(context);
     SetRectEmpty(&swapchain->front_buffer_update);
 }
