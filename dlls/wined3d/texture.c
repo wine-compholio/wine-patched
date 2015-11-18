@@ -2692,9 +2692,132 @@ HRESULT CDECL wined3d_texture_release_dc(struct wined3d_texture *texture, unsign
     return WINED3D_OK;
 }
 
+static BOOL wined3d_texture_copy_sysmem_location(struct wined3d_texture *texture,
+        unsigned int sub_resource_idx, struct wined3d_context *context, DWORD location)
+{
+    struct wined3d_device *device = texture->resource.device;
+    const struct wined3d_gl_info *gl_info;
+    struct wined3d_bo_address dst, src;
+    UINT size = texture->sub_resources[sub_resource_idx].size;
+
+    wined3d_texture_prepare_location(texture, sub_resource_idx, context, location);
+
+    wined3d_texture_get_memory(texture, sub_resource_idx, &dst, location);
+    wined3d_texture_get_memory(texture, sub_resource_idx, &src,
+            texture->sub_resources[sub_resource_idx].locations);
+
+    if (dst.buffer_object)
+    {
+        context = context_acquire(device, NULL);
+        gl_info = context->gl_info;
+        GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, dst.buffer_object));
+        GL_EXTCALL(glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, size, src.addr));
+        GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
+        checkGLcall("Upload PBO");
+        context_release(context);
+        return TRUE;
+    }
+    if (src.buffer_object)
+    {
+        context = context_acquire(device, NULL);
+        gl_info = context->gl_info;
+        GL_EXTCALL(glBindBuffer(GL_PIXEL_PACK_BUFFER, src.buffer_object));
+        GL_EXTCALL(glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, size, dst.addr));
+        GL_EXTCALL(glBindBuffer(GL_PIXEL_PACK_BUFFER, 0));
+        checkGLcall("Download PBO");
+        context_release(context);
+        return TRUE;
+    }
+    memcpy(dst.addr, src.addr, size);
+    return TRUE;
+}
+
+static DWORD resource_access_from_location(DWORD location)
+{
+    switch (location)
+    {
+        case WINED3D_LOCATION_SYSMEM:
+        case WINED3D_LOCATION_USER_MEMORY:
+        case WINED3D_LOCATION_BUFFER:
+            return WINED3D_RESOURCE_ACCESS_CPU;
+
+        case WINED3D_LOCATION_DRAWABLE:
+        case WINED3D_LOCATION_TEXTURE_SRGB:
+        case WINED3D_LOCATION_TEXTURE_RGB:
+        case WINED3D_LOCATION_RB_MULTISAMPLE:
+        case WINED3D_LOCATION_RB_RESOLVED:
+            return WINED3D_RESOURCE_ACCESS_GPU;
+
+        default:
+            FIXME("Unhandled location %#x.\n", location);
+            return 0;
+    }
+}
+
 /* Context activation is done by the caller. Context may be NULL. */
 BOOL wined3d_texture_load_location(struct wined3d_texture *texture, unsigned int sub_resource_idx,
         struct wined3d_context *context, DWORD location)
 {
-    return texture->texture_ops->texture_load_location(texture, sub_resource_idx, context, location);
+    BOOL ret;
+    DWORD current = texture->sub_resources[sub_resource_idx].locations;
+    struct wined3d_surface *surface = texture->sub_resources[sub_resource_idx].u.surface;
+    unsigned int sub_resource_w, sub_resource_h;
+
+    TRACE("Texture %p, sub_resource %u, location %s.\n", texture, sub_resource_idx,
+            wined3d_debug_location(location));
+
+    sub_resource_w = wined3d_texture_get_level_width(texture, sub_resource_idx % texture->level_count);
+    sub_resource_h = wined3d_texture_get_level_height(texture, sub_resource_idx % texture->level_count);
+
+    if ((current & location) && (!(surface && (texture->resource.usage & WINED3DUSAGE_DEPTHSTENCIL))
+            || (surface->ds_current_size.cx == sub_resource_w
+            && surface->ds_current_size.cy == sub_resource_h)))
+    {
+        TRACE("Location (%#x) is already up to date.\n", location);
+        return TRUE;
+    }
+
+    if (WARN_ON(d3d))
+    {
+        DWORD required_access = resource_access_from_location(location);
+        if ((texture->resource.access_flags & required_access) != required_access)
+            WARN("Operation requires %#x access, but texture only has %#x.\n",
+                 required_access, texture->resource.access_flags);
+    }
+
+    if (!current)
+    {
+        ERR("Texture %p, sub resource %u does not have any up to date location.\n", texture, sub_resource_idx);
+        wined3d_texture_validate_location(texture, sub_resource_idx, WINED3D_LOCATION_DISCARDED);
+        wined3d_texture_load_location(texture, sub_resource_idx, context, location);
+        return TRUE;
+    }
+
+    if (texture->sub_resources[sub_resource_idx].locations & WINED3D_LOCATION_DISCARDED)
+    {
+        wined3d_texture_prepare_location(texture, sub_resource_idx, context, location);
+        ret = TRUE;
+    }
+    else
+    {
+        static const DWORD sysmem_locations = WINED3D_LOCATION_SYSMEM | WINED3D_LOCATION_USER_MEMORY
+                | WINED3D_LOCATION_BUFFER;
+
+        if ((location & sysmem_locations) && (current & sysmem_locations))
+            ret = wined3d_texture_copy_sysmem_location(texture, sub_resource_idx, context, location);
+        else
+            ret = texture->texture_ops->texture_load_location(texture, sub_resource_idx, context, location);
+    }
+
+    if (ret)
+    {
+        wined3d_texture_validate_location(texture, sub_resource_idx, location);
+
+        if (surface && texture->resource.usage & WINED3DUSAGE_DEPTHSTENCIL)
+        {
+            surface->ds_current_size.cx = sub_resource_w;
+            surface->ds_current_size.cy = sub_resource_h;
+        }
+    }
+    return ret;
 }
