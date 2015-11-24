@@ -6807,6 +6807,7 @@ ToolbarWindowProc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    return TOOLBAR_MouseLeave (infoPtr);
 
 	case WM_CAPTURECHANGED:
+            if (lParam == (LPARAM)hwnd) return 0;
 	    return TOOLBAR_CaptureChanged(infoPtr);
 
 	case WM_NCACTIVATE:
