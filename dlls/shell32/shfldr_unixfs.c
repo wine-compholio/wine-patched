@@ -392,6 +392,7 @@ static BOOL UNIXFS_get_unix_path(LPCWSTR pszDosPath, char *pszCanonicalPath)
     BOOL has_failed = FALSE;
     WCHAR wszDrive[] = { '?', ':', '\\', 0 }, dospath[MAX_PATH], *dospath_end;
     int cDriveSymlinkLen;
+    BOOL is_wow64;
     void *redir;
 
     TRACE("(pszDosPath=%s, pszCanonicalPath=%p)\n", debugstr_w(pszDosPath), pszCanonicalPath);
@@ -408,13 +409,14 @@ static BOOL UNIXFS_get_unix_path(LPCWSTR pszDosPath, char *pszCanonicalPath)
     HeapFree(GetProcessHeap(), 0, pszUnixPath);
     if (!pElement) return FALSE;
     if (szPath[strlen(szPath)-1] != '/') strcat(szPath, "/");
+    if (!IsWow64Process(GetCurrentProcess(), &is_wow64)) is_wow64 = FALSE;
 
     /* Append the part relative to the drive symbolic link target. */
     lstrcpyW(dospath, pszDosPath);
     dospath_end = dospath + lstrlenW(dospath);
     /* search for the most valid UNIX path possible, then append missing
      * path parts */
-    Wow64DisableWow64FsRedirection(&redir);
+    if(is_wow64) Wow64DisableWow64FsRedirection(&redir);
     while(!(pszUnixPath = wine_get_unix_file_name(dospath))){
         if(has_failed){
             *dospath_end = '/';
@@ -428,7 +430,7 @@ static BOOL UNIXFS_get_unix_path(LPCWSTR pszDosPath, char *pszCanonicalPath)
         }
         *dospath_end = '\0';
     }
-    Wow64RevertWow64FsRedirection(redir);
+    if(is_wow64) Wow64RevertWow64FsRedirection(redir);
     if(dospath_end < dospath)
         return FALSE;
     strcat(szPath, pszUnixPath + cDriveSymlinkLen);
