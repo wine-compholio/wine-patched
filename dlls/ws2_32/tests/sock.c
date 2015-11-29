@@ -192,6 +192,7 @@ static const struct addr_hint_tests
     {AF_UNSPEC, SOCK_STREAM, 999,         0 },
     {AF_INET,   SOCK_DGRAM,  999,         0 },
     {AF_INET,   SOCK_DGRAM,  999,         0 },
+    {AF_UNSPEC, SOCK_STREAM, IPPROTO_IPV6,0 },
 };
 
 /**************** Static variables ***************/
