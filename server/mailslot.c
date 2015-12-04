@@ -86,6 +86,7 @@ static const struct object_ops mailslot_ops =
     default_set_sd,            /* set_sd */
     no_lookup_name,            /* lookup_name */
     mailslot_open_file,        /* open_file */
+    no_alloc_handle,           /* alloc_handle */
     fd_close_handle,           /* close_handle */
     mailslot_destroy           /* destroy */
 };
@@ -139,6 +140,7 @@ static const struct object_ops mail_writer_ops =
     default_set_sd,             /* set_sd */
     no_lookup_name,             /* lookup_name */
     no_open_file,               /* open_file */
+    no_alloc_handle,            /* alloc_handle */
     fd_close_handle,            /* close_handle */
     mail_writer_destroy         /* destroy */
 };
@@ -193,6 +195,7 @@ static const struct object_ops mailslot_device_ops =
     default_set_sd,                 /* set_sd */
     mailslot_device_lookup_name,    /* lookup_name */
     mailslot_device_open_file,      /* open_file */
+    no_alloc_handle,                /* alloc_handle */
     fd_close_handle,                /* close_handle */
     mailslot_device_destroy         /* destroy */
 };

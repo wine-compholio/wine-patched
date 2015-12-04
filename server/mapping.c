@@ -92,6 +92,7 @@ static const struct object_ops mapping_ops =
     default_set_sd,              /* set_sd */
     no_lookup_name,              /* lookup_name */
     no_open_file,                /* open_file */
+    no_alloc_handle,             /* alloc_handle */
     fd_close_handle,             /* close_handle */
     mapping_destroy              /* destroy */
 };
