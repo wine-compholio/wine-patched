@@ -135,6 +135,7 @@ static const struct object_ops named_pipe_ops =
     named_pipe_link_name,         /* link_name */
     default_unlink_name,          /* unlink_name */
     named_pipe_open_file,         /* open_file */
+    no_alloc_handle,              /* alloc_handle */
     no_close_handle,              /* close_handle */
     named_pipe_destroy            /* destroy */
 };
@@ -166,6 +167,7 @@ static const struct object_ops pipe_server_ops =
     no_link_name,                 /* link_name */
     NULL,                         /* unlink_name */
     no_open_file,                 /* open_file */
+    no_alloc_handle,              /* alloc_handle */
     fd_close_handle,              /* close_handle */
     pipe_server_destroy           /* destroy */
 };
@@ -210,6 +212,7 @@ static const struct object_ops pipe_client_ops =
     no_link_name,                 /* link_name */
     NULL,                         /* unlink_name */
     no_open_file,                 /* open_file */
+    no_alloc_handle,              /* alloc_handle */
     fd_close_handle,              /* close_handle */
     pipe_client_destroy           /* destroy */
 };
@@ -258,6 +261,7 @@ static const struct object_ops named_pipe_device_ops =
     directory_link_name,              /* link_name */
     default_unlink_name,              /* unlink_name */
     named_pipe_device_open_file,      /* open_file */
+    no_alloc_handle,                  /* alloc_handle */
     fd_close_handle,                  /* close_handle */
     named_pipe_device_destroy         /* destroy */
 };
