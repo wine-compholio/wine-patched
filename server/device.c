@@ -79,6 +79,7 @@ static const struct object_ops irp_call_ops =
     default_set_sd,                   /* set_sd */
     no_lookup_name,                   /* lookup_name */
     no_open_file,                     /* open_file */
+    no_alloc_handle,                  /* alloc_handle */
     no_close_handle,                  /* close_handle */
     irp_call_destroy                  /* destroy */
 };
@@ -113,6 +114,7 @@ static const struct object_ops device_manager_ops =
     default_set_sd,                   /* set_sd */
     no_lookup_name,                   /* lookup_name */
     no_open_file,                     /* open_file */
+    no_alloc_handle,                  /* alloc_handle */
     no_close_handle,                  /* close_handle */
     device_manager_destroy            /* destroy */
 };
@@ -152,6 +154,7 @@ static const struct object_ops device_ops =
     default_set_sd,                   /* set_sd */
     no_lookup_name,                   /* lookup_name */
     device_open_file,                 /* open_file */
+    no_alloc_handle,                  /* alloc_handle */
     no_close_handle,                  /* close_handle */
     device_destroy                    /* destroy */
 };
@@ -198,6 +201,7 @@ static const struct object_ops device_file_ops =
     default_set_sd,                   /* set_sd */
     no_lookup_name,                   /* lookup_name */
     no_open_file,                     /* open_file */
+    no_alloc_handle,                  /* alloc_handle */
     device_file_close_handle,         /* close_handle */
     device_file_destroy               /* destroy */
 };
