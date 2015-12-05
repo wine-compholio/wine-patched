@@ -1271,8 +1271,9 @@ static void test_query_process_debug_object_handle(int argc, char **argv)
     ok(ret, "CloseHandle failed with last error %u\n", GetLastError());
 }
 
-static void test_query_process_debug_flags(int argc, char **argv)
+static void test_query_process_debug_flags(int argc, char **argv, DWORD flags)
 {
+    DWORD expected_flags = !(flags & DEBUG_ONLY_THIS_PROCESS);
     DWORD debug_flags = 0xdeadbeef;
     char cmdline[MAX_PATH];
     PROCESS_INFORMATION pi;
@@ -1283,7 +1284,7 @@ static void test_query_process_debug_flags(int argc, char **argv)
     sprintf(cmdline, "%s %s %s", argv[0], argv[1], "debuggee");
 
     si.cb = sizeof(si);
-    ret = CreateProcessA(NULL, cmdline, NULL, NULL, FALSE, DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS, NULL, NULL, &si, &pi);
+    ret = CreateProcessA(NULL, cmdline, NULL, NULL, FALSE, flags, NULL, NULL, &si, &pi);
     ok(ret, "CreateProcess failed, last error %#x.\n", GetLastError());
     if (!ret) return;
 
@@ -1320,7 +1321,8 @@ static void test_query_process_debug_flags(int argc, char **argv)
     status = pNtQueryInformationProcess(pi.hProcess, ProcessDebugFlags,
             &debug_flags, sizeof(debug_flags), NULL);
     ok(!status || broken(status == STATUS_INVALID_INFO_CLASS) /* NT4 */, "NtQueryInformationProcess failed, status %#x.\n", status);
-    ok(debug_flags == FALSE || broken(status == STATUS_INVALID_INFO_CLASS) /* NT4 */, "Expected flag FALSE, got %x.\n", debug_flags);
+    ok(debug_flags == expected_flags || broken(status == STATUS_INVALID_INFO_CLASS) /* NT4 */,
+       "Expected flag %u, got %x.\n", expected_flags, debug_flags);
 
     for (;;)
     {
@@ -1871,7 +1873,9 @@ START_TEST(info)
 
     /* 0x1F ProcessDebugFlags */
     trace("Starting test_process_debug_flags()\n");
-    test_query_process_debug_flags(argc, argv);
+    test_query_process_debug_flags(argc, argv, DEBUG_PROCESS);
+    test_query_process_debug_flags(argc, argv, DEBUG_ONLY_THIS_PROCESS);
+    test_query_process_debug_flags(argc, argv, DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS);
 
     /* belongs to its own file */
     trace("Starting test_readvirtualmemory()\n");

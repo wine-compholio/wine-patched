@@ -1457,6 +1457,7 @@ DECL_HANDLER(get_process_info)
         reply->end_time         = process->end_time;
         reply->cpu              = process->cpu;
         reply->debugger_present = !!process->debugger;
+        reply->debug_children   = process->debug_children;
         release_object( process );
     }
 }
