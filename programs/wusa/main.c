@@ -469,6 +469,8 @@ static BOOL install_files_copy(struct assembly_entry *assembly, const WCHAR *sou
     }
     else
     {
+        WINE_TRACE("Copying %s -> %s\n", debugstr_w(source), debugstr_w(target));
+
         if (!create_parent_directory(target))
         {
             WINE_ERR("Failed to create parent directory for %s\n", debugstr_w(target));
@@ -688,6 +690,8 @@ static BOOL install_registry_value(struct assembly_entry *assembly, HKEY key, st
     static const WCHAR reg_dwordW[] = {'R','E','G','_','D','W','O','R','D',0};
     static const WCHAR reg_binaryW[] = {'R','E','G','_','B','I','N','A','R','Y',0};
 
+    WINE_TRACE("Setting registry key %s = %s\n", debugstr_w(registrykv->name), debugstr_w(registrykv->value));
+
     if (!strcmpW(registrykv->value_type, reg_szW))
         return install_registry_string(assembly, key, registrykv, REG_SZ, dryrun);
     if (!strcmpW(registrykv->value_type, reg_expand_szW))
@@ -723,6 +727,8 @@ static BOOL install_registry(struct assembly_entry *assembly, BOOL dryrun)
             ret = FALSE;
             break;
         }
+
+        WINE_TRACE("Processing registry key %s\n", debugstr_w(registryop->key));
 
         if (!dryrun && RegCreateKeyExW(root, path, 0, NULL, REG_OPTION_NON_VOLATILE, sam, NULL, &subkey, NULL))
         {
@@ -810,6 +816,8 @@ static BOOL install_assembly(struct list *manifest_list, struct assembly_identit
         if (!install_assembly(manifest_list, &dependency->identity, dryrun)) return FALSE;
     }
 
+    WINE_TRACE("Installing assembly %s%s\n", debugstr_w(name), dryrun ? " (dryrun)" : "");
+
     if (!install_files(assembly, dryrun))
     {
         WINE_ERR("Failed to install all files for %s\n", debugstr_w(name));
@@ -821,6 +829,8 @@ static BOOL install_assembly(struct list *manifest_list, struct assembly_identit
         WINE_ERR("Failed to install registry keys for %s\n", debugstr_w(name));
         return FALSE;
     }
+
+    WINE_TRACE("Installation of %s finished\n", debugstr_w(name));
 
     assembly->status = ASSEMBLY_STATUS_INSTALLED;
     return TRUE;
@@ -1065,6 +1075,7 @@ static BOOL install_msu(WCHAR *filename, struct installer_state *state)
         goto done;
     }
 
+    WINE_TRACE("Installation finished\n");
     ret = TRUE;
 
 done:
