@@ -1142,6 +1142,23 @@ static void dump_varargs_rawinput_devices(const char *prefix, data_size_t size )
     fputc( '}', stderr );
 }
 
+static void dump_varargs_handle_infos( const char *prefix, data_size_t size )
+{
+    const struct handle_info *handle;
+
+    fprintf( stderr, "%s{", prefix );
+    while (size >= sizeof(*handle))
+    {
+        handle = cur_data;
+        fprintf( stderr, "{owner=%04x,handle=%04x,access=%08x}",
+                 handle->owner, handle->handle, handle->access );
+        size -= sizeof(*handle);
+        remove_data( sizeof(*handle) );
+        if (size) fputc( ',', stderr );
+    }
+    fputc( '}', stderr );
+}
+
 typedef void (*dump_func)( const void *req );
 
 /* Everything below this line is generated automatically by tools/make_requests */
