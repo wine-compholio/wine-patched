@@ -5515,6 +5515,7 @@ static void test_SysAllocStringByteLen(void)
     ok (str != NULL, "Expected non-NULL\n");
     bstr = Get(str);
     ok (bstr->dwLen == i, "Expected %d, got %d\n", i, bstr->dwLen);
+    ok (SysStringLen(str) == i/sizeof(WCHAR), "Expected %d, got %d\n", i/sizeof(WCHAR), SysStringLen(str));
     ok (!bstr->szString[(i+sizeof(WCHAR)-1)/sizeof(WCHAR)], "String not terminated\n");
     SysFreeString(str);
 
@@ -5525,6 +5526,7 @@ static void test_SysAllocStringByteLen(void)
     ok (bstr->dwLen == i, "Expected %d, got %d\n", i, bstr->dwLen);
     buf[i] = 0;
     ok (!lstrcmpA((LPCSTR)bstr->szString, buf), "String different\n");
+    ok (SysStringLen(str) == i/sizeof(WCHAR), "Expected %d, got %d\n", i/sizeof(WCHAR), SysStringLen(str));
     ok (!bstr->szString[(i+sizeof(WCHAR)-1)/sizeof(WCHAR)], "String not terminated\n");
     SysFreeString(str);
   }
