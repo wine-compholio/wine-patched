@@ -840,9 +840,11 @@ NTSTATUS WINAPI SYSCALL(NtGetContextThread)( HANDLE handle, CONTEXT *context )
     DWORD needed_flags = context->ContextFlags;
     BOOL self = (handle == GetCurrentThread());
 
+    /* on i386/amd64 debug registers always require a server call */
 #ifdef __i386__
-    /* on i386 debug registers always require a server call */
     if (context->ContextFlags & (CONTEXT_DEBUG_REGISTERS & ~CONTEXT_i386)) self = FALSE;
+#elif defined(__x86_64__)
+    if (context->ContextFlags & (CONTEXT_DEBUG_REGISTERS & ~CONTEXT_AMD64)) self = FALSE;
 #endif
 
     if (!self)
