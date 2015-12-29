@@ -88,6 +88,9 @@
 #ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
+#ifdef HAVE_TERMIOS_H
+# include <termios.h>
+#endif
 #include <time.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
@@ -429,6 +432,24 @@ static void flush_dir_queue(void)
     }
 }
 
+#ifdef linux
+/* Serial port device files almost always exist on Linux even if the corresponding serial
+ * ports don't exist. Do a basic functionality check before advertising a serial port. */
+static BOOL is_serial_device( const char *unix_name )
+{
+    struct termios tios;
+    BOOL ret = FALSE;
+    int fd;
+
+    if ((fd = open( unix_name, O_RDONLY )) != -1)
+    {
+        ret = tcgetattr( fd, &tios ) != -1;
+        close( fd );
+    }
+
+    return ret;
+}
+#endif
 
 /***********************************************************************
  *           get_default_com_device
@@ -444,6 +465,11 @@ static char *get_default_com_device( int num )
     ret = RtlAllocateHeap( GetProcessHeap(), 0, sizeof("/dev/ttyS256") );
     if (!ret) return NULL;
     sprintf( ret, "/dev/ttyS%d", num - 1 );
+    if (!is_serial_device( ret ))
+    {
+        RtlFreeHeap( GetProcessHeap(), 0, ret );
+        ret = NULL;
+    }
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     ret = RtlAllocateHeap( GetProcessHeap(), 0, sizeof("/dev/cuau256") );
     if (!ret) return NULL;
