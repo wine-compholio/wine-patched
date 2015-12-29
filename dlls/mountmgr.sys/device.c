@@ -25,6 +25,9 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#ifdef HAVE_TERMIOS_H
+# include <termios.h>
+#endif
 #include <sys/time.h>
 
 #define NONAMELESSUNION
@@ -1044,6 +1047,27 @@ static BOOL create_port_device( DRIVER_OBJECT *driver, int n, const char *unix_p
     }
     if (!unix_path)
         return FALSE;
+
+#ifdef linux
+    /* Serial port device files almost always exist on Linux even if the corresponding serial
+     * ports don't exist. Do a basic functionality check before advertising a serial port. */
+    if (driver == serial_driver)
+    {
+        struct termios tios;
+        int fd;
+
+        if ((fd = open( unix_path, O_RDONLY )) == -1)
+            return FALSE;
+
+        if (tcgetattr( fd, &tios ) == -1)
+        {
+            close( fd );
+            return FALSE;
+        }
+
+        close( fd );
+    }
+#endif
 
     /* create DOS device */
     sprintf( p, "%u", n );
