@@ -3948,10 +3948,10 @@ interface nsIMutationObserver : nsISupports
                                  void /*CharacterDataChangeInfo*/ *aInfo);
     void CharacterDataChanged(nsIDocument *aDocument, nsIContent *aContent,
                               void /*CharacterDataChangeInfo*/ *aInfo);
-    void AttributeWillChange(nsIDocument *aDocument, nsIContent *aContent, int32_t aNameSpaceID,
+    void AttributeWillChange(nsIDocument *aDocument, /*mozilla::dom::Element*/ void *aElement, int32_t aNameSpaceID,
                              nsIAtom *aAttribute, int32_t aModType, const nsAttrValue *aNewValue);
-    void AttributeChanged(nsIDocument *aDocument, nsIContent *aContent, int32_t aNameSpaceID,
-                          nsIAtom *aAttribute, int32_t aModType, const nsAttrValue *aNewValue);
+    void AttributeChanged(nsIDocument *aDocument, /*mozilla::dom::Element*/ void *aElement, int32_t aNameSpaceID,
+                          nsIAtom *aAttribute, int32_t aModType, const nsAttrValue *aOldValue);
     void NativeAnonymousChildListChange(nsIDocument *aDocument, nsIContent *aContent, bool aIsRemove);
     void AttributeSetToCurrentValue(nsIDocument *aDocument, /*mozilla::dom::Element*/ void *aElement,
                                     int32_t aNameSpaceID, nsIAtom *aAttribute);
