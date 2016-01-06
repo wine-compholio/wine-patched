@@ -2182,7 +2182,8 @@ NTSTATUS WINAPI NtQuerySystemInformationEx(SYSTEM_INFORMATION_CLASS SystemInform
 {
     FIXME("(0x%08x,%p,%u,%p,%u,%p) stub\n", SystemInformationClass, Query, QueryLength, SystemInformation,
         Length, ResultLength);
-    return STATUS_NOT_IMPLEMENTED;
+    if (ResultLength) *ResultLength = 0;
+    return STATUS_SUCCESS;
 }
 
 /******************************************************************************
