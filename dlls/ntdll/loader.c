@@ -986,7 +986,18 @@ static NTSTATUS fixup_imports( WINE_MODREF *wm, LPCWSTR load_path )
     status = STATUS_SUCCESS;
     for (i = 0; i < nb_imports; i++)
     {
-        if (!(wm->deps[i] = import_dll( wm->ldr.BaseAddress, &imports[i], load_path )))
+        const IMAGE_IMPORT_DESCRIPTOR *descr = &imports[i];
+        const IMAGE_THUNK_DATA *import_list = get_rva( wm->ldr.BaseAddress, descr->u.OriginalFirstThunk ?
+                                                       (DWORD)descr->u.OriginalFirstThunk : (DWORD)descr->FirstThunk );
+        if (!import_list->u1.Ordinal)
+        {
+            const char *name = get_rva( wm->ldr.BaseAddress, descr->Name );
+            WARN( "Skipping unused import %s\n", debugstr_a(name) );
+            wm->deps[i] = NULL;
+            continue;
+        }
+
+        if (!(wm->deps[i] = import_dll( wm->ldr.BaseAddress, descr, load_path )))
             status = STATUS_DLL_NOT_FOUND;
     }
     current_modref = prev;
