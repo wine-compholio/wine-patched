@@ -70,6 +70,7 @@ static HRESULT (WINAPI * pCoSwitchCallContext)(IUnknown *pObject, IUnknown **ppO
 static HRESULT (WINAPI * pCoGetTreatAsClass)(REFCLSID clsidOld, LPCLSID pClsidNew);
 static HRESULT (WINAPI * pCoTreatAsClass)(REFCLSID clsidOld, REFCLSID pClsidNew);
 static HRESULT (WINAPI * pCoGetContextToken)(ULONG_PTR *token);
+static HRESULT (WINAPI * pCoGetApartmentType)(APTTYPE *type, APTTYPEQUALIFIER *qualifier);
 static LONG (WINAPI * pRegDeleteKeyExA)(HKEY, LPCSTR, REGSAM, DWORD);
 static LONG (WINAPI * pRegOverridePredefKey)(HKEY key, HKEY override);
 
@@ -2879,6 +2880,53 @@ if (0) /* crashes on native */
     IMalloc_Release(imalloc);
 }
 
+static void test_CoGetApartmentType(void)
+{
+    APTTYPEQUALIFIER qualifier;
+    APTTYPE type;
+    HRESULT hr;
+
+    if (!pCoGetApartmentType)
+    {
+        win_skip("CoGetApartmentType not present\n");
+        return;
+    }
+
+    hr = pCoGetApartmentType(NULL, NULL);
+    ok(hr == E_INVALIDARG, "CoGetApartmentType succeeded, error: 0x%0x\n", hr);
+
+    hr = pCoGetApartmentType(&type, NULL);
+    ok(hr == E_INVALIDARG, "CoGetApartmentType succeeded, error: 0x%0x\n", hr);
+
+    hr = pCoGetApartmentType(NULL, &qualifier);
+    ok(hr == E_INVALIDARG, "CoGetApartmentType succeeded, error: 0x%0x\n", hr);
+
+    hr = pCoGetApartmentType(&type, &qualifier);
+    ok(hr == CO_E_NOTINITIALIZED, "CoGetApartmentType succeeded, error: 0x%0x\n", hr);
+    ok(type == APTTYPE_CURRENT, "Expected APTTYPE_CURRENT, got %u\n", type);
+    ok(qualifier == APTTYPEQUALIFIER_NONE, "Expected APTTYPEQUALIFIER_NONE, got %u\n", qualifier);
+
+    hr = pCoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    ok(!hr, "CoInitializeEx failed, error: 0x%08x\n", hr);
+
+    hr = pCoGetApartmentType(&type, &qualifier);
+    ok(!hr, "CoGetApartmentType failed, error: 0x%08x\n", hr);
+    ok(type == APTTYPE_MAINSTA, "Expected APTTYPE_MAINSTA, got %u\n", type);
+    ok(qualifier == APTTYPEQUALIFIER_NONE, "Expected APTTYPEQUALIFIER_NONE, got %u\n", qualifier);
+
+    CoUninitialize();
+
+    hr = pCoInitializeEx(NULL, COINIT_MULTITHREADED);
+    ok(!hr, "CoInitializeEx failed, error: 0x%08x\n", hr);
+
+    hr = pCoGetApartmentType(&type, &qualifier);
+    ok(!hr, "CoGetApartmentType failed, error: 0x%08x\n", hr);
+    ok(type == APTTYPE_MTA, "Expected APTTYPE_MTA, got %u\n", type);
+    ok(qualifier == APTTYPEQUALIFIER_NONE, "Expected APTTYPEQUALIFIER_NONE, got %u\n", qualifier);
+
+    CoUninitialize();
+}
+
 static void init_funcs(void)
 {
     HMODULE hOle32 = GetModuleHandleA("ole32");
@@ -2890,6 +2938,7 @@ static void init_funcs(void)
     pCoGetTreatAsClass = (void*)GetProcAddress(hOle32,"CoGetTreatAsClass");
     pCoTreatAsClass = (void*)GetProcAddress(hOle32,"CoTreatAsClass");
     pCoGetContextToken = (void*)GetProcAddress(hOle32, "CoGetContextToken");
+    pCoGetApartmentType = (void*)GetProcAddress(hOle32, "CoGetApartmentType");
     pRegDeleteKeyExA = (void*)GetProcAddress(hAdvapi32, "RegDeleteKeyExA");
     pRegOverridePredefKey = (void*)GetProcAddress(hAdvapi32, "RegOverridePredefKey");
     pCoInitializeEx = (void*)GetProcAddress(hOle32, "CoInitializeEx");
@@ -2944,4 +2993,5 @@ START_TEST(compobj)
     test_CoWaitForMultipleHandles();
     test_CoGetMalloc();
     test_OleRegGetUserType();
+    test_CoGetApartmentType();
 }
