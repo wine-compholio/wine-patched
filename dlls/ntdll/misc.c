@@ -358,6 +358,16 @@ ULONG WINAPI EtwEventRegister( LPCGUID provider, PENABLECALLBACK callback, PVOID
     return ERROR_SUCCESS;
 }
 
+/*********************************************************************
+ *                  EtwEventSetInformation   (NTDLL.@)
+ */
+ULONG WINAPI EtwEventSetInformation( REGHANDLE handle, EVENT_INFO_CLASS class, PVOID info,
+                                     ULONG length )
+{
+    FIXME("%u, %p, %u\n", class, info, length);
+    return ERROR_SUCCESS;
+}
+
 /******************************************************************************
  *                  EtwRegisterTraceGuidsW (NTDLL.@)
  *
