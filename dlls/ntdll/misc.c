@@ -27,6 +27,9 @@
 #include <sys/utsname.h>
 #endif
 
+#include "windows.h"
+#include "wmistr.h"
+#include "evntrace.h"
 #include "wine/library.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
@@ -342,4 +345,68 @@ BOOL WINAPI WinSqmIsOptedIn(void)
 {
     FIXME("() stub\n");
     return FALSE;
+}
+
+/*********************************************************************
+ *                  EtwRegisterTraceGuidsW   (NTDLL.@)
+ *
+ * Register an event trace provider and the event trace classes that it uses
+ * to generate events.
+ *
+ * PARAMS
+ *  RequestAddress     [I]   ControlCallback function
+ *  RequestContext     [I]   Optional provider-defined context
+ *  ControlGuid        [I]   GUID of the registering provider
+ *  GuidCount          [I]   Number of elements in the TraceGuidReg array
+ *  TraceGuidReg       [I/O] Array of TRACE_GUID_REGISTRATION structures
+ *  MofImagePath       [I]   not supported, set to NULL
+ *  MofResourceName    [I]   not supported, set to NULL
+ *  RegistrationHandle [O]   Provider's registration handle
+ *
+ * RETURNS
+ *  Success: ERROR_SUCCESS
+ *  Failure: System error code
+ *
+ * FIXME
+ *  Stub.
+ */
+ULONG WINAPI EtwRegisterTraceGuidsW( WMIDPREQUEST RequestAddress,
+                PVOID RequestContext, LPCGUID ControlGuid, ULONG GuidCount,
+                PTRACE_GUID_REGISTRATION TraceGuidReg, LPCWSTR MofImagePath,
+                LPCWSTR MofResourceName, PTRACEHANDLE RegistrationHandle )
+{
+    FIXME("(%p, %p, %s, %u, %p, %s, %s, %p): stub\n", RequestAddress, RequestContext,
+          debugstr_guid(ControlGuid), GuidCount, TraceGuidReg, debugstr_w(MofImagePath),
+          debugstr_w(MofResourceName), RegistrationHandle);
+
+    if (TraceGuidReg)
+    {
+        ULONG i;
+        for (i = 0; i < GuidCount; i++)
+        {
+            FIXME("  register trace class %s\n", debugstr_guid(TraceGuidReg[i].Guid));
+            TraceGuidReg[i].RegHandle = (HANDLE)0xdeadbeef;
+        }
+    }
+    *RegistrationHandle = (TRACEHANDLE)0xdeadbeef;
+    return ERROR_SUCCESS;
+}
+
+/*********************************************************************
+ *                  EtwRegisterTraceGuidsA   (NTDLL.@)
+ *
+ * See EtwRegisterTraceGuidsW.
+ *
+ * FIXME
+ *  Stub.
+ */
+ULONG WINAPI EtwRegisterTraceGuidsA( WMIDPREQUEST RequestAddress,
+                PVOID RequestContext, LPCGUID ControlGuid, ULONG GuidCount,
+                PTRACE_GUID_REGISTRATION TraceGuidReg, LPCSTR MofImagePath,
+                LPCSTR MofResourceName, PTRACEHANDLE RegistrationHandle )
+{
+    FIXME("(%p, %p, %s, %u, %p, %s, %s, %p): stub\n", RequestAddress, RequestContext,
+          debugstr_guid(ControlGuid), GuidCount, TraceGuidReg, debugstr_a(MofImagePath),
+          debugstr_a(MofResourceName), RegistrationHandle);
+    return ERROR_SUCCESS;
 }
