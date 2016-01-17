@@ -2996,6 +2996,21 @@ WINBASEAPI VOID        WINAPI SetLastError(DWORD);
 #define GetCurrentThread()  ((HANDLE)~(ULONG_PTR)1)
 #endif
 
+static FORCEINLINE HANDLE GetCurrentProcessToken(void)
+{
+    return (HANDLE)~(LONG_PTR)3;
+}
+
+static FORCEINLINE HANDLE GetCurrentThreadToken(void)
+{
+    return (HANDLE)~(LONG_PTR)4;
+}
+
+static FORCEINLINE HANDLE GetCurrentThreadEffectiveToken(void)
+{
+    return (HANDLE)~(LONG_PTR)5;
+}
+
 /* WinMain(entry point) must be declared in winbase.h. */
 /* If this is not declared, we cannot compile many sources written with C++. */
 int WINAPI WinMain(HINSTANCE,HINSTANCE,LPSTR,int);
