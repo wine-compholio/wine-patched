@@ -30,6 +30,7 @@
 #include "windows.h"
 #include "wmistr.h"
 #include "evntrace.h"
+#include "evntprov.h"
 #include "wine/library.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
@@ -345,6 +346,17 @@ BOOL WINAPI WinSqmIsOptedIn(void)
 {
     FIXME("() stub\n");
     return FALSE;
+}
+
+/*********************************************************************
+ *                  EtwEventRegister   (NTDLL.@)
+ */
+ULONG WINAPI EtwEventRegister( LPCGUID provider, PENABLECALLBACK callback, PVOID context, PREGHANDLE handle )
+{
+    FIXME("%s, %p, %p, %p\n", debugstr_guid(provider), callback, context, handle);
+
+    *handle = 0xdeadbeef;
+    return ERROR_SUCCESS;
 }
 
 /*********************************************************************
