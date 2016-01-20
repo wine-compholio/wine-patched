@@ -2330,6 +2330,17 @@ NTSTATUS WINAPI SYSCALL(NtQuerySystemInformation)(
             RtlFreeHeap(GetProcessHeap(), 0, buf);
         }
         break;
+    case SystemRecommendedSharedDataAlignment:
+        {
+            len = sizeof(DWORD);
+            if (Length >= len)
+            {
+                if (!SystemInformation) ret = STATUS_ACCESS_VIOLATION;
+                else *((DWORD *)SystemInformation) = 64;
+            }
+            else ret = STATUS_INFO_LENGTH_MISMATCH;
+        }
+        break;
     default:
 	FIXME("(0x%08x,%p,0x%08x,%p) stub\n",
 	      SystemInformationClass,SystemInformation,Length,ResultLength);
