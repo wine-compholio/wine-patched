@@ -1643,6 +1643,14 @@ static const struct comparestringa_entry comparestringa_data[] = {
   { LOCALE_SYSTEM_DEFAULT, SORT_STRINGSORT, "a'", 3, "a\0", 3, CSTR_GREATER_THAN },
   { LOCALE_SYSTEM_DEFAULT, NORM_IGNORESYMBOLS, "a.", 3, "a\0", 3, CSTR_EQUAL },
   { LOCALE_SYSTEM_DEFAULT, NORM_IGNORESYMBOLS, "a ", 3, "a\0", 3, CSTR_EQUAL },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a", 1, "a\0\0", 4, CSTR_EQUAL },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a", 2, "a\0\0", 4, CSTR_EQUAL },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a\0\0", 4, "a", 1, CSTR_EQUAL },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a\0\0", 4, "a", 2, CSTR_EQUAL },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a", 1, "a\0x", 4, CSTR_LESS_THAN },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a", 2, "a\0x", 4, CSTR_LESS_THAN },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a\0x", 4, "a", 1, CSTR_GREATER_THAN },
+  { LOCALE_SYSTEM_DEFAULT, 0, "a\0x", 4, "a", 2, CSTR_GREATER_THAN },
 };
 
 static void test_CompareStringA(void)
