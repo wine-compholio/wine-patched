@@ -274,6 +274,7 @@ my @dll_groups =
   "user32",
   "api-ms-win-downlevel-user32-l1-1-0",
   "api-ms-win-ntuser-dc-access-l1-1-0",
+  "ext-ms-win-ntuser-mouse-l1-1-0",
  ],
  [
   "version",
