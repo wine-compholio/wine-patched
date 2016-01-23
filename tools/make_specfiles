@@ -281,6 +281,7 @@ my @dll_groups =
   "api-ms-win-rtcore-ntuser-window-l1-1-0",
   "ext-ms-win-ntuser-mouse-l1-1-0",
   "ext-ms-win-rtcore-ntuser-syscolors-l1-1-0",
+  "ext-ms-win-rtcore-ntuser-sysparams-l1-1-0",
  ],
  [
   "version",
