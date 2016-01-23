@@ -277,6 +277,7 @@ my @dll_groups =
   "api-ms-win-core-string-l2-1-0",
   "api-ms-win-downlevel-user32-l1-1-0",
   "api-ms-win-ntuser-dc-access-l1-1-0",
+  "api-ms-win-rtcore-ntuser-draw-l1-1-0",
   "api-ms-win-rtcore-ntuser-window-l1-1-0",
   "ext-ms-win-ntuser-mouse-l1-1-0",
   "ext-ms-win-rtcore-ntuser-syscolors-l1-1-0",
