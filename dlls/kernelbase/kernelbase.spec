@@ -1188,7 +1188,7 @@
 @ stub QuirkGetData2
 @ stub QuirkGetData
 @ stub QuirkIsEnabled2
-@ stub QuirkIsEnabled3
+@ stdcall QuirkIsEnabled3(ptr ptr)
 @ stdcall QuirkIsEnabled(ptr)
 @ stub QuirkIsEnabledForPackage2
 @ stub QuirkIsEnabledForPackage3
