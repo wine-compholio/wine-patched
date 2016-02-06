@@ -2012,10 +2012,30 @@ HANDLE WINAPI FindFirstFileExW( LPCWSTR filename, FINDEX_INFO_LEVELS level,
     }
     else
     {
+        static const WCHAR invalidW[] = { '<', '>', '\"', 0 };
+        static const WCHAR wildcardW[] = { '*', 0 };
+        DWORD mask_len;
+
         if (!RtlCreateUnicodeString( &info->mask, mask ))
         {
             SetLastError( ERROR_NOT_ENOUGH_MEMORY );
             goto error;
+        }
+
+        /* strip invalid characters from mask */
+        mask_len = info->mask.Length / sizeof(WCHAR);
+        while (mask_len && strchrW(invalidW, mask[mask_len - 1]))
+            mask_len--;
+
+        if (!mask_len)
+        {
+            strcpyW( info->mask.Buffer, wildcardW );
+            info->mask.Length = strlenW(wildcardW) * sizeof(WCHAR);
+        }
+        else
+        {
+            info->mask.Buffer[mask_len] = 0;
+            info->mask.Length = mask_len * sizeof(WCHAR);
         }
 
         /* truncate dir name before mask */
