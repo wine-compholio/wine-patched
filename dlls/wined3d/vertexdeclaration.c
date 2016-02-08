@@ -50,12 +50,14 @@ ULONG CDECL wined3d_vertex_declaration_incref(struct wined3d_vertex_declaration 
     return refcount;
 }
 
+#if defined(STAGING_CSMT)
 void wined3d_vertex_declaration_destroy(struct wined3d_vertex_declaration *declaration)
 {
     HeapFree(GetProcessHeap(), 0, declaration->elements);
     HeapFree(GetProcessHeap(), 0, declaration);
 }
 
+#endif /* STAGING_CSMT */
 ULONG CDECL wined3d_vertex_declaration_decref(struct wined3d_vertex_declaration *declaration)
 {
     ULONG refcount = InterlockedDecrement(&declaration->ref);
@@ -64,9 +66,15 @@ ULONG CDECL wined3d_vertex_declaration_decref(struct wined3d_vertex_declaration 
 
     if (!refcount)
     {
+#if defined(STAGING_CSMT)
         const struct wined3d_device *device = declaration->device;
         declaration->parent_ops->wined3d_object_destroyed(declaration->parent);
         wined3d_cs_emit_vertex_declaration_destroy(device->cs, declaration);
+#else  /* STAGING_CSMT */
+        HeapFree(GetProcessHeap(), 0, declaration->elements);
+        declaration->parent_ops->wined3d_object_destroyed(declaration->parent);
+        HeapFree(GetProcessHeap(), 0, declaration);
+#endif /* STAGING_CSMT */
     }
 
     return refcount;
