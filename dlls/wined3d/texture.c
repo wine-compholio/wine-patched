@@ -684,7 +684,7 @@ HRESULT CDECL wined3d_texture_update_desc(struct wined3d_texture *texture, UINT 
             && !gl_info->supported[ARB_TEXTURE_RECTANGLE] && !gl_info->supported[WINED3D_GL_NORMALIZED_TEXRECT])
         texture->flags |= WINED3D_TEXTURE_COND_NP2_EMULATED;
 
-    return wined3d_surface_update_desc(surface, gl_info);
+    return wined3d_surface_update_desc(surface, gl_info, pitch);
 }
 
 void wined3d_texture_prepare_texture(struct wined3d_texture *texture, struct wined3d_context *context, BOOL srgb)
