@@ -156,6 +156,8 @@ static BOOL set_active_window( HWND hwnd, HWND *prev, BOOL mouse, BOOL focus )
                       (LPARAM)previous );
     }
 
+    USER_Driver->pSetActiveWindow( hwnd );
+
     /* now change focus if necessary */
     if (focus)
     {
