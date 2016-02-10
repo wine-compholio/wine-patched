@@ -1870,7 +1870,8 @@ static inline unsigned short float_32_to_16(const float *in)
     return ret;
 }
 
-HRESULT wined3d_surface_update_desc(struct wined3d_surface *surface, const struct wined3d_gl_info *gl_info)
+HRESULT wined3d_surface_update_desc(struct wined3d_surface *surface,
+        const struct wined3d_gl_info *gl_info, unsigned int pitch)
 {
     struct wined3d_resource *texture_resource = &surface->container->resource;
     unsigned int width, height;
@@ -1914,19 +1915,20 @@ HRESULT wined3d_surface_update_desc(struct wined3d_surface *surface, const struc
         surface->resource.map_binding = WINED3D_LOCATION_USER_MEMORY;
         valid_location = WINED3D_LOCATION_USER_MEMORY;
     }
+    surface->pitch = pitch;
     surface->resource.format = texture_resource->format;
     surface->resource.multisample_type = texture_resource->multisample_type;
     surface->resource.multisample_quality = texture_resource->multisample_quality;
-    if (surface->container->row_pitch)
+    if (surface->pitch)
     {
-        surface->resource.size = height * surface->container->row_pitch;
+        surface->resource.size = height * surface->pitch;
     }
     else
     {
         /* User memory surfaces don't have the regular surface alignment. */
         surface->resource.size = wined3d_format_calculate_size(texture_resource->format,
                 1, width, height, 1);
-        surface->container->row_pitch = wined3d_format_calculate_pitch(texture_resource->format, width);
+        surface->pitch = wined3d_format_calculate_pitch(texture_resource->format, width);
     }
 
     /* The format might be changed to a format that needs conversion.
