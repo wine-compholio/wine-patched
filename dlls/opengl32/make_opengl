@@ -418,6 +418,9 @@ sub needs_wrapper($$)
          "glGetString" => 1,
          "glGetStringi" => 1,
          "wglGetCurrentReadDCARB" => 1,
+         "glDebugMessageCallback" => 1,
+         "glDebugMessageCallbackAMD" => 1,
+         "glDebugMessageCallbackARB" => 1,
         );
     my ($name, $func) = @_;
 
