@@ -33,4 +33,8 @@ extern const int extension_registry_size DECLSPEC_HIDDEN;
 
 extern BOOL WINAPI wglSetPixelFormatWINE( HDC hdc, int format ) DECLSPEC_HIDDEN;
 
+extern void WINAPI glDebugMessageCallback( void *callback, const void *userParam ) DECLSPEC_HIDDEN;
+extern void WINAPI glDebugMessageCallbackAMD( void *callback, void *userParam ) DECLSPEC_HIDDEN;
+extern void WINAPI glDebugMessageCallbackARB( void *callback, const void *userParam ) DECLSPEC_HIDDEN;
+
 #endif /* __DLLS_OPENGL32_OPENGL_EXT_H */
