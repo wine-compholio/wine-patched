@@ -2524,3 +2524,13 @@ HRESULT WINAPI D3DXCreateTextureShader(const DWORD *function, ID3DXTextureShader
 
     return D3D_OK;
 }
+
+HRESULT WINAPI D3DXFillCubeTextureTX(IDirect3DCubeTexture9 *texture, ID3DXTextureShader *texture_shader)
+{
+    FIXME("texture %p, texture_shader %p stub.\n", texture, texture_shader);
+
+    if (!texture || !texture_shader)
+        return E_POINTER;
+
+    return D3D_OK;
+}
