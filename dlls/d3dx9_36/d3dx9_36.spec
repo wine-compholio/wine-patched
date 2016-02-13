@@ -123,7 +123,7 @@
 @ stdcall D3DXDisassembleShader(ptr long str ptr)
 @ stdcall D3DXFileCreate(ptr)
 @ stdcall D3DXFillCubeTexture(ptr ptr ptr)
-@ stub D3DXFillCubeTextureTX(ptr ptr)
+@ stdcall D3DXFillCubeTextureTX(ptr ptr)
 @ stdcall D3DXFillTexture(ptr ptr ptr)
 @ stub D3DXFillTextureTX(ptr ptr)
 @ stdcall D3DXFillVolumeTexture(ptr ptr ptr)
