@@ -1431,10 +1431,8 @@ static void test_AccessCheck(void)
     ret = AccessCheck(SecurityDescriptor, Token, KEY_READ, &Mapping,
                       0, &PrivSetLen, &Access, &AccessStatus);
     err = GetLastError();
-todo_wine
     ok(!ret && err == ERROR_INSUFFICIENT_BUFFER, "AccessCheck should have "
        "failed with ERROR_INSUFFICIENT_BUFFER, instead of %d\n", err);
-todo_wine
     ok(PrivSetLen == sizeof(PRIVILEGE_SET), "PrivSetLen returns %d\n", PrivSetLen);
     ok(Access == 0x1abe11ed && AccessStatus == 0x1abe11ed,
        "Access and/or AccessStatus were changed!\n");
@@ -1485,12 +1483,9 @@ todo_wine
     ret = AccessCheck(SecurityDescriptor, Token, KEY_READ, &Mapping,
                       PrivSet, &PrivSetLen, &Access, &AccessStatus);
     err = GetLastError();
-todo_wine
     ok(!ret && err == ERROR_INSUFFICIENT_BUFFER, "AccessCheck should have "
        "failed with ERROR_INSUFFICIENT_BUFFER, instead of %d\n", err);
-todo_wine
     ok(PrivSetLen == sizeof(PRIVILEGE_SET), "PrivSetLen returns %d\n", PrivSetLen);
-todo_wine
     ok(Access == 0x1abe11ed && AccessStatus == 0x1abe11ed,
        "Access and/or AccessStatus were changed!\n");
 
@@ -1602,12 +1597,9 @@ todo_wine
         ret = AccessCheck(SecurityDescriptor, Token, KEY_READ, &Mapping,
                           PrivSet, &PrivSetLen, &Access, &AccessStatus);
         err = GetLastError();
-    todo_wine
         ok(!ret && err == ERROR_INSUFFICIENT_BUFFER, "AccessCheck should have "
            "failed with ERROR_INSUFFICIENT_BUFFER, instead of %d\n", err);
-    todo_wine
         ok(PrivSetLen == sizeof(PRIVILEGE_SET), "PrivSetLen returns %d\n", PrivSetLen);
-    todo_wine
         ok(Access == 0x1abe11ed && AccessStatus == 0x1abe11ed,
            "Access and/or AccessStatus were changed!\n");
 
