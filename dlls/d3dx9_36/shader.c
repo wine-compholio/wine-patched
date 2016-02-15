@@ -2328,7 +2328,7 @@ HRESULT WINAPI D3DXDisassembleShader(const DWORD *shader, BOOL colorcode, const 
     TRACE("%p %d %s %p\n", shader, colorcode, debugstr_a(comments), disassembly);
 
     if (!shader || !disassembly)
-        return E_POINTER;
+        return D3DERR_INVALIDCALL;
 
     buf = buffer = HeapAlloc(GetProcessHeap(), 0, capacity);
     if (!buffer)
