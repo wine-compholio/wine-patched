@@ -1578,8 +1578,69 @@ static LRESULT CALLBACK msgbox_hook_proc(INT code, WPARAM wParam, LPARAM lParam)
     return CallNextHookEx(NULL, code, wParam, lParam);
 }
 
+struct create_window_params
+{
+    BOOL owner;
+    char caption[64];
+    DWORD style;
+};
+
+static DWORD WINAPI create_window_thread(void *param)
+{
+    struct create_window_params *p = param;
+    HWND owner = 0;
+
+    if (p->owner)
+    {
+        owner = CreateWindowExA(0, "Static", NULL, WS_POPUP, 10, 10, 10, 10, 0, 0, 0, NULL);
+        ok(owner != 0, "failed to create owner window\n");
+    }
+
+    MessageBoxA(owner, NULL, p->caption, p->style);
+
+    if (owner) DestroyWindow(owner);
+
+    return 0;
+}
+
+static HWND wait_for_window(const char *caption)
+{
+    HWND hwnd;
+    DWORD timeout = 0;
+
+    for (;;)
+    {
+        hwnd = FindWindowA(NULL, caption);
+        if (hwnd) break;
+
+        Sleep(50);
+        timeout += 50;
+        if (timeout > 3000)
+        {
+            ok(0, "failed to wait for a window %s\n", caption);
+            break;
+        }
+    }
+
+    Sleep(50);
+    return hwnd;
+}
+
 static void test_MessageBox(void)
 {
+    static const struct
+    {
+        DWORD mb_style;
+        DWORD ex_style;
+    } test[] =
+    {
+        { MB_OK, 0 },
+        { MB_OK | MB_TASKMODAL, 0 },
+        { MB_OK | MB_SYSTEMMODAL, WS_EX_TOPMOST },
+    };
+    struct create_window_params params;
+    HANDLE thread;
+    DWORD tid, i;
     HHOOK hook;
     int ret;
 
@@ -1589,6 +1650,53 @@ static void test_MessageBox(void)
     ok(ret == IDCANCEL, "got %d\n", ret);
 
     UnhookWindowsHookEx(hook);
+
+    sprintf(params.caption, "pid %08x, tid %08x, time %08x",
+            GetCurrentProcessId(), GetCurrentThreadId(), GetCurrentTime());
+
+    params.owner = FALSE;
+
+    for (i = 0; i < sizeof(test)/sizeof(test[0]); i++)
+    {
+        HWND hwnd;
+        DWORD ex_style;
+
+        params.style = test[i].mb_style;
+
+        thread = CreateThread(NULL, 0, create_window_thread, &params, 0, &tid);
+
+        hwnd = wait_for_window(params.caption);
+        ex_style = GetWindowLongA(hwnd, GWL_EXSTYLE);
+        todo_wine_if(test[i].ex_style == WS_EX_TOPMOST)
+        ok((ex_style & WS_EX_TOPMOST) == test[i].ex_style, "%d: got window ex_style %#x\n", i, ex_style);
+
+        PostMessageA(hwnd, WM_COMMAND, IDCANCEL, 0);
+
+        ok(WaitForSingleObject(thread, 5000) != WAIT_TIMEOUT, "thread failed to terminate\n");
+        CloseHandle(thread);
+    }
+
+    params.owner = TRUE;
+
+    for (i = 0; i < sizeof(test)/sizeof(test[0]); i++)
+    {
+        HWND hwnd;
+        DWORD ex_style;
+
+        params.style = test[i].mb_style;
+
+        thread = CreateThread(NULL, 0, create_window_thread, &params, 0, &tid);
+
+        hwnd = wait_for_window(params.caption);
+        ex_style = GetWindowLongA(hwnd, GWL_EXSTYLE);
+        todo_wine_if(test[i].ex_style == WS_EX_TOPMOST)
+        ok((ex_style & WS_EX_TOPMOST) == test[i].ex_style, "%d: got window ex_style %#x\n", i, ex_style);
+
+        PostMessageA(hwnd, WM_COMMAND, IDCANCEL, 0);
+
+        ok(WaitForSingleObject(thread, 5000) != WAIT_TIMEOUT, "thread failed to terminate\n");
+        CloseHandle(thread);
+    }
 }
 
 static INT_PTR CALLBACK custom_test_dialog_proc(HWND hdlg, UINT msg, WPARAM wparam, LPARAM lparam)
