@@ -1551,7 +1551,6 @@ static void test_MessageBox(void)
 
         hwnd = wait_for_window(params.caption);
         ex_style = GetWindowLongA(hwnd, GWL_EXSTYLE);
-        todo_wine_if(test[i].ex_style == WS_EX_TOPMOST)
         ok((ex_style & test[i].ex_style) == test[i].ex_style, "%d: got window ex_style %#x\n", i, ex_style);
 
         PostMessageA(hwnd, WM_COMMAND, IDCANCEL, 0);
@@ -1573,7 +1572,6 @@ static void test_MessageBox(void)
 
         hwnd = wait_for_window(params.caption);
         ex_style = GetWindowLongA(hwnd, GWL_EXSTYLE);
-        todo_wine_if(test[i].ex_style == WS_EX_TOPMOST)
         ok((ex_style & test[i].ex_style) == test[i].ex_style, "%d: got window ex_style %#x\n", i, ex_style);
 
         PostMessageA(hwnd, WM_COMMAND, IDCANCEL, 0);
