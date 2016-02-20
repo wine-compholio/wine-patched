@@ -787,13 +787,21 @@ static BOOL pathdrv_AbortPath( PHYSDEV dev )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
     DC *dc = get_dc_ptr( dev->hdc );
+    BOOL ret = TRUE;
 
     if (!dc) return FALSE;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pAbortPath );
+        ret = next->funcs->pAbortPath( next );
+    }
+
     free_gdi_path( physdev->path );
     pop_dc_driver( dc, &path_driver );
     HeapFree( GetProcessHeap(), 0, physdev );
     release_dc_ptr( dc );
-    return TRUE;
+    return ret;
 }
 
 
@@ -804,13 +812,21 @@ static BOOL pathdrv_EndPath( PHYSDEV dev )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
     DC *dc = get_dc_ptr( dev->hdc );
+    BOOL ret = TRUE;
 
     if (!dc) return FALSE;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pEndPath );
+        ret = next->funcs->pEndPath( next );
+    }
+
     dc->path = physdev->path;
     pop_dc_driver( dc, &path_driver );
     HeapFree( GetProcessHeap(), 0, physdev );
     release_dc_ptr( dc );
-    return TRUE;
+    return ret;
 }
 
 
@@ -893,6 +909,13 @@ BOOL PATH_RestorePath( DC *dst, DC *src )
 static BOOL pathdrv_MoveTo( PHYSDEV dev, INT x, INT y )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pMoveTo );
+        if (!next->funcs->pMoveTo( next, x, y )) return FALSE;
+    }
+
     physdev->path->newStroke = TRUE;
     return TRUE;
 }
@@ -905,6 +928,12 @@ static BOOL pathdrv_LineTo( PHYSDEV dev, INT x, INT y )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
     POINT point;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pLineTo );
+        if (!next->funcs->pLineTo( next, x, y )) return FALSE;
+    }
 
     if (!start_new_stroke( physdev )) return FALSE;
     point.x = x;
@@ -925,6 +954,13 @@ static BOOL pathdrv_RoundRect( PHYSDEV dev, INT x1, INT y1, INT x2, INT y2, INT 
     struct path_physdev *physdev = get_path_physdev( dev );
     POINT corners[2], pointTemp;
     FLOAT_POINT ellCorners[2];
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pRoundRect );
+        if (!next->funcs->pRoundRect( next, x1, y1, x2, y2, ell_width, ell_height ))
+            return FALSE;
+    }
 
     PATH_CheckCorners(dev->hdc,corners,x1,y1,x2,y2);
 
@@ -972,6 +1008,12 @@ static BOOL pathdrv_Rectangle( PHYSDEV dev, INT x1, INT y1, INT x2, INT y2 )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
     POINT corners[2], pointTemp;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pRectangle );
+        if (!next->funcs->pRectangle( next, x1, y1, x2, y2 )) return FALSE;
+    }
 
     PATH_CheckCorners(dev->hdc,corners,x1,y1,x2,y2);
 
@@ -1148,6 +1190,13 @@ static BOOL pathdrv_AngleArc( PHYSDEV dev, INT x, INT y, DWORD radius, FLOAT eSt
     INT x1, y1, x2, y2, arcdir;
     BOOL ret;
 
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pAngleArc );
+        if (!next->funcs->pAngleArc( next, x, y, radius, eStartAngle, eSweepAngle ))
+            return FALSE;
+    }
+
     x1 = GDI_ROUND( x + cos(eStartAngle*M_PI/180) * radius );
     y1 = GDI_ROUND( y - sin(eStartAngle*M_PI/180) * radius );
     x2 = GDI_ROUND( x + cos((eStartAngle+eSweepAngle)*M_PI/180) * radius );
@@ -1165,6 +1214,13 @@ static BOOL pathdrv_AngleArc( PHYSDEV dev, INT x, INT y, DWORD radius, FLOAT eSt
 static BOOL pathdrv_Arc( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
                          INT xstart, INT ystart, INT xend, INT yend )
 {
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pArc );
+        if (!next->funcs->pArc( next, left, top, right, bottom, xstart, ystart, xend, yend ))
+            return FALSE;
+    }
+
     return PATH_Arc( dev, left, top, right, bottom, xstart, ystart, xend, yend, 0 );
 }
 
@@ -1175,6 +1231,13 @@ static BOOL pathdrv_Arc( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
 static BOOL pathdrv_ArcTo( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
                            INT xstart, INT ystart, INT xend, INT yend )
 {
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pArcTo );
+        if (!next->funcs->pArcTo( next, left, top, right, bottom, xstart, ystart, xend, yend ))
+            return FALSE;
+    }
+
     return PATH_Arc( dev, left, top, right, bottom, xstart, ystart, xend, yend, -1 );
 }
 
@@ -1185,6 +1248,13 @@ static BOOL pathdrv_ArcTo( PHYSDEV dev, INT left, INT top, INT right, INT bottom
 static BOOL pathdrv_Chord( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
                            INT xstart, INT ystart, INT xend, INT yend )
 {
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pChord );
+        if (!next->funcs->pChord( next, left, top, right, bottom, xstart, ystart, xend, yend ))
+            return FALSE;
+    }
+
     return PATH_Arc( dev, left, top, right, bottom, xstart, ystart, xend, yend, 1);
 }
 
@@ -1195,6 +1265,13 @@ static BOOL pathdrv_Chord( PHYSDEV dev, INT left, INT top, INT right, INT bottom
 static BOOL pathdrv_Pie( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
                          INT xstart, INT ystart, INT xend, INT yend )
 {
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPie );
+        if (!next->funcs->pPie( next, left, top, right, bottom, xstart, ystart, xend, yend ))
+            return FALSE;
+    }
+
     return PATH_Arc( dev, left, top, right, bottom, xstart, ystart, xend, yend, 2 );
 }
 
@@ -1204,6 +1281,13 @@ static BOOL pathdrv_Pie( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
  */
 static BOOL pathdrv_Ellipse( PHYSDEV dev, INT x1, INT y1, INT x2, INT y2 )
 {
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pEllipse );
+        if (!next->funcs->pEllipse( next, x1, y1, x2, y2 ))
+            return FALSE;
+    }
+
     return PATH_Arc( dev, x1, y1, x2, y2, x1, (y1+y2)/2, x1, (y1+y2)/2, 0 ) && CloseFigure( dev->hdc );
 }
 
@@ -1214,6 +1298,13 @@ static BOOL pathdrv_Ellipse( PHYSDEV dev, INT x1, INT y1, INT x2, INT y2 )
 static BOOL pathdrv_PolyBezierTo( PHYSDEV dev, const POINT *pts, DWORD cbPoints )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolyBezierTo );
+        if (!next->funcs->pPolyBezierTo( next, pts, cbPoints ))
+            return FALSE;
+    }
 
     if (!start_new_stroke( physdev )) return FALSE;
     return add_log_points( physdev, pts, cbPoints, PT_BEZIERTO ) != NULL;
@@ -1226,8 +1317,16 @@ static BOOL pathdrv_PolyBezierTo( PHYSDEV dev, const POINT *pts, DWORD cbPoints 
 static BOOL pathdrv_PolyBezier( PHYSDEV dev, const POINT *pts, DWORD cbPoints )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
-    BYTE *type = add_log_points( physdev, pts, cbPoints, PT_BEZIERTO );
+    BYTE *type;
 
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolyBezier );
+        if (!next->funcs->pPolyBezier( next, pts, cbPoints ))
+            return FALSE;
+    }
+
+    type = add_log_points( physdev, pts, cbPoints, PT_BEZIERTO );
     if (!type) return FALSE;
     type[0] = PT_MOVETO;
     return TRUE;
@@ -1242,6 +1341,13 @@ static BOOL pathdrv_PolyDraw( PHYSDEV dev, const POINT *pts, const BYTE *types, 
     struct path_physdev *physdev = get_path_physdev( dev );
     POINT lastmove, orig_pos;
     INT i;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolyDraw );
+        if (!next->funcs->pPolyDraw( next, pts, types, cbPoints ))
+            return FALSE;
+    }
 
     GetCurrentPositionEx( dev->hdc, &orig_pos );
     lastmove = orig_pos;
@@ -1300,8 +1406,16 @@ static BOOL pathdrv_PolyDraw( PHYSDEV dev, const POINT *pts, const BYTE *types, 
 static BOOL pathdrv_Polyline( PHYSDEV dev, const POINT *pts, INT cbPoints )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
-    BYTE *type = add_log_points( physdev, pts, cbPoints, PT_LINETO );
+    BYTE *type;
 
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolyline );
+        if (!next->funcs->pPolyline( next, pts, cbPoints ))
+            return FALSE;
+    }
+
+    type = add_log_points( physdev, pts, cbPoints, PT_LINETO );
     if (!type) return FALSE;
     if (cbPoints) type[0] = PT_MOVETO;
     return TRUE;
@@ -1315,6 +1429,13 @@ static BOOL pathdrv_PolylineTo( PHYSDEV dev, const POINT *pts, INT cbPoints )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
 
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolylineTo );
+        if (!next->funcs->pPolylineTo( next, pts, cbPoints ))
+            return FALSE;
+    }
+
     if (!start_new_stroke( physdev )) return FALSE;
     return add_log_points( physdev, pts, cbPoints, PT_LINETO ) != NULL;
 }
@@ -1326,8 +1447,16 @@ static BOOL pathdrv_PolylineTo( PHYSDEV dev, const POINT *pts, INT cbPoints )
 static BOOL pathdrv_Polygon( PHYSDEV dev, const POINT *pts, INT cbPoints )
 {
     struct path_physdev *physdev = get_path_physdev( dev );
-    BYTE *type = add_log_points( physdev, pts, cbPoints, PT_LINETO );
+    BYTE *type;
 
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolygon );
+        if (!next->funcs->pPolygon( next, pts, cbPoints ))
+            return FALSE;
+    }
+
+    type = add_log_points( physdev, pts, cbPoints, PT_LINETO );
     if (!type) return FALSE;
     if (cbPoints) type[0] = PT_MOVETO;
     if (cbPoints > 1) type[cbPoints - 1] = PT_LINETO | PT_CLOSEFIGURE;
@@ -1343,6 +1472,13 @@ static BOOL pathdrv_PolyPolygon( PHYSDEV dev, const POINT* pts, const INT* count
     struct path_physdev *physdev = get_path_physdev( dev );
     UINT poly;
     BYTE *type;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolyPolygon );
+        if (!next->funcs->pPolyPolygon( next, pts, counts, polygons ))
+            return FALSE;
+    }
 
     for(poly = 0; poly < polygons; poly++) {
         type = add_log_points( physdev, pts, counts[poly], PT_LINETO );
@@ -1364,6 +1500,13 @@ static BOOL pathdrv_PolyPolyline( PHYSDEV dev, const POINT* pts, const DWORD* co
     struct path_physdev *physdev = get_path_physdev( dev );
     UINT poly, count;
     BYTE *type;
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pPolyPolyline );
+        if (!next->funcs->pPolyPolyline( next, pts, counts, polylines ))
+            return FALSE;
+    }
 
     for (poly = count = 0; poly < polylines; poly++) count += counts[poly];
 
@@ -1513,6 +1656,13 @@ static BOOL pathdrv_ExtTextOut( PHYSDEV dev, INT x, INT y, UINT flags, const REC
     struct path_physdev *physdev = get_path_physdev( dev );
     unsigned int idx, ggo_flags = GGO_NATIVE;
     POINT offset = {0, 0};
+
+    if (GdiIsMetaFileDC(dev->hdc))
+    {
+        PHYSDEV next = GET_NEXT_PHYSDEV( dev, pExtTextOut );
+        if (!next->funcs->pExtTextOut( next, x, y, flags, lprc, str, count, dx ))
+            return FALSE;
+    }
 
     if (!count) return TRUE;
     if (flags & ETO_GLYPH_INDEX) ggo_flags |= GGO_GLYPH_INDEX;
