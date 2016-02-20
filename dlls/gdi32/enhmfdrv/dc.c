@@ -420,6 +420,7 @@ BOOL EMFDRV_AbortPath( PHYSDEV dev )
 
 BOOL EMFDRV_BeginPath( PHYSDEV dev )
 {
+    PHYSDEV next = GET_NEXT_PHYSDEV( dev, pBeginPath );
     EMFDRV_PDEVICE *physDev = (EMFDRV_PDEVICE*) dev;
     EMRBEGINPATH emr;
 
@@ -428,7 +429,8 @@ BOOL EMFDRV_BeginPath( PHYSDEV dev )
     emr.emr.iType = EMR_BEGINPATH;
     emr.emr.nSize = sizeof(emr);
 
-    return EMFDRV_WriteRecord( dev, &emr.emr );
+    if (!EMFDRV_WriteRecord( dev, &emr.emr )) return FALSE;
+    return next->funcs->pBeginPath( next );
 }
 
 BOOL EMFDRV_CloseFigure( PHYSDEV dev )
