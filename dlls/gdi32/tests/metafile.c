@@ -2300,7 +2300,6 @@ static void test_emf_ExtTextOut_on_path(void)
     ok(ret, "EndPath error %d\n", GetLastError());
 
     ret = GetPath(hdcMetafile, NULL, NULL, 0);
-todo_wine
     ok(!ret, "expected 0, got %d\n", ret);
 
     hMetafile = CloseEnhMetaFile(hdcMetafile);
@@ -2360,7 +2359,6 @@ todo_wine
     ok(ret, "EndPath error %d\n", GetLastError());
 
     ret = GetPath(hdcMetafile, NULL, NULL, 0);
-todo_wine
     ok(!ret, "expected 0, got %d\n", ret);
 
     hFont = SelectObject(hdcMetafile, hFont);
@@ -3540,7 +3538,7 @@ static void test_emf_GetPath(void)
     EndPath(hdcMetafile);
 
     size = GetPath(hdcMetafile, NULL, NULL, 0);
-    todo_wine ok( size == 9, "GetPath returned %d.\n", size);
+    ok( size == 9, "GetPath returned %d.\n", size);
 
     hemf = CloseEnhMetaFile(hdcMetafile);
     ok(hemf != 0, "CloseEnhMetaFile error %d\n", GetLastError());
