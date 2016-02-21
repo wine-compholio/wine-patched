@@ -502,7 +502,7 @@ void CDECL wined3d_texture_get_pitch(const struct wined3d_texture *texture,
     if (texture->row_pitch)
     {
         *row_pitch = texture->row_pitch;
-        *slice_pitch = texture->slice_pitch;
+        *slice_pitch = *row_pitch * height;
         return;
     }
 
@@ -656,12 +656,7 @@ HRESULT CDECL wined3d_texture_update_desc(struct wined3d_texture *texture, UINT 
     texture->resource.height = height;
 
     texture->user_memory = mem;
-    if ((texture->row_pitch = pitch))
-        texture->slice_pitch = height * pitch;
-    else
-        /* User memory surfaces don't have the regular surface alignment. */
-        wined3d_format_calculate_pitch(format, 1, width, height,
-                &texture->row_pitch, &texture->slice_pitch);
+    texture->row_pitch = pitch;
 
     texture->flags &= ~WINED3D_TEXTURE_COND_NP2_EMULATED;
     if (((width & (width - 1)) || (height & (height - 1))) && !gl_info->supported[ARB_TEXTURE_NON_POWER_OF_TWO]
