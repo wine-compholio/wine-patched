@@ -1310,17 +1310,18 @@ static void surface_download_data(struct wined3d_surface *surface, const struct 
     else
     {
         unsigned int dst_row_pitch, dst_slice_pitch;
-        unsigned int src_row_pitch, src_slice_pitch;
+        unsigned int src_pitch;
         GLenum gl_format = format->glFormat;
         GLenum gl_type = format->glType;
         void *mem;
 
         if (surface->container->flags & WINED3D_TEXTURE_COND_NP2_EMULATED)
         {
+            unsigned char alignment = surface->resource.device->surface_alignment;
+            src_pitch = format->byte_count * surface->pow2Width;
             wined3d_texture_get_pitch(surface->container, surface->texture_level, &dst_row_pitch, &dst_slice_pitch);
-            wined3d_format_calculate_pitch(format, surface->resource.device->surface_alignment,
-                    surface->pow2Width, surface->pow2Height, &src_row_pitch, &src_slice_pitch);
-            mem = HeapAlloc(GetProcessHeap(), 0, src_slice_pitch);
+            src_pitch = (src_pitch + alignment - 1) & ~(alignment - 1);
+            mem = HeapAlloc(GetProcessHeap(), 0, src_pitch * surface->pow2Height);
         }
         else
         {
@@ -1405,11 +1406,11 @@ static void surface_download_data(struct wined3d_surface *surface, const struct 
              * won't be released, and doesn't have to be re-read. */
             src_data = mem;
             dst_data = data.addr;
-            TRACE("Repacking the surface data from pitch %u to pitch %u.\n", src_row_pitch, dst_row_pitch);
+            TRACE("(%p) : Repacking the surface data from pitch %d to pitch %d\n", surface, src_pitch, dst_row_pitch);
             for (y = 0; y < surface->resource.height; ++y)
             {
                 memcpy(dst_data, src_data, dst_row_pitch);
-                src_data += src_row_pitch;
+                src_data += src_pitch;
                 dst_data += dst_row_pitch;
             }
 
