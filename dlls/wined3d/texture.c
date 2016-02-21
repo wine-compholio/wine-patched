@@ -498,6 +498,8 @@ void CDECL wined3d_texture_get_pitch(const struct wined3d_texture *texture,
         unsigned int level, unsigned int *row_pitch, unsigned int *slice_pitch)
 {
     const struct wined3d_resource *resource = &texture->resource;
+    const struct wined3d_format *format = resource->format;
+    unsigned int alignment = resource->device->surface_alignment;
     unsigned int width = max(1, texture->resource.width >> level);
     unsigned int height = max(1, texture->resource.height >> level);
 
@@ -508,8 +510,27 @@ void CDECL wined3d_texture_get_pitch(const struct wined3d_texture *texture,
         return;
     }
 
-    wined3d_format_calculate_pitch(resource->format, resource->device->surface_alignment,
-            width, height, row_pitch, slice_pitch);
+    if (resource->format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_BLOCKS)
+    {
+        unsigned int row_block_count = (width + format->block_width - 1) / format->block_width;
+        unsigned int slice_block_count = (height + format->block_height - 1) / format->block_height;
+        *row_pitch = row_block_count * format->block_byte_count;
+        *row_pitch = (*row_pitch + alignment - 1) & ~(alignment - 1);
+        *slice_pitch = *row_pitch * slice_block_count;
+    }
+    else
+    {
+        *row_pitch = format->byte_count * width;  /* Bytes / row */
+        *row_pitch = (*row_pitch + alignment - 1) & ~(alignment - 1);
+        *slice_pitch = *row_pitch * height;
+    }
+
+    if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_HEIGHT_SCALE)
+    {
+        /* The D3D format requirements make sure that the resulting format is an integer again */
+        *slice_pitch *= format->height_scale.numerator;
+        *slice_pitch /= format->height_scale.denominator;
+    }
 }
 
 DWORD CDECL wined3d_texture_set_lod(struct wined3d_texture *texture, DWORD lod)
