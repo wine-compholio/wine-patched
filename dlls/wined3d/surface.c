@@ -1917,8 +1917,9 @@ HRESULT wined3d_surface_update_desc(struct wined3d_surface *surface, const struc
     else
     {
         /* User memory surfaces don't have the regular surface alignment. */
-        wined3d_format_calculate_pitch(texture_resource->format, 1, width, height,
-                &surface->container->row_pitch, &surface->resource.size);
+        surface->resource.size = wined3d_format_calculate_size(texture_resource->format,
+                1, width, height, 1);
+        surface->container->row_pitch = wined3d_format_calculate_pitch(texture_resource->format, width);
     }
 
     /* The format might be changed to a format that needs conversion.
@@ -3806,7 +3807,7 @@ static HRESULT surface_load_drawable(struct wined3d_surface *surface,
 static HRESULT surface_load_texture(struct wined3d_surface *surface,
         struct wined3d_context *context, BOOL srgb)
 {
-    unsigned int width, src_row_pitch, src_slice_pitch, dst_row_pitch, dst_slice_pitch;
+    unsigned int width, src_row_pitch, src_slice_pitch, dst_pitch;
     const RECT src_rect = {0, 0, surface->resource.width, surface->resource.height};
     const struct wined3d_gl_info *gl_info = context->gl_info;
     struct wined3d_device *device = surface->resource.device;
@@ -3926,17 +3927,17 @@ static HRESULT surface_load_texture(struct wined3d_surface *surface,
         UINT height = surface->resource.height;
 
         format.byte_count = format.conv_byte_count;
-        wined3d_format_calculate_pitch(&format, 1, width, height, &dst_row_pitch, &dst_slice_pitch);
+        dst_pitch = wined3d_format_calculate_pitch(&format, width);
 
-        if (!(mem = HeapAlloc(GetProcessHeap(), 0, dst_slice_pitch)))
+        if (!(mem = HeapAlloc(GetProcessHeap(), 0, dst_pitch * height)))
         {
-            ERR("Out of memory (%u).\n", dst_slice_pitch);
+            ERR("Out of memory (%u).\n", dst_pitch * height);
             context_release(context);
             return E_OUTOFMEMORY;
         }
         format.convert(data.addr, mem, src_row_pitch, src_slice_pitch,
-                dst_row_pitch, dst_slice_pitch, width, height, 1);
-        src_row_pitch = dst_row_pitch;
+                dst_pitch, dst_pitch * height, width, height, 1);
+        src_row_pitch = dst_pitch;
         data.addr = mem;
     }
     else if (conversion)
@@ -3945,20 +3946,20 @@ static HRESULT surface_load_texture(struct wined3d_surface *surface,
         struct wined3d_palette *palette = NULL;
         UINT height = surface->resource.height;
 
-        wined3d_format_calculate_pitch(&format, device->surface_alignment,
-                width, height, &dst_row_pitch, &dst_slice_pitch);
+        dst_pitch = wined3d_format_calculate_pitch(&format, width);
+        dst_pitch = (dst_pitch + device->surface_alignment - 1) & ~(device->surface_alignment - 1);
 
-        if (!(mem = HeapAlloc(GetProcessHeap(), 0, dst_slice_pitch)))
+        if (!(mem = HeapAlloc(GetProcessHeap(), 0, dst_pitch * height)))
         {
-            ERR("Out of memory (%u).\n", dst_slice_pitch);
+            ERR("Out of memory (%u).\n", dst_pitch * height);
             context_release(context);
             return E_OUTOFMEMORY;
         }
         if (texture->swapchain && texture->swapchain->palette)
             palette = texture->swapchain->palette;
-        conversion->convert(data.addr, src_row_pitch, mem, dst_row_pitch,
+        conversion->convert(data.addr, src_row_pitch, mem, dst_pitch,
                 width, height, palette, &texture->async.gl_color_key);
-        src_row_pitch = dst_row_pitch;
+        src_row_pitch = dst_pitch;
         data.addr = mem;
     }
 

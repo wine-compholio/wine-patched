@@ -3199,47 +3199,46 @@ const struct wined3d_format *wined3d_get_format(const struct wined3d_gl_info *gl
     return &gl_info->formats[idx];
 }
 
-void wined3d_format_calculate_pitch(const struct wined3d_format *format, unsigned int alignment,
-        unsigned int width, unsigned int height, unsigned int *row_pitch, unsigned int *slice_pitch)
+UINT wined3d_format_calculate_pitch(const struct wined3d_format *format, UINT width)
 {
     /* For block based formats, pitch means the amount of bytes to the next
      * row of blocks rather than the next row of pixels. */
     if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_BLOCKS)
-    {
-        unsigned int row_block_count = (width + format->block_width - 1) / format->block_width;
-        unsigned int slice_block_count = (height + format->block_height - 1) / format->block_height;
-        *row_pitch = row_block_count * format->block_byte_count;
-        *row_pitch = (*row_pitch + alignment - 1) & ~(alignment - 1);
-        *slice_pitch = *row_pitch * slice_block_count;
-    }
-    else
-    {
-        *row_pitch = format->byte_count * width;  /* Bytes / row */
-        *row_pitch = (*row_pitch + alignment - 1) & ~(alignment - 1);
-        *slice_pitch = *row_pitch * height;
-    }
+        return format->block_byte_count * ((width + format->block_width - 1) / format->block_width);
 
-    if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_HEIGHT_SCALE)
-    {
-        /* The D3D format requirements make sure that the resulting format is an integer again */
-        *slice_pitch *= format->height_scale.numerator;
-        *slice_pitch /= format->height_scale.denominator;
-    }
-
-    TRACE("Returning row pitch %u, slice pitch %u.\n", *row_pitch, *slice_pitch);
+    return format->byte_count * width;
 }
 
 UINT wined3d_format_calculate_size(const struct wined3d_format *format, UINT alignment,
         UINT width, UINT height, UINT depth)
 {
-    unsigned int row_pitch, slice_pitch;
+    UINT pitch = wined3d_format_calculate_pitch(format, width);
+    UINT size;
 
     if (format->id == WINED3DFMT_UNKNOWN)
-        return 0;
+    {
+        size = 0;
+    }
+    else if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_BLOCKS)
+    {
+        UINT row_count = (height + format->block_height - 1) / format->block_height;
+        size = row_count * ((pitch + alignment - 1) & ~(alignment - 1));
+    }
+    else
+    {
+        size = height * ((pitch + alignment - 1) & ~(alignment - 1));
+    }
 
-    wined3d_format_calculate_pitch(format, alignment, width, height, &row_pitch, &slice_pitch);
+    if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_HEIGHT_SCALE)
+    {
+        /* The D3D format requirements make sure that the resulting format is an integer again */
+        size *= format->height_scale.numerator;
+        size /= format->height_scale.denominator;
+    }
 
-    return slice_pitch * depth;
+    size *= depth;
+
+    return size;
 }
 
 /*****************************************************************************
