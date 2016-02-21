@@ -2367,7 +2367,6 @@ struct wined3d_texture
 
     void *user_memory;
     unsigned int row_pitch;
-    unsigned int slice_pitch;
 
     /* May only be accessed from the command stream worker thread. */
     struct wined3d_texture_async
