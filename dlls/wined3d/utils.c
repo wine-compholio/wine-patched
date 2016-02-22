@@ -3199,6 +3199,7 @@ const struct wined3d_format *wined3d_get_format(const struct wined3d_gl_info *gl
     return &gl_info->formats[idx];
 }
 
+#if defined(STAGING_CSMT)
 UINT wined3d_format_calculate_pitch(const struct wined3d_format *format, UINT width)
 {
     /* For block based formats, pitch means the amount of bytes to the next
@@ -3239,6 +3240,49 @@ UINT wined3d_format_calculate_size(const struct wined3d_format *format, UINT ali
     size *= depth;
 
     return size;
+#else  /* STAGING_CSMT */
+void wined3d_format_calculate_pitch(const struct wined3d_format *format, unsigned int alignment,
+        unsigned int width, unsigned int height, unsigned int *row_pitch, unsigned int *slice_pitch)
+{
+    /* For block based formats, pitch means the amount of bytes to the next
+     * row of blocks rather than the next row of pixels. */
+    if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_BLOCKS)
+    {
+        unsigned int row_block_count = (width + format->block_width - 1) / format->block_width;
+        unsigned int slice_block_count = (height + format->block_height - 1) / format->block_height;
+        *row_pitch = row_block_count * format->block_byte_count;
+        *row_pitch = (*row_pitch + alignment - 1) & ~(alignment - 1);
+        *slice_pitch = *row_pitch * slice_block_count;
+    }
+    else
+    {
+        *row_pitch = format->byte_count * width;  /* Bytes / row */
+        *row_pitch = (*row_pitch + alignment - 1) & ~(alignment - 1);
+        *slice_pitch = *row_pitch * height;
+    }
+
+    if (format->flags[WINED3D_GL_RES_TYPE_TEX_2D] & WINED3DFMT_FLAG_HEIGHT_SCALE)
+    {
+        /* The D3D format requirements make sure that the resulting format is an integer again */
+        *slice_pitch *= format->height_scale.numerator;
+        *slice_pitch /= format->height_scale.denominator;
+    }
+
+    TRACE("Returning row pitch %u, slice pitch %u.\n", *row_pitch, *slice_pitch);
+}
+
+UINT wined3d_format_calculate_size(const struct wined3d_format *format, UINT alignment,
+        UINT width, UINT height, UINT depth)
+{
+    unsigned int row_pitch, slice_pitch;
+
+    if (format->id == WINED3DFMT_UNKNOWN)
+        return 0;
+
+    wined3d_format_calculate_pitch(format, alignment, width, height, &row_pitch, &slice_pitch);
+
+    return slice_pitch * depth;
+#endif /* STAGING_CSMT */
 }
 
 /*****************************************************************************
@@ -4117,7 +4161,11 @@ void get_projection_matrix(const struct wined3d_context *context, const struct w
         float y_offset = context->render_offscreen
                 ? (center_offset - (2.0f * y) - h) / h
                 : (center_offset - (2.0f * y) - h) / -h;
+#if defined(STAGING_CSMT)
         enum wined3d_depth_buffer_type zenable = state->fb.depth_stencil ?
+#else  /* STAGING_CSMT */
+        enum wined3d_depth_buffer_type zenable = state->fb->depth_stencil ?
+#endif /* STAGING_CSMT */
                 state->render_states[WINED3D_RS_ZENABLE] : WINED3D_ZB_FALSE;
         float z_scale = zenable ? 2.0f : 0.0f;
         float z_offset = zenable ? -1.0f : 0.0f;
@@ -4240,6 +4288,7 @@ static void compute_texture_matrix(const struct wined3d_gl_info *gl_info, const 
                 /* case WINED3D_TTFF_COUNT1: Won't ever get here. */
                 case WINED3D_TTFF_COUNT2:
                     mat._13 = mat._23 = mat._33 = mat._43 = 0.0f;
+#if defined(STAGING_CSMT)
                 /* OpenGL divides the first 3 vertex coord by the 4th by default,
                 * which is essentially the same as D3DTTFF_PROJECTED. Make sure that
                 * the 4th coord evaluates to 1.0 to eliminate that.
@@ -4252,6 +4301,20 @@ static void compute_texture_matrix(const struct wined3d_gl_info *gl_info, const 
                 * A more serious problem occurs if the app passes 4 coordinates in, and the
                 * 4th is != 1.0(opengl default). This would have to be fixed in draw_strided_slow
                 * or a replacement shader. */
+#else  /* STAGING_CSMT */
+                /* OpenGL divides the first 3 vertex coord by the 4th by default,
+                * which is essentially the same as D3DTTFF_PROJECTED. Make sure that
+                * the 4th coord evaluates to 1.0 to eliminate that.
+                *
+                * If the fixed function pipeline is used, the 4th value remains unused,
+                * so there is no danger in doing this. With vertex shaders we have a
+                * problem. Should an app hit that problem, the code here would have to
+                * check for pixel shaders, and the shader has to undo the default gl divide.
+                *
+                * A more serious problem occurs if the app passes 4 coordinates in, and the
+                * 4th is != 1.0(opengl default). This would have to be fixed in drawStridedSlow
+                * or a replacement shader. */
+#endif /* STAGING_CSMT */
                 default:
                     mat._14 = mat._24 = mat._34 = 0.0f; mat._44 = 1.0f;
             }
@@ -4911,7 +4974,11 @@ void gen_ffp_frag_op(const struct wined3d_context *context, const struct wined3d
                 break;
         }
     }
+#if defined(STAGING_CSMT)
     settings->sRGB_write = !gl_info->supported[ARB_FRAMEBUFFER_SRGB] && needs_srgb_write(context, state, &state->fb);
+#else  /* STAGING_CSMT */
+    settings->sRGB_write = !gl_info->supported[ARB_FRAMEBUFFER_SRGB] && needs_srgb_write(context, state, state->fb);
+#endif /* STAGING_CSMT */
     if (d3d_info->vs_clipping || !use_vs(state) || !state->render_states[WINED3D_RS_CLIPPING]
             || !state->render_states[WINED3D_RS_CLIPPLANEENABLE])
     {
