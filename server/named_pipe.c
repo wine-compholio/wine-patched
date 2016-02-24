@@ -156,6 +156,7 @@ static obj_handle_t pipe_server_flush( struct fd *fd, struct async *async, int b
 static enum server_fd_type pipe_server_get_fd_type( struct fd *fd );
 static obj_handle_t pipe_server_ioctl( struct fd *fd, ioctl_code_t code, struct async *async,
                                        int blocking );
+static void pipe_server_queue_async( struct fd *fd, struct async *async, int type, int count );
 
 static const struct object_ops pipe_server_ops =
 {
@@ -189,7 +190,7 @@ static const struct fd_ops pipe_server_fd_ops =
     no_fd_write,                  /* write */
     pipe_server_flush,            /* flush */
     pipe_server_ioctl,            /* ioctl */
-    default_fd_queue_async,       /* queue_async */
+    pipe_server_queue_async,      /* queue_async */
     default_fd_reselect_async    /* reselect_async */
 };
 
@@ -201,6 +202,7 @@ static int pipe_client_close_handle( struct object *obj, struct process *process
 static void pipe_client_destroy( struct object *obj );
 static obj_handle_t pipe_client_flush( struct fd *fd, struct async *async, int blocking );
 static enum server_fd_type pipe_client_get_fd_type( struct fd *fd );
+static void pipe_client_queue_async( struct fd *fd, struct async *async, int type, int count );
 
 static const struct object_ops pipe_client_ops =
 {
@@ -234,7 +236,7 @@ static const struct fd_ops pipe_client_fd_ops =
     no_fd_write,                  /* write */
     pipe_client_flush,            /* flush */
     default_fd_ioctl,             /* ioctl */
-    default_fd_queue_async,       /* queue_async */
+    pipe_client_queue_async,      /* queue_async */
     default_fd_reselect_async     /* reselect_async */
 };
 
@@ -630,6 +632,20 @@ static obj_handle_t pipe_client_flush( struct fd *fd, struct async *async, int b
     return 0;
 }
 
+static void pipe_client_queue_async( struct fd *fd, struct async *async, int type, int count )
+{
+    struct pipe_client *client = get_fd_user( fd );
+    struct pipe_server *server = client->server;
+
+    if (!server || !server->pipe_end.fd)
+    {
+        set_error( STATUS_PIPE_BROKEN );
+        return;
+    }
+
+    default_fd_queue_async( fd, async, type, count );
+}
+
 static inline int is_overlapped( unsigned int options )
 {
     return !(options & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT));
@@ -712,6 +728,20 @@ static obj_handle_t pipe_server_ioctl( struct fd *fd, ioctl_code_t code, struct 
     default:
         return default_fd_ioctl( fd, code, async, blocking );
     }
+}
+
+static void pipe_server_queue_async( struct fd *fd, struct async *async, int type, int count )
+{
+    struct pipe_server *server = get_fd_user( fd );
+    struct pipe_client *client = server->client;
+
+    if (!client || !client->pipe_end.fd)
+    {
+        set_error( STATUS_PIPE_BROKEN );
+        return;
+    }
+
+    default_fd_queue_async( fd, async, type, count );
 }
 
 static struct pipe_server *get_pipe_server_obj( struct process *process,
