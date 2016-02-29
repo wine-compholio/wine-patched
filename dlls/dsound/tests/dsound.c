@@ -129,6 +129,10 @@ static void IDirectSound_test(LPDIRECTSOUND dso, BOOL initialized,
     rc=IDirectSound_GetCaps(dso,&dscaps);
     ok(rc==DS_OK,"IDirectSound_GetCaps() failed: %08x\n",rc);
 
+    /* All modern WDM drivers are 'certified' */
+    ok(dscaps.dwFlags & DSCAPS_CERTIFIED, "Expected driver to have "
+        "DSCAPS_CERTIFIED flag set\n");
+
     rc=IDirectSound_Compact(dso);
     ok(rc==DSERR_PRIOLEVELNEEDED,"IDirectSound_Compact() failed: %08x\n", rc);
 
