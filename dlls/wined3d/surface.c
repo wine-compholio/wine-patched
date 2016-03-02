@@ -2588,7 +2588,7 @@ static void read_from_framebuffer(struct wined3d_surface *surface,
         /* Mapping the primary render target which is not on a swapchain.
          * Read from the back buffer. */
         TRACE("Mapping offscreen render target.\n");
-        gl_info->gl_ops.gl.p_glReadBuffer(context_get_offscreen_gl_buffer(context));
+        gl_info->gl_ops.gl.p_glReadBuffer(device->offscreenBuffer);
         srcIsUpsideDown = TRUE;
     }
     else
@@ -2694,7 +2694,7 @@ void surface_load_fb_texture(struct wined3d_surface *surface, BOOL srgb, struct 
     TRACE("Reading back offscreen render target %p.\n", surface);
 
     if (wined3d_resource_is_offscreen(&surface->container->resource))
-        gl_info->gl_ops.gl.p_glReadBuffer(context_get_offscreen_gl_buffer(context));
+        gl_info->gl_ops.gl.p_glReadBuffer(device->offscreenBuffer);
     else
         gl_info->gl_ops.gl.p_glReadBuffer(surface_get_gl_buffer(surface));
     checkGLcall("glReadBuffer");
@@ -2799,7 +2799,7 @@ static void fb_copy_to_texture_direct(struct wined3d_surface *dst_surface, struc
     {
         TRACE("Reading from an offscreen target\n");
         upsidedown = !upsidedown;
-        gl_info->gl_ops.gl.p_glReadBuffer(context_get_offscreen_gl_buffer(context));
+        gl_info->gl_ops.gl.p_glReadBuffer(device->offscreenBuffer);
     }
     else
     {
@@ -2888,7 +2888,6 @@ static void fb_copy_to_texture_hwstretch(struct wined3d_surface *dst_surface, st
     const struct wined3d_gl_info *gl_info;
     struct wined3d_context *context;
     GLenum drawBuffer = GL_BACK;
-    GLenum offscreen_buffer;
     GLenum texture_target;
     BOOL noBackBufferBackup;
     BOOL src_offscreen;
@@ -2901,8 +2900,6 @@ static void fb_copy_to_texture_hwstretch(struct wined3d_surface *dst_surface, st
     gl_info = context->gl_info;
     context_apply_blit_state(context, device);
     wined3d_texture_load(dst_surface->container, context, FALSE);
-
-    offscreen_buffer = context_get_offscreen_gl_buffer(context);
 
     src_offscreen = wined3d_resource_is_offscreen(&src_surface->container->resource);
     noBackBufferBackup = src_offscreen && wined3d_settings.offscreen_rendering_mode == ORM_FBO;
@@ -2920,7 +2917,7 @@ static void fb_copy_to_texture_hwstretch(struct wined3d_surface *dst_surface, st
         /* Got more than one aux buffer? Use the 2nd aux buffer */
         drawBuffer = GL_AUX1;
     }
-    else if ((!src_offscreen || offscreen_buffer == GL_BACK) && context->aux_buffers >= 1)
+    else if ((!src_offscreen || device->offscreenBuffer == GL_BACK) && context->aux_buffers >= 1)
     {
         /* Only one aux buffer, but it isn't used (Onscreen rendering, or non-aux orm)? Use it! */
         drawBuffer = GL_AUX0;
@@ -2961,7 +2958,7 @@ static void fb_copy_to_texture_hwstretch(struct wined3d_surface *dst_surface, st
     {
         TRACE("Reading from an offscreen target\n");
         upsidedown = !upsidedown;
-        gl_info->gl_ops.gl.p_glReadBuffer(offscreen_buffer);
+        gl_info->gl_ops.gl.p_glReadBuffer(device->offscreenBuffer);
     }
     else
     {
