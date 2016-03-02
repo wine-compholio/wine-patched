@@ -114,6 +114,7 @@ struct parser
     int               cur_section;  /* index of section being parsed*/
     struct line      *line;         /* current line */
     unsigned int      line_pos;     /* current line position in file */
+    unsigned int      garbage_line; /* first line containing garbage (if any) */
     unsigned int      error;        /* error code */
     unsigned int      token_len;    /* current token len */
     WCHAR token[MAX_FIELD_LEN+1];   /* current token */
@@ -602,9 +603,17 @@ static const WCHAR *line_start_state( struct parser *parser, const WCHAR *pos )
         default:
             if (!isspaceW(*p))
             {
-                parser->start = p;
-                set_state( parser, KEY_NAME );
-                return p;
+                if (parser->cur_section != -1)
+                {
+                    parser->start = p;
+                    set_state( parser, KEY_NAME );
+                    return p;
+                }
+                else if (!parser->garbage_line)
+                {
+                    /* remember line, and check later */
+                    parser->garbage_line = parser->line_pos;
+                }
             }
             break;
         }
@@ -886,6 +895,7 @@ static DWORD parse_buffer( struct inf_file *file, const WCHAR *buffer, const WCH
     parser.stack_pos   = 0;
     parser.cur_section = -1;
     parser.line_pos    = 1;
+    parser.garbage_line = 0;
     parser.error       = 0;
     parser.token_len   = 0;
 
@@ -916,6 +926,13 @@ static DWORD parse_buffer( struct inf_file *file, const WCHAR *buffer, const WCH
 
     /* find the [strings] section */
     file->strings_section = find_section( file, Strings );
+
+    if (file->strings_section == -1 && parser.garbage_line)
+    {
+        if (error_line) *error_line = parser.garbage_line;
+        return ERROR_EXPECTED_SECTION_NAME;
+    }
+
     return 0;
 }
 
