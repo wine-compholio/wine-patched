@@ -12578,6 +12578,31 @@ static void test_get_surface_from_dc(void)
     DestroyWindow(window);
 }
 
+static void test_caps(void)
+{
+    IDirectDraw7 *ddraw;
+    DDCAPS caps, caps2;
+    HRESULT hr;
+
+    ddraw = create_ddraw();
+    ok(!!ddraw, "Failed to create a ddraw object.\n");
+
+    caps.dwSize = sizeof(caps);
+    caps2.dwSize = sizeof(caps2);
+    hr = IDirectDraw7_GetCaps(ddraw, &caps, &caps2);
+    ok(SUCCEEDED(hr), "Failed to query for caps, hr %#x.\n", hr);
+
+    ok(caps.ddsOldCaps.dwCaps == caps.ddsCaps.dwCaps,
+       "Expected hal ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
+       caps.ddsOldCaps.dwCaps, caps.ddsCaps.dwCaps);
+
+    ok(caps2.ddsOldCaps.dwCaps == caps2.ddsCaps.dwCaps,
+       "Expected hel ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
+       caps2.ddsOldCaps.dwCaps, caps2.ddsCaps.dwCaps);
+
+    IDirectDraw7_Release(ddraw);
+}
+
 START_TEST(ddraw7)
 {
     HMODULE module = GetModuleHandleA("ddraw.dll");
@@ -12691,4 +12716,5 @@ START_TEST(ddraw7)
     test_display_mode_surface_pixel_format();
     test_surface_desc_size();
     test_get_surface_from_dc();
+    test_caps();
 }
