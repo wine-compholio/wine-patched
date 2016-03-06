@@ -284,7 +284,6 @@ wine_fn_disabled_rules ()
 {
     ac_clean=$[@]
 
-    wine_fn_append_file SUBDIRS $ac_dir
     wine_fn_append_file DISABLED_SUBDIRS $ac_dir
     wine_fn_append_rule \
 "__clean__: $ac_dir/clean
