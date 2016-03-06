@@ -2389,8 +2389,6 @@ struct wined3d_texture
             struct wined3d_surface *surface;
             struct wined3d_volume *volume;
         } u;
-
-        GLuint buffer_object;
     } sub_resources[1];
 };
 
@@ -2445,6 +2443,7 @@ struct wined3d_volume
     DWORD locations;
     GLint texture_level;
     DWORD download_count;
+    GLuint pbo;
 };
 
 static inline struct wined3d_volume *volume_from_resource(struct wined3d_resource *resource)
@@ -2520,6 +2519,9 @@ struct wined3d_surface
 
     UINT pow2Width;
     UINT pow2Height;
+
+    /* PBO */
+    GLuint                    pbo;
     GLuint rb_multisample;
     GLuint rb_resolved;
     GLenum texture_target;

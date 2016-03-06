@@ -214,7 +214,6 @@ static void wined3d_volume_load_location(struct wined3d_volume *volume,
         struct wined3d_context *context, DWORD location)
 {
     DWORD required_access = volume_access_from_location(location);
-    struct wined3d_texture *texture = volume->container;
 
     TRACE("Volume %p, loading %s, have %s.\n", volume, wined3d_debug_location(location),
         wined3d_debug_location(volume->locations));
@@ -237,9 +236,9 @@ static void wined3d_volume_load_location(struct wined3d_volume *volume,
         case WINED3D_LOCATION_TEXTURE_RGB:
         case WINED3D_LOCATION_TEXTURE_SRGB:
             if ((location == WINED3D_LOCATION_TEXTURE_RGB
-                    && !(texture->flags & WINED3D_TEXTURE_RGB_ALLOCATED))
+                    && !(volume->container->flags & WINED3D_TEXTURE_RGB_ALLOCATED))
                     || (location == WINED3D_LOCATION_TEXTURE_SRGB
-                    && !(texture->flags & WINED3D_TEXTURE_SRGB_ALLOCATED)))
+                    && !(volume->container->flags & WINED3D_TEXTURE_SRGB_ALLOCATED)))
                 ERR("Trying to load (s)RGB texture without prior allocation.\n");
 
             if (volume->locations & WINED3D_LOCATION_DISCARDED)
@@ -250,18 +249,14 @@ static void wined3d_volume_load_location(struct wined3d_volume *volume,
             else if (volume->locations & WINED3D_LOCATION_SYSMEM)
             {
                 struct wined3d_const_bo_address data = {0, volume->resource.heap_memory};
-                wined3d_texture_bind_and_dirtify(texture, context,
+                wined3d_texture_bind_and_dirtify(volume->container, context,
                         location == WINED3D_LOCATION_TEXTURE_SRGB);
                 wined3d_volume_upload_data(volume, context, &data);
             }
             else if (volume->locations & WINED3D_LOCATION_BUFFER)
             {
-                struct wined3d_const_bo_address data =
-                {
-                    texture->sub_resources[volume->texture_level].buffer_object,
-                    NULL
-                };
-                wined3d_texture_bind_and_dirtify(texture, context,
+                struct wined3d_const_bo_address data = {volume->pbo, NULL};
+                wined3d_texture_bind_and_dirtify(volume->container, context,
                         location == WINED3D_LOCATION_TEXTURE_SRGB);
                 wined3d_volume_upload_data(volume, context, &data);
             }
@@ -299,9 +294,9 @@ static void wined3d_volume_load_location(struct wined3d_volume *volume,
                 struct wined3d_bo_address data = {0, volume->resource.heap_memory};
 
                 if (volume->locations & WINED3D_LOCATION_TEXTURE_RGB)
-                    wined3d_texture_bind_and_dirtify(texture, context, FALSE);
+                    wined3d_texture_bind_and_dirtify(volume->container, context, FALSE);
                 else
-                    wined3d_texture_bind_and_dirtify(texture, context, TRUE);
+                    wined3d_texture_bind_and_dirtify(volume->container, context, TRUE);
 
                 volume->download_count++;
                 wined3d_volume_download_data(volume, context, &data);
@@ -316,7 +311,7 @@ static void wined3d_volume_load_location(struct wined3d_volume *volume,
             break;
 
         case WINED3D_LOCATION_BUFFER:
-            if (!texture->sub_resources[volume->texture_level].buffer_object)
+            if (!volume->pbo)
                 ERR("Trying to load WINED3D_LOCATION_BUFFER without setting it up first.\n");
 
             if (volume->locations & WINED3D_LOCATION_DISCARDED)
@@ -326,16 +321,12 @@ static void wined3d_volume_load_location(struct wined3d_volume *volume,
             }
             else if (volume->locations & (WINED3D_LOCATION_TEXTURE_RGB | WINED3D_LOCATION_TEXTURE_SRGB))
             {
-                struct wined3d_bo_address data =
-                {
-                    texture->sub_resources[volume->texture_level].buffer_object,
-                    NULL
-                };
+                struct wined3d_bo_address data = {volume->pbo, NULL};
 
                 if (volume->locations & WINED3D_LOCATION_TEXTURE_RGB)
-                    wined3d_texture_bind_and_dirtify(texture, context, FALSE);
+                    wined3d_texture_bind_and_dirtify(volume->container, context, FALSE);
                 else
-                    wined3d_texture_bind_and_dirtify(texture, context, TRUE);
+                    wined3d_texture_bind_and_dirtify(volume->container, context, TRUE);
 
                 wined3d_volume_download_data(volume, context, &data);
             }
@@ -365,31 +356,29 @@ void wined3d_volume_load(struct wined3d_volume *volume, struct wined3d_context *
 /* Context activation is done by the caller. */
 static void wined3d_volume_prepare_pbo(struct wined3d_volume *volume, struct wined3d_context *context)
 {
-    GLuint *buffer_object = &volume->container->sub_resources[volume->texture_level].buffer_object;
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
-    if (*buffer_object)
+    if (volume->pbo)
         return;
 
-    GL_EXTCALL(glGenBuffers(1, buffer_object));
-    GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, *buffer_object));
+    GL_EXTCALL(glGenBuffers(1, &volume->pbo));
+    GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, volume->pbo));
     GL_EXTCALL(glBufferData(GL_PIXEL_UNPACK_BUFFER, volume->resource.size, NULL, GL_STREAM_DRAW));
     GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
     checkGLcall("Create PBO");
 
-    TRACE("Created PBO %u for volume %p.\n", *buffer_object, volume);
+    TRACE("Created PBO %u for volume %p.\n", volume->pbo, volume);
 }
 
 static void wined3d_volume_free_pbo(struct wined3d_volume *volume)
 {
-    GLuint *buffer_object = &volume->container->sub_resources[volume->texture_level].buffer_object;
     struct wined3d_context *context = context_acquire(volume->resource.device, NULL);
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
-    TRACE("Deleting PBO %u belonging to volume %p.\n", *buffer_object, volume);
-    GL_EXTCALL(glDeleteBuffers(1, buffer_object));
+    TRACE("Deleting PBO %u belonging to volume %p.\n", volume->pbo, volume);
+    GL_EXTCALL(glDeleteBuffers(1, &volume->pbo));
     checkGLcall("glDeleteBuffers");
-    *buffer_object = 0;
+    volume->pbo = 0;
     context_release(context);
 }
 
@@ -397,7 +386,7 @@ void wined3d_volume_cleanup(struct wined3d_volume *volume)
 {
     TRACE("volume %p.\n", volume);
 
-    if (volume->container->sub_resources[volume->texture_level].buffer_object)
+    if (volume->pbo)
         wined3d_volume_free_pbo(volume);
 
     resource_cleanup(&volume->resource);
@@ -428,7 +417,7 @@ static void volume_unload(struct wined3d_resource *resource)
         wined3d_volume_invalidate_location(volume, ~WINED3D_LOCATION_DISCARDED);
     }
 
-    if (volume->container->sub_resources[volume->texture_level].buffer_object)
+    if (volume->pbo)
     {
         /* Should not happen because only dynamic default pool volumes
          * have a buffer, and those are not evicted by device_evit_managed_resources
@@ -468,12 +457,11 @@ HRESULT wined3d_volume_map(struct wined3d_volume *volume,
         struct wined3d_map_desc *map_desc, const struct wined3d_box *box, DWORD flags)
 {
     struct wined3d_device *device = volume->resource.device;
-    struct wined3d_texture *texture = volume->container;
     struct wined3d_context *context;
     const struct wined3d_gl_info *gl_info;
     BYTE *base_memory;
     const struct wined3d_format *format = volume->resource.format;
-    const unsigned int fmt_flags = texture->resource.format_flags;
+    const unsigned int fmt_flags = volume->container->resource.format_flags;
 
     TRACE("volume %p, map_desc %p, box %s, flags %#x.\n",
             volume, map_desc, debug_box(box), flags);
@@ -495,7 +483,7 @@ HRESULT wined3d_volume_map(struct wined3d_volume *volume,
         return WINED3DERR_INVALIDCALL;
     }
     if ((fmt_flags & WINED3DFMT_FLAG_BLOCKS) && box
-            && !wined3d_texture_check_block_align(texture, volume->texture_level, box))
+            && !wined3d_texture_check_block_align(volume->container, volume->texture_level, box))
     {
         WARN("Map box %s is misaligned for %ux%u blocks.\n",
                 debug_box(box), format->block_width, format->block_height);
@@ -515,7 +503,7 @@ HRESULT wined3d_volume_map(struct wined3d_volume *volume,
         else
             wined3d_volume_load_location(volume, context, WINED3D_LOCATION_BUFFER);
 
-        GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, texture->sub_resources[volume->texture_level].buffer_object));
+        GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, volume->pbo));
 
         if (gl_info->supported[ARB_MAP_BUFFER_RANGE])
         {
@@ -566,7 +554,7 @@ HRESULT wined3d_volume_map(struct wined3d_volume *volume,
     }
     else
     {
-        wined3d_texture_get_pitch(texture, volume->texture_level,
+        wined3d_texture_get_pitch(volume->container, volume->texture_level,
                 &map_desc->row_pitch, &map_desc->slice_pitch);
     }
 
@@ -596,7 +584,7 @@ HRESULT wined3d_volume_map(struct wined3d_volume *volume,
 
     if (!(flags & (WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY)))
     {
-        wined3d_texture_set_dirty(texture);
+        wined3d_texture_set_dirty(volume->container);
         wined3d_volume_invalidate_location(volume, ~volume->resource.map_binding);
     }
 
@@ -624,8 +612,7 @@ HRESULT wined3d_volume_unmap(struct wined3d_volume *volume)
         struct wined3d_context *context = context_acquire(device, NULL);
         const struct wined3d_gl_info *gl_info = context->gl_info;
 
-        GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER,
-                volume->container->sub_resources[volume->texture_level].buffer_object));
+        GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, volume->pbo));
         GL_EXTCALL(glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER));
         GL_EXTCALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
         checkGLcall("Unmap PBO");
