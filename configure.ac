@@ -175,6 +175,13 @@ case $host in
     AC_SUBST(TARGETFLAGS,"-marm")
     ;;
   i[[3456789]]86*)
+    if test "$cross_compiling" = "yes"; then
+      CC="$CC -m32"
+      CXX="$CXX -m32"
+      host_cpu="i386"
+      notice_platform="32-bit "
+      AC_SUBST(TARGETFLAGS,"-m32")
+    fi
     enable_win16=${enable_win16:-yes}
     ;;
 esac
