@@ -11258,6 +11258,35 @@ static void test_quit_message(void)
     ok_sequence(WmStopQuitSeq, "WmStopQuitSeq", FALSE);
 }
 
+static void test_notify_message(void)
+{
+    HWND hwnd;
+    BOOL ret;
+
+    hwnd = CreateWindowExA(0, "TestWindowClass", NULL, WS_OVERLAPPEDWINDOW,
+                           CW_USEDEFAULT, CW_USEDEFAULT, 300, 300, 0, NULL, NULL, 0);
+    ok(hwnd != 0, "Failed to create window\n");
+
+    ret = SendNotifyMessageA(hwnd, WM_NOTIFY, 0x1234, 0xdeadbeef);
+    ok(ret == TRUE, "SendNotifyMessageA failed with error %u\n", GetLastError());
+    ret = SendNotifyMessageW(hwnd, WM_NOTIFY, 0x1234, 0xdeadbeef);
+    ok(ret == TRUE, "SendNotifyMessageW failed with error %u\n", GetLastError());
+    ret = SendMessageCallbackA(hwnd, WM_NOTIFY, 0x1234, 0xdeadbeef, NULL, 0);
+    ok(ret == TRUE, "SendMessageCallbackA failed with error %u\n", GetLastError());
+    ret = SendMessageCallbackW(hwnd, WM_NOTIFY, 0x1234, 0xdeadbeef, NULL, 0);
+    ok(ret == TRUE, "SendMessageCallbackW failed with error %u\n", GetLastError());
+    ret = PostMessageA(hwnd, WM_NOTIFY, 0x1234, 0xdeadbeef);
+    ok(ret == TRUE, "PostMessageA failed with error %u\n", GetLastError());
+    ret = PostMessageW(hwnd, WM_NOTIFY, 0x1234, 0xdeadbeef);
+    ok(ret == TRUE, "PostMessageW failed with error %u\n", GetLastError());
+    ret = PostThreadMessageA(GetCurrentThreadId(), WM_NOTIFY, 0x1234, 0xdeadbeef);
+    ok(ret == TRUE, "PostThreadMessageA failed with error %u\n", GetLastError());
+    ret = PostThreadMessageW(GetCurrentThreadId(), WM_NOTIFY, 0x1234, 0xdeadbeef);
+    ok(ret == TRUE, "PostThreadMessageW failed with error %u\n", GetLastError());
+
+    DestroyWindow(hwnd);
+}
+
 static const struct message WmMouseHoverSeq[] = {
     { WM_MOUSEACTIVATE, sent|optional },  /* we can get those when moving the mouse in focus-follow-mouse mode under X11 */
     { WM_MOUSEACTIVATE, sent|optional },
@@ -15745,6 +15774,7 @@ START_TEST(msg)
     test_SendMessageTimeout();
     test_edit_messages();
     test_quit_message();
+    test_notify_message();
     test_SetActiveWindow();
 
     if (!pTrackMouseEvent)
