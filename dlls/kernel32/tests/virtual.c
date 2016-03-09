@@ -4055,9 +4055,7 @@ todo_wine
 
     SetLastError(0xdeadbef);
     mapping = CreateFileMappingA(file, NULL, PAGE_READONLY|SEC_RESERVE, 0, 0, NULL);
-todo_wine
     ok(mapping != 0, "CreateFileMapping error %u\n", GetLastError());
-    if (!mapping) goto skip1;
 
     memset(&info, 0x55, sizeof(info));
     ret = 0xdeadbeef;
@@ -4069,7 +4067,6 @@ todo_wine
     ok(info.basic.Size.QuadPart == fsize, "expected %#lx, got %#x/%08x\n", fsize, info.basic.Size.HighPart, info.basic.Size.LowPart);
 
     CloseHandle(mapping);
-skip1:
     CloseHandle(file);
 
     SetLastError(0xdeadbef);
