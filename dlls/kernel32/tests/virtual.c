@@ -3963,9 +3963,7 @@ todo_wine
 
     SetLastError(0xdeadbef);
     mapping = CreateFileMappingA(file, NULL, PAGE_READONLY|SEC_RESERVE, 0, 0, NULL);
-todo_wine
     ok(mapping != 0, "CreateFileMapping error %u\n", GetLastError());
-    if (!mapping) goto skip1;
 
     memset(&info, 0x55, sizeof(info));
     ret = 0xdeadbeef;
@@ -3973,11 +3971,12 @@ todo_wine
     ok(status == STATUS_SUCCESS, "NtQuerySection error %#x\n", status);
     ok(ret == sizeof(info.basic), "wrong returned size %u\n", ret);
     ok(info.basic.BaseAddress == NULL, "expected NULL, got %p\n", info.basic.BaseAddress);
+todo_wine
     ok(info.basic.Attributes == SEC_FILE, "expected SEC_FILE, got %#x\n", info.basic.Attributes);
+todo_wine
     ok(info.basic.Size.QuadPart == fsize, "expected %#lx, got %#x/%08x\n", fsize, info.basic.Size.HighPart, info.basic.Size.LowPart);
 
     CloseHandle(mapping);
-skip1:
     CloseHandle(file);
 
     SetLastError(0xdeadbef);
