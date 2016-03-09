@@ -2549,6 +2549,7 @@ NTSTATUS WINAPI NtQuerySection( HANDLE handle, SECTION_INFORMATION_CLASS info_cl
     short machine, subsystem;
     short major_subsystem, minor_subsystem;
     short characteristics, dll_characteristics;
+    int unix_fd, needs_close;
     NTSTATUS res;
 
     if (info_class == SectionBasicInformation)
@@ -2589,6 +2590,14 @@ NTSTATUS WINAPI NtQuerySection( HANDLE handle, SECTION_INFORMATION_CLASS info_cl
     }
     SERVER_END_REQ;
     if (res) return res;
+
+    if (!(protect & VPROT_IMAGE) && dup_mapping &&
+        !server_get_unix_fd( dup_mapping, 0, &unix_fd, &needs_close, NULL, NULL ))
+    {
+        struct stat st;
+        if (!fstat( unix_fd, &st )) size.QuadPart = st.st_size;
+        if (needs_close) close( unix_fd );
+    }
 
     if (dup_mapping) close_handle( dup_mapping );
     if (shared_file) close_handle( shared_file );
