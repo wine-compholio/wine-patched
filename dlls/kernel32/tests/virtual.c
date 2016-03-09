@@ -3846,7 +3846,6 @@ static void test_NtQuerySection(void)
     ok(info.basic.BaseAddress == NULL, "expected NULL, got %p\n", info.basic.BaseAddress);
 todo_wine
     ok(info.basic.Attributes == SEC_FILE, "expected SEC_FILE, got %#x\n", info.basic.Attributes);
-todo_wine
     ok(info.basic.Size.QuadPart == fsize, "expected %#lx, got %#x/%08x\n", fsize, info.basic.Size.HighPart, info.basic.Size.LowPart);
 
     status = pNtQuerySection(mapping, SectionImageInformation, &info, sizeof(info.basic), &ret);
@@ -3870,7 +3869,6 @@ todo_wine
     ok(info.basic.BaseAddress == NULL, "expected NULL, got %p\n", info.basic.BaseAddress);
 todo_wine
     ok(info.basic.Attributes == SEC_FILE, "expected SEC_FILE, got %#x\n", info.basic.Attributes);
-todo_wine
     ok(info.basic.Size.QuadPart == fsize, "expected %#lx, got %#x/%08x\n", fsize, info.basic.Size.HighPart, info.basic.Size.LowPart);
 
     UnmapViewOfFile(p);
@@ -3956,7 +3954,6 @@ todo_wine
     ok(info.basic.BaseAddress == NULL, "expected NULL, got %p\n", info.basic.BaseAddress);
 todo_wine
     ok(info.basic.Attributes == SEC_FILE, "expected SEC_FILE, got %#x\n", info.basic.Attributes);
-todo_wine
     ok(info.basic.Size.QuadPart == fsize, "expected %#lx, got %#x/%08x\n", fsize, info.basic.Size.HighPart, info.basic.Size.LowPart);
 
     CloseHandle(mapping);
@@ -3973,7 +3970,6 @@ todo_wine
     ok(info.basic.BaseAddress == NULL, "expected NULL, got %p\n", info.basic.BaseAddress);
 todo_wine
     ok(info.basic.Attributes == SEC_FILE, "expected SEC_FILE, got %#x\n", info.basic.Attributes);
-todo_wine
     ok(info.basic.Size.QuadPart == fsize, "expected %#lx, got %#x/%08x\n", fsize, info.basic.Size.HighPart, info.basic.Size.LowPart);
 
     CloseHandle(mapping);
