@@ -129,6 +129,7 @@ AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
 AddService=Schedule,0,TaskSchedulerService
+AddService=wuauserv,0,wuauService
 
 [DefaultInstall.NT.Services]
 AddService=BITS,0,BITSService
@@ -142,6 +143,7 @@ AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
 AddService=Schedule,0,TaskSchedulerService
+AddService=wuauserv,0,wuauService
 
 [DefaultInstall.ntamd64.Services]
 AddService=BITS,0,BITSService
@@ -155,6 +157,7 @@ AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
 AddService=Schedule,0,TaskSchedulerService
+AddService=wuauserv,0,wuauService
 
 [Strings]
 MciExtStr="Software\Microsoft\Windows NT\CurrentVersion\MCI Extensions"
@@ -3311,6 +3314,14 @@ ErrorControl=1
 [TaskSchedulerServiceKeys]
 HKR,Parameters,"ServiceDll",,"%11%\schedsvc.dll"
 HKLM,%CurrentVersionNT%\SvcHost,"netsvcs",0x00010008,"Schedule"
+
+[wuauService]
+Description="wuauserv"
+DisplayName="Automatic Updates"
+ServiceBinary="%11%\wuauserv.exe"
+ServiceType=32
+StartType=3
+ErrorControl=1
 
 [Services]
 HKLM,%CurrentVersion%\RunServices,"winemenubuilder",2,"%11%\winemenubuilder.exe -a -r"
