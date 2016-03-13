@@ -1802,7 +1802,7 @@ NTSTATUS WINAPI NtFsControlFile(HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc
     default:
         status = server_ioctl_file( handle, event, apc, apc_context, io, code,
                                     in_buffer, in_size, out_buffer, out_size );
-        break;
+        return status;
     }
 
     if (status != STATUS_PENDING) io->u.Status = status;
