@@ -6008,7 +6008,8 @@ static void test_connection_failure(void)
 static void test_default_service_port(void)
 {
     HINTERNET session, connect, request;
-    DWORD error;
+    DWORD size, count, error;
+    char buffer[128];
     BOOL ret;
 
     session = InternetOpenA("winetest", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
@@ -6027,6 +6028,63 @@ static void test_default_service_port(void)
     ok(!ret, "HttpSendRequest succeeded\n");
     ok(error == ERROR_INTERNET_SECURITY_CHANNEL_ERROR || error == ERROR_INTERNET_CANNOT_CONNECT,
        "got %u\n", error);
+
+    size = sizeof(buffer) - 1;
+    count = 0;
+    memset(buffer, 0, sizeof(buffer));
+    ret = HttpQueryInfoA(request, HTTP_QUERY_HOST | HTTP_QUERY_FLAG_REQUEST_HEADERS, buffer, &size, &count);
+    ok(ret, "HttpQueryInfo succeeded\n");
+    ok(!strcmp(buffer, "test.winehq.org:80"), "Expected test.winehg.org:80, got %s\n", buffer);
+
+    InternetCloseHandle(request);
+    InternetCloseHandle(connect);
+    InternetCloseHandle(session);
+
+    session = InternetOpenA("winetest", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    ok(session != NULL, "InternetOpen failed\n");
+
+    connect = InternetConnectA(session, "test.winehq.org", INTERNET_INVALID_PORT_NUMBER, NULL, NULL,
+                              INTERNET_SERVICE_HTTP, INTERNET_FLAG_SECURE, 0);
+    ok(connect != NULL, "InternetConnect failed\n");
+
+    request = HttpOpenRequestA(connect, NULL, "/", NULL, NULL, NULL, INTERNET_FLAG_SECURE, 0);
+    ok(request != NULL, "HttpOpenRequest failed\n");
+
+    SetLastError(0xdeadbeef);
+    ret = HttpSendRequestA(request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed with error %u\n", GetLastError());
+
+    size = sizeof(buffer) - 1;
+    count = 0;
+    memset(buffer, 0, sizeof(buffer));
+    ret = HttpQueryInfoA(request, HTTP_QUERY_HOST | HTTP_QUERY_FLAG_REQUEST_HEADERS, buffer, &size, &count);
+    ok(ret, "HttpQueryInfo succeeded\n");
+    ok(!strcmp(buffer, "test.winehq.org"), "Expected test.winehg.org, got %s\n", buffer);
+
+    InternetCloseHandle(request);
+    InternetCloseHandle(connect);
+    InternetCloseHandle(session);
+
+    session = InternetOpenA("winetest", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    ok(session != NULL, "InternetOpen failed\n");
+
+    connect = InternetConnectA(session, "test.winehq.org", INTERNET_INVALID_PORT_NUMBER, NULL, NULL,
+                              INTERNET_SERVICE_HTTP, INTERNET_FLAG_SECURE, 0);
+    ok(connect != NULL, "InternetConnect failed\n");
+
+    request = HttpOpenRequestA(connect, NULL, "/", NULL, NULL, NULL, 0, 0);
+    ok(request != NULL, "HttpOpenRequest failed\n");
+
+    SetLastError(0xdeadbeef);
+    ret = HttpSendRequestA(request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed with error %u\n", GetLastError());
+
+    size = sizeof(buffer) - 1;
+    count = 0;
+    memset(buffer, 0, sizeof(buffer));
+    ret = HttpQueryInfoA(request, HTTP_QUERY_HOST | HTTP_QUERY_FLAG_REQUEST_HEADERS, buffer, &size, &count);
+    ok(ret, "HttpQueryInfo succeeded\n");
+    ok(!strcmp(buffer, "test.winehq.org:443"), "Expected test.winehg.org:443, got %s\n", buffer);
 
     InternetCloseHandle(request);
     InternetCloseHandle(connect);
