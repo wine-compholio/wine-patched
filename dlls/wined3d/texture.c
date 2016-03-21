@@ -1357,7 +1357,7 @@ HRESULT CDECL wined3d_texture_add_dirty_region(struct wined3d_texture *texture,
     sub_resource_idx = layer * texture->level_count;
 
     if (dirty_region)
-        FIXME("Ignoring dirty_region %s.\n", debug_box(dirty_region));
+        WARN("Ignoring dirty_region %s.\n", debug_box(dirty_region));
 
     context = context_acquire(texture->resource.device, NULL);
     if (!texture->texture_ops->texture_load_location(texture, sub_resource_idx,
