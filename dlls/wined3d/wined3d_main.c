@@ -333,6 +333,11 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
         }
     }
 
+#if defined(STAGING_CSMT)
+    FIXME_(winediag)("Please note that the experimental wined3d CSMT patchset has been disabled in this\n");
+    FIXME_(winediag)("version of Wine Staging. Check out the release notes for further information.\n");
+#endif /* STAGING_CSMT */
+
     if (appkey) RegCloseKey( appkey );
     if (hkey) RegCloseKey( hkey );
 
