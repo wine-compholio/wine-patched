@@ -323,7 +323,6 @@ struct GpAdjustableArrowCap{
 };
 
 struct GpImage{
-    IPicture *picture;
     IWICBitmapDecoder *decoder;
     ImageType type;
     GUID format;
