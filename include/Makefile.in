@@ -89,6 +89,7 @@ IDL_SRCS = \
 	inspectable.idl \
 	mediaobj.idl \
 	metahost.idl \
+	mfidl.idl \
 	mfobjects.idl \
 	mimeinfo.idl \
 	mimeole.idl \
