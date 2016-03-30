@@ -4304,20 +4304,17 @@ static INT_PTR WINAPI empty_dlg_proc2(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
         }
 
         DialogBoxIndirectParamA(GetModuleHandleA(NULL), param->dlg_data, disabled_hwnd, empty_dlg_proc3, 0);
-        todo_wine_if ((style & (WS_CHILD|WS_POPUP)) == WS_CHILD)
         ok(IsWindowEnabled(disabled_hwnd), "wrong state for %08x\n", style);
 
         ok(IsWindowEnabled(hwnd), "wrong state for %p\n", hwnd);
         ok(IsWindowEnabled(param->parent), "wrong state for %p\n", param->parent);
         if (param->grand_parent)
-        todo_wine_if ((style & (WS_CHILD|WS_POPUP)) == WS_CHILD)
             ok(IsWindowEnabled(param->grand_parent), "wrong state for %p (%08x)\n", param->grand_parent, style);
 
         DialogBoxIndirectParamA(GetModuleHandleA(NULL), param->dlg_data, hwnd, empty_dlg_proc3, 0);
         ok(IsWindowEnabled(hwnd), "wrong state for %p\n", hwnd);
         ok(IsWindowEnabled(param->parent), "wrong state for %p\n", param->parent);
         if (param->grand_parent)
-        todo_wine_if ((style & (WS_CHILD|WS_POPUP)) == WS_CHILD)
             ok(IsWindowEnabled(param->grand_parent), "wrong state for %p (%08x)\n", param->grand_parent, style);
 
         param->dlg_data->style |= WS_CHILD;

@@ -472,7 +472,6 @@ static HWND DIALOG_CreateIndirect( HINSTANCE hInst, LPCVOID dlgTemplate,
     HWND disabled_owner = NULL;
     HMENU hMenu = 0;
     HFONT hUserFont = 0;
-    UINT flags = 0;
     UINT xBaseUnit = LOWORD(units);
     UINT yBaseUnit = HIWORD(units);
 
@@ -604,10 +603,7 @@ static HWND DIALOG_CreateIndirect( HINSTANCE hInst, LPCVOID dlgTemplate,
         disabled_owner = real_owner( owner );
 
         if (IsWindowEnabled( disabled_owner ))
-        {
-            flags |= DF_OWNERENABLED;
             EnableWindow( disabled_owner, FALSE );
-        }
         else
             disabled_owner = NULL;
     }
@@ -663,7 +659,7 @@ static HWND DIALOG_CreateIndirect( HINSTANCE hInst, LPCVOID dlgTemplate,
     dlgInfo->hMenu       = hMenu;
     dlgInfo->xBaseUnit   = xBaseUnit;
     dlgInfo->yBaseUnit   = yBaseUnit;
-    dlgInfo->flags       = flags;
+    dlgInfo->flags       = 0;
 
     if (template.helpId) SetWindowContextHelpId( hwnd, template.helpId );
 
@@ -829,7 +825,7 @@ INT DIALOG_DoDialogBox( HWND hwnd, HWND owner )
             }
         }
     }
-    if (dlgInfo->flags & DF_OWNERENABLED) EnableWindow( owner, TRUE );
+    EnableWindow( owner, TRUE );
     retval = dlgInfo->idResult;
     DestroyWindow( hwnd );
     return retval;
