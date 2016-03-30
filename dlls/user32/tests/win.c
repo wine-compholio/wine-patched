@@ -4322,7 +4322,6 @@ static INT_PTR WINAPI empty_dlg_proc2(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
 
         param->dlg_data->style |= WS_CHILD;
         DialogBoxIndirectParamA(GetModuleHandleA(NULL), param->dlg_data, hwnd, empty_dlg_proc3, 0);
-        todo_wine_if (!(style & (WS_CHILD|WS_POPUP)))
         ok(IsWindowEnabled(hwnd), "wrong state for %p (%08x)\n", hwnd, style);
 
         EndDialog(hwnd, 0);
