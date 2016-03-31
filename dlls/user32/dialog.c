@@ -434,6 +434,21 @@ static LPCSTR DIALOG_ParseTemplate32( LPCSTR template, DLG_TEMPLATE * result )
     return (LPCSTR)(((UINT_PTR)p + 3) & ~3);
 }
 
+static HWND real_owner( HWND owner )
+{
+    HWND parent;
+    /*
+     * Owner needs to be top level window. We need to duplicate the logic from server,
+     * because we need to disable it before creating dialog window.
+     */
+    while ((GetWindowLongW( owner, GWL_STYLE ) & (WS_POPUP|WS_CHILD)) == WS_CHILD)
+    {
+        parent = GetParent( owner );
+        if (!parent || parent == GetDesktopWindow()) break;
+        owner = parent;
+    }
+    return owner;
+}
 
 /***********************************************************************
  *           DIALOG_CreateIndirect
@@ -586,18 +601,8 @@ static HWND DIALOG_CreateIndirect( HINSTANCE hInst, LPCVOID dlgTemplate,
 
     if (modal && owner)
     {
-        HWND parent;
-        disabled_owner = owner;
-        /*
-         * Owner needs to be top level window. We need to duplicate the logic from server,
-         * because we need to disable it before creating dialog window.
-         */
-        while ((GetWindowLongW( disabled_owner, GWL_STYLE ) & (WS_POPUP|WS_CHILD)) == WS_CHILD)
-        {
-            parent = GetParent( disabled_owner );
-            if (!parent || parent == GetDesktopWindow()) break;
-            disabled_owner = parent;
-        }
+        disabled_owner = real_owner( owner );
+
         if (IsWindowEnabled( disabled_owner ))
         {
             flags |= DF_OWNERENABLED;
@@ -777,6 +782,9 @@ INT DIALOG_DoDialogBox( HWND hwnd, HWND owner )
     BOOL bFirstEmpty;
 
     if (!(dlgInfo = DIALOG_get_info( hwnd, FALSE ))) return -1;
+
+    if (owner)
+        owner = real_owner( owner );
 
     bFirstEmpty = TRUE;
     if (!(dlgInfo->flags & DF_END)) /* was EndDialog called in WM_INITDIALOG ? */

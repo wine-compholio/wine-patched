@@ -4419,7 +4419,6 @@ static void check_dialog_style(DWORD style_in, DWORD ex_style_in, DWORD style_ou
 
     ok(IsWindowEnabled(parent), "wrong parent state (dialog style %#x)\n", style_in);
     if (grand_parent)
-        todo_wine_if ((style & (WS_CHILD|WS_POPUP)) == WS_CHILD)
         ok(IsWindowEnabled(grand_parent), "wrong grand parent state (dialog style %#x)\n", style_in);
 
     DestroyWindow(parent);
