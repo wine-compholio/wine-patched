@@ -3472,7 +3472,7 @@ BOOL WINAPI FlashWindowEx( PFLASHWINFO pfinfo )
 {
     WND *wndPtr;
 
-    TRACE( "%p\n", pfinfo->hwnd );
+    TRACE( "%p\n", pfinfo );
 
     if (!pfinfo)
     {
@@ -3485,7 +3485,7 @@ BOOL WINAPI FlashWindowEx( PFLASHWINFO pfinfo )
         SetLastError( ERROR_INVALID_PARAMETER );
         return FALSE;
     }
-    FIXME( "%p - semi-stub\n", pfinfo );
+    FIXME( "%p - semi-stub\n", pfinfo->hwnd );
 
     if (IsIconic( pfinfo->hwnd ))
     {
