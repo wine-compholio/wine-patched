@@ -1155,7 +1155,7 @@ static void test_wintrust_digest(void)
         {
             {{ SelfSignedFile32, sizeof(SelfSignedFile32) },
              { Dummy, sizeof(Dummy) }},
-            { TRUST_E_NOSIGNATURE, TRUE }, { TRUST_E_NOSIGNATURE, TRUE }
+            { TRUST_E_NOSIGNATURE, FALSE }, { TRUST_E_NOSIGNATURE, FALSE }
         },
         {
             {{ Dummy, sizeof(Dummy) },
@@ -1166,7 +1166,7 @@ static void test_wintrust_digest(void)
             {{ SelfSignedFile32, 19 },
              { Dummy, sizeof(Dummy) },
              { SelfSignedFile32 + 19 + sizeof(Dummy), sizeof(SelfSignedFile32) - 19 - sizeof(Dummy) }},
-            { TRUST_E_BAD_DIGEST, TRUE }, { TRUST_E_NOSIGNATURE, TRUE }
+            { TRUST_E_BAD_DIGEST, FALSE }, { TRUST_E_NOSIGNATURE, TRUE }
         },
         {
             {{ SelfSignedFile32, sizeof(IMAGE_DOS_HEADER) }},
@@ -1185,7 +1185,7 @@ static void test_wintrust_digest(void)
         {
             {{ SelfSignedFile64, sizeof(SelfSignedFile64) },
              { Dummy, sizeof(Dummy) }},
-            { TRUST_E_NOSIGNATURE, TRUE }, { TRUST_E_NOSIGNATURE, TRUE }
+            { TRUST_E_NOSIGNATURE, FALSE }, { TRUST_E_NOSIGNATURE, FALSE }
         },
         {
             {{ Dummy, sizeof(Dummy) },
@@ -1196,7 +1196,7 @@ static void test_wintrust_digest(void)
             {{ SelfSignedFile64, 19 },
              { Dummy, sizeof(Dummy) },
              { SelfSignedFile64 + 19 + sizeof(Dummy), sizeof(SelfSignedFile64) - 19 - sizeof(Dummy) }},
-            { TRUST_E_BAD_DIGEST, TRUE }, { TRUST_E_NOSIGNATURE, TRUE }
+            { TRUST_E_BAD_DIGEST, FALSE }, { TRUST_E_NOSIGNATURE, TRUE }
         },
         {
             {{ SelfSignedFile64, sizeof(IMAGE_DOS_HEADER) }},
