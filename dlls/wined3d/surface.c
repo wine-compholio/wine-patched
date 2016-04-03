@@ -3539,16 +3539,33 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
     const BYTE *sbuf;
     BYTE *dbuf;
     int x, y;
+    struct wined3d_device *device = dst_texture->resource.device;
+    struct wined3d_context *context = NULL;
+    struct wined3d_bo_address src_bo_addr, dst_bo_addr;
 
     TRACE("dst_texture %p, dst_sub_resource_idx %u, dst_box %s, src_texture %p, "
             "src_sub_resource_idx %u, src_box %s, flags %#x, fx %p, filter %s.\n",
             dst_texture, dst_sub_resource_idx, debug_box(dst_box), src_texture,
             src_sub_resource_idx, debug_box(src_box), flags, fx, debug_d3dtexturefiltertype(filter));
 
+    if (device->d3d_initialized)
+        context = context_acquire(device, NULL);
+
+    wined3d_texture_load_location(dst_texture, dst_sub_resource_idx,
+            context, dst_texture->resource.map_binding);
+
     if (src_texture == dst_texture && src_sub_resource_idx == dst_sub_resource_idx)
     {
         same_sub_resource = TRUE;
-        wined3d_resource_map(&dst_texture->resource, dst_sub_resource_idx, &dst_map, NULL, 0);
+
+        wined3d_texture_get_memory(dst_texture, dst_sub_resource_idx, &dst_bo_addr,
+                dst_texture->resource.map_binding);
+        dst_map.data = wined3d_texture_map_bo_address(&dst_bo_addr,
+                dst_texture->sub_resources[dst_sub_resource_idx].size,
+                context->gl_info, GL_PIXEL_UNPACK_BUFFER, 0);
+        wined3d_texture_get_pitch(dst_texture, dst_sub_resource_idx % dst_texture->level_count,
+                &dst_map.row_pitch, &dst_map.slice_pitch);
+
         src_map = dst_map;
         src_format = dst_texture->resource.format;
         dst_format = src_format;
@@ -3573,7 +3590,16 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
                 src_texture = converted_texture;
                 src_sub_resource_idx = 0;
             }
-            wined3d_resource_map(&src_texture->resource, src_sub_resource_idx, &src_map, NULL, WINED3D_MAP_READONLY);
+            wined3d_texture_load_location(src_texture, src_sub_resource_idx,
+                    context, src_texture->resource.map_binding);
+            wined3d_texture_get_pitch(src_texture, src_sub_resource_idx % src_texture->level_count,
+                    &src_map.row_pitch, &src_map.slice_pitch);
+            wined3d_texture_get_memory(src_texture, src_sub_resource_idx, &src_bo_addr,
+                    src_texture->resource.map_binding);
+            src_map.data = wined3d_texture_map_bo_address(&src_bo_addr,
+                    src_texture->sub_resources[src_sub_resource_idx].size,
+                    context->gl_info, GL_PIXEL_UNPACK_BUFFER, 0);
+
             src_format = src_texture->resource.format;
             src_fmt_flags = src_texture->resource.format_flags;
         }
@@ -3583,7 +3609,13 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
             src_fmt_flags = dst_fmt_flags;
         }
 
-        wined3d_resource_map(&dst_texture->resource, dst_sub_resource_idx, &dst_map, dst_box, 0);
+        wined3d_texture_get_memory(dst_texture, dst_sub_resource_idx, &dst_bo_addr,
+                dst_texture->resource.map_binding);
+        dst_map.data = wined3d_texture_map_bo_address(&dst_bo_addr,
+                dst_texture->sub_resources[dst_sub_resource_idx].size,
+                context->gl_info, GL_PIXEL_UNPACK_BUFFER, 0);
+        wined3d_texture_get_pitch(dst_texture, dst_sub_resource_idx % dst_texture->level_count,
+                &dst_map.row_pitch, &dst_map.slice_pitch);
     }
 
     bpp = dst_format->byte_count;
@@ -3597,12 +3629,9 @@ static HRESULT surface_cpu_blt(struct wined3d_texture *dst_texture, unsigned int
         sbase = (BYTE *)src_map.data
                 + ((src_box->top / src_format->block_height) * src_map.row_pitch)
                 + ((src_box->left / src_format->block_width) * src_format->block_byte_count);
-    if (same_sub_resource)
-        dbuf = (BYTE *)dst_map.data
-                + ((dst_box->top / dst_format->block_height) * dst_map.row_pitch)
-                + ((dst_box->left / dst_format->block_width) * dst_format->block_byte_count);
-    else
-        dbuf = dst_map.data;
+    dbuf = (BYTE *)dst_map.data
+            + ((dst_box->top / dst_format->block_height) * dst_map.row_pitch)
+            + ((dst_box->left / dst_format->block_width) * dst_format->block_byte_count);
 
     if (src_fmt_flags & dst_fmt_flags & WINED3DFMT_FLAG_BLOCKS)
     {
@@ -3995,16 +4024,32 @@ do { \
         }
     }
 
+    wined3d_texture_invalidate_location(dst_texture, dst_sub_resource_idx,
+            ~dst_texture->resource.map_binding);
+
 error:
     if (flags)
         FIXME("    Unsupported flags %#x.\n", flags);
 
 release:
-    wined3d_resource_unmap(&dst_texture->resource, dst_sub_resource_idx);
+    wined3d_texture_unmap_bo_address(&dst_bo_addr, context->gl_info, GL_PIXEL_UNPACK_BUFFER);
+
+    if (dst_texture->swapchain
+            && dst_texture == dst_texture->swapchain->front_buffer)
+    {
+        RECT *r = &dst_texture->swapchain->front_buffer_update;
+
+        SetRect(r, dst_box->left, dst_box->top, dst_box->right, dst_box->bottom);
+        if (!(dst_texture->sub_resources[dst_sub_resource_idx].locations
+                & (WINED3D_LOCATION_DRAWABLE | WINED3D_LOCATION_TEXTURE_RGB)))
+            dst_texture->swapchain->swapchain_ops->swapchain_frontbuffer_updated(dst_texture->swapchain);
+    }
     if (src_texture && !same_sub_resource)
-        wined3d_resource_unmap(&src_texture->resource, src_sub_resource_idx);
+        wined3d_texture_unmap_bo_address(&src_bo_addr, context->gl_info, GL_PIXEL_UNPACK_BUFFER);
     if (converted_texture)
         wined3d_texture_decref(converted_texture);
+    if (context)
+        context_release(context);
 
     return hr;
 }
