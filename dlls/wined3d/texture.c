@@ -1624,6 +1624,63 @@ static void wined3d_texture_unload(struct wined3d_resource *resource)
     wined3d_texture_unload_gl_texture(texture);
 }
 
+void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int sub_resource_idx, DWORD flags)
+{
+    struct wined3d_device *device = texture->resource.device;
+    struct wined3d_context *context = NULL;
+    void *data;
+    BOOL ret;
+    struct wined3d_texture_sub_resource *sub_resource = wined3d_texture_get_sub_resource(texture, sub_resource_idx);
+    struct wined3d_bo_address bo_data;
+
+    if (device->d3d_initialized)
+        context = context_acquire(device, NULL);
+
+    if (flags & WINED3D_MAP_DISCARD)
+    {
+        TRACE("WINED3D_MAP_DISCARD flag passed, marking %s as up to date.\n",
+                wined3d_debug_location(texture->resource.map_binding));
+        if ((ret = wined3d_texture_prepare_location(texture, sub_resource_idx,
+                context, texture->resource.map_binding)))
+            wined3d_texture_validate_location(texture, sub_resource_idx, texture->resource.map_binding);
+    }
+    else
+    {
+        if (texture->resource.usage & WINED3DUSAGE_DYNAMIC)
+            WARN_(d3d_perf)("Mapping a dynamic texture without WINED3D_MAP_DISCARD.\n");
+        ret = wined3d_texture_load_location(texture,
+                sub_resource_idx, context, texture->resource.map_binding);
+    }
+
+    if (!ret)
+    {
+        ERR("Failed to prepare location.\n");
+        context_release(context);
+        return NULL;
+    }
+
+    if (!(flags & (WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY)))
+        wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
+
+    wined3d_texture_get_memory(texture, sub_resource_idx, &bo_data, texture->resource.map_binding);
+    data = wined3d_texture_map_bo_address(&bo_data, sub_resource->size,
+            context->gl_info, GL_PIXEL_UNPACK_BUFFER, flags);
+
+    if (context)
+        context_release(context);
+
+    if (texture->swapchain && texture->swapchain->front_buffer == texture)
+    {
+        RECT *r = &texture->swapchain->front_buffer_update;
+
+        /* FIXME: Preserve the map box... */
+        SetRect(r, 0, 0, texture->resource.width, texture->resource.height);
+        TRACE("Mapped front buffer %s.\n", wine_dbgstr_rect(r));
+    }
+
+    return data;
+}
+
 static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resource, unsigned int sub_resource_idx,
         struct wined3d_map_desc *map_desc, const struct wined3d_box *box, DWORD flags)
 {
@@ -1631,13 +1688,9 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
     struct wined3d_texture_sub_resource *sub_resource;
     struct wined3d_device *device = resource->device;
     unsigned int fmt_flags = resource->format_flags;
-    const struct wined3d_gl_info *gl_info = NULL;
-    struct wined3d_context *context = NULL;
     struct wined3d_texture *texture;
-    struct wined3d_bo_address data;
     unsigned int texture_level;
     BYTE *base_memory;
-    BOOL ret;
 
     TRACE("resource %p, sub_resource_idx %u, map_desc %p, box %s, flags %#x.\n",
             resource, sub_resource_idx, map_desc, debug_box(box), flags);
@@ -1682,54 +1735,9 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
         return WINED3DERR_INVALIDCALL;
     }
 
-    if (wined3d_settings.cs_multithreaded)
-    {
-        FIXME("Waiting for cs.\n");
-        wined3d_cs_emit_glfinish(device->cs);
-        device->cs->ops->finish(device->cs);
-    }
-
     flags = wined3d_resource_sanitize_map_flags(resource, flags);
 
-    if (device->d3d_initialized)
-    {
-        context = context_acquire(device, NULL);
-        gl_info = context->gl_info;
-    }
-
-    if (flags & WINED3D_MAP_DISCARD)
-    {
-        TRACE("WINED3D_MAP_DISCARD flag passed, marking %s as up to date.\n",
-                wined3d_debug_location(texture->resource.map_binding));
-        if ((ret = wined3d_texture_prepare_location(texture, sub_resource_idx,
-                context, texture->resource.map_binding)))
-            wined3d_texture_validate_location(texture, sub_resource_idx, texture->resource.map_binding);
-    }
-    else
-    {
-        if (resource->usage & WINED3DUSAGE_DYNAMIC)
-            WARN_(d3d_perf)("Mapping a dynamic texture without WINED3D_MAP_DISCARD.\n");
-        ret = wined3d_texture_load_location(texture,
-                sub_resource_idx, context, texture->resource.map_binding);
-    }
-
-    if (!ret)
-    {
-        ERR("Failed to prepare location.\n");
-        context_release(context);
-        return E_OUTOFMEMORY;
-    }
-
-    if (!(flags & (WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY)))
-        wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
-
-    wined3d_texture_get_memory(texture, sub_resource_idx, &data, texture->resource.map_binding);
-    base_memory = wined3d_texture_map_bo_address(&data, sub_resource->size,
-            gl_info, GL_PIXEL_UNPACK_BUFFER, flags);
-    TRACE("Base memory pointer %p.\n", base_memory);
-
-    if (context)
-        context_release(context);
+    base_memory = wined3d_cs_emit_texture_map(device->cs, texture, sub_resource_idx, flags);
 
     if (fmt_flags & WINED3DFMT_FLAG_BROKEN_PITCH)
     {
@@ -1765,17 +1773,6 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
         }
     }
 
-    if (texture->swapchain && texture->swapchain->front_buffer == texture)
-    {
-        RECT *r = &texture->swapchain->front_buffer_update;
-
-        if (!box)
-            SetRect(r, 0, 0, resource->width, resource->height);
-        else
-            SetRect(r, box->left, box->top, box->right, box->bottom);
-        TRACE("Mapped front buffer %s.\n", wine_dbgstr_rect(r));
-    }
-
     ++resource->map_count;
     ++sub_resource->map_count;
 
@@ -1785,14 +1782,38 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
     return WINED3D_OK;
 }
 
+void wined3d_texture_unmap_internal(struct wined3d_texture *texture, unsigned int sub_resource_idx)
+{
+    struct wined3d_context *context = NULL;
+    struct wined3d_bo_address data;
+
+    if (texture->resource.device->d3d_initialized)
+        context = context_acquire(texture->resource.device, NULL);
+
+    wined3d_texture_get_memory(texture, sub_resource_idx, &data, texture->resource.map_binding);
+    wined3d_texture_unmap_bo_address(&data, context->gl_info, GL_PIXEL_UNPACK_BUFFER);
+
+    if (context)
+        context_release(context);
+
+    if (texture->swapchain && texture->swapchain->front_buffer == texture)
+    {
+        struct wined3d_texture_sub_resource *sub_resource = &texture->sub_resources[sub_resource_idx];
+
+        if (!(sub_resource->locations & (WINED3D_LOCATION_DRAWABLE | WINED3D_LOCATION_TEXTURE_RGB)))
+            texture->swapchain->swapchain_ops->swapchain_frontbuffer_updated(texture->swapchain);
+    }
+    else if (texture->resource.format_flags & (WINED3DFMT_FLAG_DEPTH | WINED3DFMT_FLAG_STENCIL))
+    {
+        FIXME("Depth / stencil buffer locking is not implemented.\n");
+    }
+}
+
 static HRESULT texture_resource_sub_resource_unmap(struct wined3d_resource *resource, unsigned int sub_resource_idx)
 {
     struct wined3d_texture_sub_resource *sub_resource;
-    struct wined3d_device *device = resource->device;
-    const struct wined3d_gl_info *gl_info = NULL;
-    struct wined3d_context *context = NULL;
     struct wined3d_texture *texture;
-    struct wined3d_bo_address data;
+    struct wined3d_device *device = resource->device;
 
     TRACE("resource %p, sub_resource_idx %u.\n", resource, sub_resource_idx);
 
@@ -1808,27 +1829,7 @@ static HRESULT texture_resource_sub_resource_unmap(struct wined3d_resource *reso
         return WINEDDERR_NOTLOCKED;
     }
 
-    if (device->d3d_initialized)
-    {
-        context = context_acquire(device, NULL);
-        gl_info = context->gl_info;
-    }
-
-    wined3d_texture_get_memory(texture, sub_resource_idx, &data, texture->resource.map_binding);
-    wined3d_texture_unmap_bo_address(&data, gl_info, GL_PIXEL_UNPACK_BUFFER);
-
-    if (context)
-        context_release(context);
-
-    if (texture->swapchain && texture->swapchain->front_buffer == texture)
-    {
-        if (!(sub_resource->locations & (WINED3D_LOCATION_DRAWABLE | WINED3D_LOCATION_TEXTURE_RGB)))
-            texture->swapchain->swapchain_ops->swapchain_frontbuffer_updated(texture->swapchain);
-    }
-    else if (resource->format_flags & (WINED3DFMT_FLAG_DEPTH | WINED3DFMT_FLAG_STENCIL))
-    {
-        FIXME("Depth / stencil buffer locking is not implemented.\n");
-    }
+    wined3d_cs_emit_texture_unmap(device->cs, texture, sub_resource_idx);
 
     --sub_resource->map_count;
     if (!--resource->map_count && texture->update_map_binding)
