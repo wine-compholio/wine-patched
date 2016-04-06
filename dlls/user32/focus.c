@@ -154,9 +154,10 @@ static BOOL set_active_window( HWND hwnd, HWND *prev, BOOL mouse, BOOL focus )
         SendMessageW( hwnd, WM_ACTIVATE,
                       MAKEWPARAM( mouse ? WA_CLICKACTIVE : WA_ACTIVE, IsIconic(hwnd) ),
                       (LPARAM)previous );
-    }
 
-    USER_Driver->pSetActiveWindow( hwnd );
+        if (hwnd == GetForegroundWindow() && !IsIconic( hwnd ))
+            USER_Driver->pSetActiveWindow( hwnd );
+    }
 
     /* now change focus if necessary */
     if (focus)
