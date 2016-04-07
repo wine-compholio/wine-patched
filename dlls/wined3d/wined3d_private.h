@@ -2668,6 +2668,7 @@ struct wined3d_texture
         unsigned int map_count;
         DWORD locations;
         GLuint buffer_object;
+        BOOL unmap_dirtify;
     } sub_resources[1];
 };
 
