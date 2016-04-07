@@ -2554,7 +2554,7 @@ static BOOL context_validate_rt_config(UINT rt_count, struct wined3d_rendertarge
 }
 
 /* Context activation is done by the caller. */
-BOOL context_apply_clear_state(struct wined3d_context *context, const struct wined3d_state *state,
+BOOL context_apply_clear_state(struct wined3d_context *context,
         UINT rt_count, const struct wined3d_fb_state *fb)
 {
     struct wined3d_rendertarget_view **rts = fb->render_targets;
@@ -2563,7 +2563,7 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
     DWORD rt_mask = 0, *cur_mask;
     UINT i;
 
-    if (isStateDirty(context, STATE_FRAMEBUFFER) || wined3d_fb_equal(fb, &state->fb)
+    if (isStateDirty(context, STATE_FRAMEBUFFER) || wined3d_fb_equal(fb, &context->current_fb)
             || rt_count != gl_info->limits.buffers)
     {
         if (!context_validate_rt_config(rt_count, rts, dsv))
@@ -2650,7 +2650,8 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
     gl_info->gl_ops.gl.p_glEnable(GL_SCISSOR_TEST);
     if (rt_count && gl_info->supported[ARB_FRAMEBUFFER_SRGB])
     {
-        if (needs_srgb_write(context, state, fb))
+        /* FIXME: The way to access the state is ugly. */
+        if (needs_srgb_write(context, &rts[0]->resource->device->cs->state, fb))
             gl_info->gl_ops.gl.p_glEnable(GL_FRAMEBUFFER_SRGB);
         else
             gl_info->gl_ops.gl.p_glDisable(GL_FRAMEBUFFER_SRGB);
