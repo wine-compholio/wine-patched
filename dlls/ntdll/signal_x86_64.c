@@ -241,7 +241,6 @@ static inline int arch_prctl( int func, void *ptr ) { return syscall( __NR_arch_
 
 #define FPU_sig(context)   ((XMM_SAVE_AREA32 *)((context)->uc_mcontext.__fpregs))
 #elif defined (__APPLE__)
-static pthread_key_t teb_key;
 
 #define RAX_sig(context)     ((context)->uc_mcontext->__ss.__rax)
 #define RBX_sig(context)     ((context)->uc_mcontext->__ss.__rbx)
@@ -2841,12 +2840,6 @@ void signal_free_thread( TEB *teb )
     NtFreeVirtualMemory( NtCurrentProcess(), (void **)&teb, &size, MEM_RELEASE );
 }
 
-#ifdef __APPLE__
-static void init_teb_key(void)
-{
-    pthread_key_create( &teb_key, NULL );
-}
-#endif
 
 /**********************************************************************
  *		signal_init_thread
@@ -2856,10 +2849,6 @@ void signal_init_thread( TEB *teb )
     const WORD fpu_cw = 0x27f;
     stack_t ss;
 
-#ifdef __APPLE__
-    static pthread_once_t init_once = PTHREAD_ONCE_INIT;
-#endif
-
 #if defined __linux__
     arch_prctl( ARCH_SET_GS, teb );
 #elif defined (__FreeBSD__) || defined (__FreeBSD_kernel__)
@@ -2868,8 +2857,7 @@ void signal_init_thread( TEB *teb )
     sysarch( X86_64_SET_GSBASE, &teb );
 #elif defined (__APPLE__)
     /* FIXME: Actually setting %gs needs support from the OS */
-    pthread_once( &init_once, init_teb_key );
-    pthread_setspecific( teb_key, teb );
+    __asm__ volatile (".byte 0x65\n\tmovq %0,(0x30)" : : "r" (teb));
 #else
 # error Please define setting %gs for your architecture
 #endif
@@ -3851,16 +3839,8 @@ __ASM_STDCALL_FUNC( DbgUserBreakPoint, 0, "int $3; ret")
 /**********************************************************************
  *              NtCurrentTeb  (NTDLL.@)
  *
- * FIXME: This isn't exported from NTDLL on real NT.  This should be
- *        removed if and when we can set the GSBASE MSR on Mac OS X.
+ * FIXME: This isn't exported from NTDLL on real NT.
  */
-#ifdef __APPLE__
-TEB * WINAPI NtCurrentTeb(void)
-{
-    return pthread_getspecific( teb_key );
-}
-#else
 __ASM_STDCALL_FUNC( NtCurrentTeb, 0, ".byte 0x65\n\tmovq 0x30,%rax\n\tret" )
-#endif
 
 #endif  /* __x86_64__ */
