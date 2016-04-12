@@ -2417,16 +2417,20 @@ static NTSTATUS call_stack_handlers( EXCEPTION_RECORD *rec, CONTEXT *orig_contex
             if (status != STATUS_UNHANDLED_EXCEPTION) return status;
         }
         /* hack: call wine handlers registered in the tib list */
-        else while ((ULONG64)teb_frame < new_context.Rsp)
+        else if ((ULONG64)teb_frame >= context.Rsp)
         {
-            TRACE( "found wine frame %p rsp %lx handler %p\n",
-                   teb_frame, new_context.Rsp, teb_frame->Handler );
-            dispatch.EstablisherFrame = (ULONG64)teb_frame;
-            context = *orig_context;
-            status = call_teb_handler( rec, &dispatch, teb_frame, orig_context );
-            if (status != STATUS_UNHANDLED_EXCEPTION) return status;
-            teb_frame = teb_frame->Prev;
+            while ((ULONG64)teb_frame < new_context.Rsp)
+            {
+                TRACE( "found wine frame %p rsp %lx handler %p\n",
+                       teb_frame, new_context.Rsp, teb_frame->Handler );
+                dispatch.EstablisherFrame = (ULONG64)teb_frame;
+                context = *orig_context;
+                status = call_teb_handler( rec, &dispatch, teb_frame, orig_context );
+                if (status != STATUS_UNHANDLED_EXCEPTION) return status;
+                teb_frame = teb_frame->Prev;
+            }
         }
+        else WARN( "skipping wine frame %p (on other stack?)\n", teb_frame );
 
         if (new_context.Rsp == (ULONG64)NtCurrentTeb()->Tib.StackBase) break;
         context = new_context;
@@ -3578,7 +3582,8 @@ void WINAPI RtlUnwindEx( PVOID end_frame, PVOID target_ip, EXCEPTION_RECORD *rec
             if (dispatch.EstablisherFrame == (ULONG64)end_frame) rec->ExceptionFlags |= EH_TARGET_UNWIND;
             call_unwind_handler( rec, &dispatch );
         }
-        else  /* hack: call builtin handlers registered in the tib list */
+        /* hack: call builtin handlers registered in the tib list */
+        else if ((ULONG64)teb_frame >= context->Rsp)
         {
             DWORD64 backup_frame = dispatch.EstablisherFrame;
             while ((ULONG64)teb_frame < new_context.Rsp && (ULONG64)teb_frame < (ULONG64)end_frame)
@@ -3591,6 +3596,7 @@ void WINAPI RtlUnwindEx( PVOID end_frame, PVOID target_ip, EXCEPTION_RECORD *rec
             if ((ULONG64)teb_frame == (ULONG64)end_frame && (ULONG64)end_frame < new_context.Rsp) break;
             dispatch.EstablisherFrame = backup_frame;
         }
+        else WARN( "skipping wine frame %p (on other stack?)\n", teb_frame );
 
         if (dispatch.EstablisherFrame == (ULONG64)end_frame) break;
         *context = new_context;
