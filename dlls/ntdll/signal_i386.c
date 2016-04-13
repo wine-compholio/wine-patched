@@ -2775,6 +2775,14 @@ void call_thread_func( LPTHREAD_START_ROUTINE entry, void *arg, void *frame )
 void WINAPI RtlExitUserThread( ULONG status )
 {
     if (!ntdll_get_thread_data()->exit_frame) exit_thread( status );
+    if (ntdll_get_thread_data()->exit_frame <= NtCurrentTeb()->DeallocationStack ||
+        ntdll_get_thread_data()->exit_frame > NtCurrentTeb()->Tib.StackBase)
+    {
+        WARN( "exit frame outside of stack limits in thread %04x frame %p stack %p-%p\n",
+              GetCurrentThreadId(), ntdll_get_thread_data()->exit_frame,
+              NtCurrentTeb()->Tib.StackLimit, NtCurrentTeb()->Tib.StackBase );
+        exit_thread( status );
+    }
     call_thread_exit_func( status, exit_thread, ntdll_get_thread_data()->exit_frame );
 }
 
@@ -2784,6 +2792,14 @@ void WINAPI RtlExitUserThread( ULONG status )
 void abort_thread( int status )
 {
     if (!ntdll_get_thread_data()->exit_frame) terminate_thread( status );
+    if (ntdll_get_thread_data()->exit_frame <= NtCurrentTeb()->DeallocationStack ||
+        ntdll_get_thread_data()->exit_frame > NtCurrentTeb()->Tib.StackBase)
+    {
+        WARN( "exit frame outside of stack limits in thread %04x frame %p stack %p-%p\n",
+              GetCurrentThreadId(), ntdll_get_thread_data()->exit_frame,
+              NtCurrentTeb()->Tib.StackLimit, NtCurrentTeb()->Tib.StackBase );
+        terminate_thread( status );
+    }
     call_thread_exit_func( status, terminate_thread, ntdll_get_thread_data()->exit_frame );
 }
 
