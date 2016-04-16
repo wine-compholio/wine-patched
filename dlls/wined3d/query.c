@@ -293,6 +293,14 @@ static void wined3d_query_destroy_object(void *object)
     {
         HeapFree(GetProcessHeap(), 0, query);
     }
+    else if (query->type == WINED3D_QUERY_TYPE_SO_STATISTICS)
+    {
+        HeapFree(GetProcessHeap(), 0, query);
+    }
+    else if (query->type == WINED3D_QUERY_TYPE_SO_OVERFLOW)
+    {
+        HeapFree(GetProcessHeap(), 0, query);
+    }
     else
     {
         ERR("Query %p has invalid type %#x.\n", query, query->type);
@@ -686,6 +694,42 @@ static HRESULT wined3d_timestamp_disjoint_query_ops_issue(struct wined3d_query *
     return WINED3D_OK;
 }
 
+static HRESULT wined3d_statistics_query_ops_get_data(struct wined3d_query *query,
+        void *data, DWORD size, DWORD flags)
+{
+    static const struct wined3d_query_data_so_statistics statistics = { 1, 1 };
+
+    FIXME("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+
+    if (!data || !size) return S_OK;
+    fill_query_data(data, size, &statistics, sizeof(statistics));
+    return S_OK;
+}
+
+static HRESULT wined3d_statistics_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+    return WINED3D_OK;
+}
+
+static HRESULT wined3d_overflow_query_ops_get_data(struct wined3d_query *query,
+        void *data, DWORD size, DWORD flags)
+{
+    static const BOOL overflow = FALSE;
+
+    FIXME("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+
+    if (!data || !size) return S_OK;
+    fill_query_data(data, size, &overflow, sizeof(overflow));
+    return S_OK;
+}
+
+static HRESULT wined3d_overflow_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+    return WINED3D_OK;
+}
+
 static const struct wined3d_query_ops event_query_ops =
 {
     wined3d_event_query_ops_get_data,
@@ -814,6 +858,55 @@ static HRESULT wined3d_timestamp_disjoint_query_create(struct wined3d_device *de
     return WINED3D_OK;
 }
 
+static const struct wined3d_query_ops statistics_query_ops =
+{
+    wined3d_statistics_query_ops_get_data,
+    wined3d_statistics_query_ops_issue,
+};
+
+static HRESULT wined3d_statistics_query_create(struct wined3d_device *device,
+        enum wined3d_query_type type, void *parent, struct wined3d_query **query)
+{
+    struct wined3d_query *object;
+
+    FIXME("device %p, type %#x, parent %p, query %p.\n", device, type, parent, query);
+
+    if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+        return E_OUTOFMEMORY;
+
+    wined3d_query_init(object, device, type,
+            sizeof(struct wined3d_query_data_so_statistics), &statistics_query_ops, parent);
+
+    TRACE("Created query %p.\n", object);
+    *query = object;
+
+    return WINED3D_OK;
+}
+
+static const struct wined3d_query_ops overflow_query_ops =
+{
+    wined3d_overflow_query_ops_get_data,
+    wined3d_overflow_query_ops_issue,
+};
+
+static HRESULT wined3d_overflow_query_create(struct wined3d_device *device,
+        enum wined3d_query_type type, void *parent, struct wined3d_query **query)
+{
+    struct wined3d_query *object;
+
+    FIXME("device %p, type %#x, parent %p, query %p.\n", device, type, parent, query);
+
+    if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+        return E_OUTOFMEMORY;
+
+    wined3d_query_init(object, device, type, sizeof(BOOL), &overflow_query_ops, parent);
+
+    TRACE("Created query %p.\n", object);
+    *query = object;
+
+    return WINED3D_OK;
+}
+
 HRESULT CDECL wined3d_query_create(struct wined3d_device *device,
         enum wined3d_query_type type, void *parent, struct wined3d_query **query)
 {
@@ -833,6 +926,12 @@ HRESULT CDECL wined3d_query_create(struct wined3d_device *device,
         case WINED3D_QUERY_TYPE_TIMESTAMP_DISJOINT:
         case WINED3D_QUERY_TYPE_TIMESTAMP_FREQ:
             return wined3d_timestamp_disjoint_query_create(device, type, parent, query);
+
+        case WINED3D_QUERY_TYPE_SO_STATISTICS:
+            return wined3d_statistics_query_create(device, type, parent, query);
+
+        case WINED3D_QUERY_TYPE_SO_OVERFLOW:
+            return wined3d_overflow_query_create(device, type, parent, query);
 
         default:
             FIXME("Unhandled query type %#x.\n", type);
