@@ -681,6 +681,42 @@ static HRESULT wined3d_timestamp_disjoint_query_ops_issue(struct wined3d_query *
     return WINED3D_OK;
 }
 
+static HRESULT wined3d_statistics_query_ops_get_data(struct wined3d_query *query,
+        void *data, DWORD size, DWORD flags)
+{
+    static const struct wined3d_query_data_so_statistics statistics = { 1, 1 };
+
+    FIXME("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+
+    if (!data || !size) return S_OK;
+    fill_query_data(data, size, &statistics, sizeof(statistics));
+    return S_OK;
+}
+
+static HRESULT wined3d_statistics_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+    return WINED3D_OK;
+}
+
+static HRESULT wined3d_overflow_query_ops_get_data(struct wined3d_query *query,
+        void *data, DWORD size, DWORD flags)
+{
+    static const BOOL overflow = FALSE;
+
+    FIXME("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+
+    if (!data || !size) return S_OK;
+    fill_query_data(data, size, &overflow, sizeof(overflow));
+    return S_OK;
+}
+
+static HRESULT wined3d_overflow_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+    return WINED3D_OK;
+}
+
 static const struct wined3d_query_ops event_query_ops =
 {
     wined3d_event_query_ops_get_data,
@@ -703,6 +739,18 @@ static const struct wined3d_query_ops timestamp_disjoint_query_ops =
 {
     wined3d_timestamp_disjoint_query_ops_get_data,
     wined3d_timestamp_disjoint_query_ops_issue,
+};
+
+static const struct wined3d_query_ops statistics_query_ops =
+{
+    wined3d_statistics_query_ops_get_data,
+    wined3d_statistics_query_ops_issue,
+};
+
+static const struct wined3d_query_ops overflow_query_ops =
+{
+    wined3d_overflow_query_ops_get_data,
+    wined3d_overflow_query_ops_issue
 };
 
 static HRESULT query_init(struct wined3d_query *query, struct wined3d_device *device,
@@ -750,6 +798,20 @@ static HRESULT query_init(struct wined3d_query *query, struct wined3d_device *de
                 ERR("Failed to allocate event query memory.\n");
                 return E_OUTOFMEMORY;
             }
+            break;
+
+        case WINED3D_QUERY_TYPE_SO_STATISTICS:
+            FIXME("Statistics query.\n");
+            query->query_ops = &statistics_query_ops;
+            query->data_size = sizeof(struct wined3d_query_data_so_statistics);
+            query->extendedData = NULL;
+            break;
+
+        case WINED3D_QUERY_TYPE_SO_OVERFLOW:
+            FIXME("Overflow query.\n");
+            query->query_ops = &overflow_query_ops;
+            query->data_size = sizeof(BOOL);
+            query->extendedData = NULL;
             break;
 
         case WINED3D_QUERY_TYPE_TIMESTAMP:
