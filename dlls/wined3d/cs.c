@@ -66,6 +66,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_SET_LIGHT_ENABLE,
     WINED3D_CS_OP_BLT,
     WINED3D_CS_OP_CLEAR_RTV,
+    WINED3D_CS_OP_TEXTURE_CHANGED,
     WINED3D_CS_OP_TEXTURE_MAP,
     WINED3D_CS_OP_TEXTURE_UNMAP,
     WINED3D_CS_OP_QUERY_ISSUE,
@@ -372,6 +373,13 @@ struct wined3d_cs_texture_map
 };
 
 struct wined3d_cs_texture_unmap
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_texture *texture;
+    unsigned int sub_resource_idx;
+};
+
+struct wined3d_cs_texture_changed
 {
     enum wined3d_cs_op opcode;
     struct wined3d_texture *texture;
@@ -1901,6 +1909,28 @@ void wined3d_cs_emit_clear_rtv(struct wined3d_cs *cs, struct wined3d_rendertarge
     cs->ops->submit(cs, sizeof(*op));
 }
 
+static UINT wined3d_cs_exec_texture_changed(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_texture_changed *op = data;
+
+    wined3d_texture_changed(op->texture, op->sub_resource_idx);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_texture_changed(struct wined3d_cs *cs, struct wined3d_texture *texture,
+        unsigned int sub_resource_idx)
+{
+    struct wined3d_cs_texture_changed *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_TEXTURE_CHANGED;
+    op->texture = texture;
+    op->sub_resource_idx = sub_resource_idx;
+
+    cs->ops->submit(cs, sizeof(*op));
+}
+
 static UINT wined3d_cs_exec_texture_map(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_texture_map *op = data;
@@ -2237,6 +2267,7 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_SET_LIGHT_ENABLE           */ wined3d_cs_exec_set_light_enable,
     /* WINED3D_CS_OP_BLT                        */ wined3d_cs_exec_blt,
     /* WINED3D_CS_OP_CLEAR_RTV                  */ wined3d_cs_exec_clear_rtv,
+    /* WINED3D_CS_OP_TEXTURE_CHANGED            */ wined3d_cs_exec_texture_changed,
     /* WINED3D_CS_OP_TEXTURE_MAP                */ wined3d_cs_exec_texture_map,
     /* WINED3D_CS_OP_TEXTURE_UNMAP              */ wined3d_cs_exec_texture_unmap,
     /* WINED3D_CS_OP_QUERY_ISSUE                */ wined3d_cs_exec_query_issue,
