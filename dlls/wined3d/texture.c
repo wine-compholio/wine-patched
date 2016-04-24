@@ -1788,7 +1788,6 @@ static HRESULT texture_resource_sub_resource_map(struct wined3d_resource *resour
 
 void wined3d_texture_unmap_internal(struct wined3d_texture *texture, unsigned int sub_resource_idx)
 {
-    struct wined3d_texture_sub_resource *sub_resource = wined3d_texture_get_sub_resource(texture, sub_resource_idx);
     struct wined3d_context *context = NULL;
     struct wined3d_bo_address data;
 
@@ -1812,12 +1811,11 @@ void wined3d_texture_unmap_internal(struct wined3d_texture *texture, unsigned in
     {
         FIXME("Depth / stencil buffer locking is not implemented.\n");
     }
+}
 
-    if (sub_resource->unmap_dirtify)
-    {
-        wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
-        sub_resource->unmap_dirtify = FALSE;
-    }
+void wined3d_texture_changed(struct wined3d_texture *texture, unsigned int sub_resource_idx)
+{
+    wined3d_texture_invalidate_location(texture, sub_resource_idx, ~texture->resource.map_binding);
 }
 
 static HRESULT texture_resource_sub_resource_unmap(struct wined3d_resource *resource, unsigned int sub_resource_idx)
@@ -1841,6 +1839,12 @@ static HRESULT texture_resource_sub_resource_unmap(struct wined3d_resource *reso
     }
 
     wined3d_cs_emit_texture_unmap(device->cs, texture, sub_resource_idx);
+
+    if (sub_resource->unmap_dirtify)
+    {
+        wined3d_cs_emit_texture_changed(device->cs, texture, sub_resource_idx);
+        sub_resource->unmap_dirtify = FALSE;
+    }
 
     --sub_resource->map_count;
     if (!--resource->map_count && texture->update_map_binding)
