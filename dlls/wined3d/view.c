@@ -41,6 +41,14 @@ ULONG CDECL wined3d_rendertarget_view_decref(struct wined3d_rendertarget_view *v
 
     if (!refcount)
     {
+        struct wined3d_device *device = view->resource->device;
+
+        if (wined3d_settings.cs_multithreaded)
+        {
+            FIXME("Waiting for cs.\n");
+            device->cs->ops->finish(device->cs);
+        }
+
         /* Call wined3d_object_destroyed() before releasing the resource,
          * since releasing the resource may end up destroying the parent. */
         view->parent_ops->wined3d_object_destroyed(view->parent);
@@ -185,6 +193,14 @@ ULONG CDECL wined3d_shader_resource_view_decref(struct wined3d_shader_resource_v
 
     if (!refcount)
     {
+        struct wined3d_device *device = view->resource->device;
+
+        if (wined3d_settings.cs_multithreaded)
+        {
+            FIXME("Waiting for cs.\n");
+            device->cs->ops->finish(device->cs);
+        }
+
         /* Call wined3d_object_destroyed() before releasing the resource,
          * since releasing the resource may end up destroying the parent. */
         view->parent_ops->wined3d_object_destroyed(view->parent);
