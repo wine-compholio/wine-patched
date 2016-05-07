@@ -4862,7 +4862,7 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
     {
         if (reset_state)
             hr = create_primary_opengl_context(device, swapchain);
-        swapchain_update_swap_interval(swapchain);
+        wined3d_cs_emit_update_swap_interval(device->cs, swapchain);
     }
 
     /* All done. There is no need to reload resources or shaders, this will happen automatically on the
