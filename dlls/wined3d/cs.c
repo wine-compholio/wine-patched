@@ -86,6 +86,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_BUFFER_CLEANUP,
     WINED3D_CS_OP_TEXTURE_CLEANUP,
     WINED3D_CS_OP_SAMPLER_DESTROY,
+    WINED3D_CS_OP_SAMPLER_INIT,
     WINED3D_CS_OP_SRV_DESTROY,
     WINED3D_CS_OP_GET_DC,
     WINED3D_CS_OP_RELEASE_DC,
@@ -514,7 +515,7 @@ struct wined3d_cs_texture_cleanup
     struct wined3d_texture *texture;
 };
 
-struct wined3d_cs_sampler_destroy
+struct wined3d_cs_sampler_init_destroy
 {
     enum wined3d_cs_op opcode;
     struct wined3d_sampler *sampler;
@@ -2598,7 +2599,7 @@ void wined3d_cs_emit_texture_cleanup(struct wined3d_cs *cs, struct wined3d_textu
 
 static UINT wined3d_cs_exec_sampler_destroy(struct wined3d_cs *cs, const void *data)
 {
-    const struct wined3d_cs_sampler_destroy *op = data;
+    const struct wined3d_cs_sampler_init_destroy *op = data;
 
     wined3d_sampler_destroy(op->sampler);
 
@@ -2607,10 +2608,30 @@ static UINT wined3d_cs_exec_sampler_destroy(struct wined3d_cs *cs, const void *d
 
 void wined3d_cs_emit_sampler_destroy(struct wined3d_cs *cs, struct wined3d_sampler *sampler)
 {
-    struct wined3d_cs_sampler_destroy *op;
+    struct wined3d_cs_sampler_init_destroy *op;
 
     op = cs->ops->require_space(cs, sizeof(*op));
     op->opcode = WINED3D_CS_OP_SAMPLER_DESTROY;
+    op->sampler = sampler;
+
+    cs->ops->submit(cs, sizeof(*op));
+}
+
+static UINT wined3d_cs_exec_sampler_init(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_sampler_init_destroy *op = data;
+
+    wined3d_sampler_init(op->sampler);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_sampler_init(struct wined3d_cs *cs, struct wined3d_sampler *sampler)
+{
+    struct wined3d_cs_sampler_init_destroy *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_SAMPLER_INIT;
     op->sampler = sampler;
 
     cs->ops->submit(cs, sizeof(*op));
@@ -2835,6 +2856,7 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_BUFFER_CLEANUP             */ wined3d_cs_exec_buffer_cleanup,
     /* WINED3D_CS_OP_TEXTURE_CLEANUP            */ wined3d_cs_exec_texture_cleanup,
     /* WINED3D_CS_OP_SAMPLER_DESTROY            */ wined3d_cs_exec_sampler_destroy,
+    /* WINED3D_CS_OP_SAMPLER_INIT               */ wined3d_cs_exec_sampler_init,
     /* WINED3D_CS_OP_SRV_DESTROY                */ wined3d_cs_exec_shader_resource_view_destroy,
     /* WINED3D_CS_OP_GET_DC                     */ wined3d_cs_exec_get_dc,
     /* WINED3D_CS_OP_RELEASE_DC                 */ wined3d_cs_exec_release_dc,
