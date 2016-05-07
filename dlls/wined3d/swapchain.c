@@ -507,7 +507,8 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
         RECT rect = {0, 0, logo_texture->resource.width, logo_texture->resource.height};
 
         /* Blit the logo into the upper left corner of the drawable. */
-        wined3d_texture_blt(swapchain->back_buffers[0], 0, &rect, logo_texture, 0, &rect,
+        surface_blt_ugly(swapchain->back_buffers[0]->sub_resources[0].u.surface, &rect,
+                logo_texture->sub_resources[0].u.surface, &rect,
                 WINED3D_BLT_ALPHA_TEST, NULL, WINED3D_TEXF_POINT);
     }
 
@@ -536,8 +537,8 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
         if (swapchain->desc.windowed)
             MapWindowPoints(NULL, swapchain->win_handle, (POINT *)&dst_rect, 2);
         if (wined3d_clip_blit(&clip_rect, &dst_rect, &src_rect))
-            wined3d_texture_blt(swapchain->back_buffers[0], 0, &dst_rect,
-                    swapchain->device->cursor_texture, 0, &src_rect,
+            surface_blt_ugly(swapchain->back_buffers[0]->sub_resources[0].u.surface, &dst_rect,
+                    swapchain->device->cursor_texture->sub_resources[0].u.surface, &src_rect,
                     WINED3D_BLT_ALPHA_TEST, NULL, WINED3D_TEXF_POINT);
     }
 
