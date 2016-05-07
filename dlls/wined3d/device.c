@@ -4568,7 +4568,6 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
 
     if (wined3d_settings.cs_multithreaded)
     {
-        FIXME("Waiting for cs.\n");
         wined3d_cs_emit_glfinish(device->cs);
         device->cs->ops->finish(device->cs);
     }
