@@ -1100,6 +1100,46 @@ static void test_SetThreadContext(void)
     CloseHandle( thread );
 }
 
+static void test_GetThreadSelectorEntry(void)
+{
+    TEB *teb = NtCurrentTeb();
+    LDT_ENTRY entry;
+    CONTEXT ctx;
+    TEB *teb_fs;
+    DWORD ret;
+
+    memset(&ctx, 0x11, sizeof(ctx));
+    ctx.ContextFlags = CONTEXT_SEGMENTS | CONTEXT_CONTROL;
+    ret = GetThreadContext(GetCurrentThread(), &ctx);
+    ok(ret, "GetThreadContext error %u\n", GetLastError());
+    ok(!HIWORD(ctx.SegCs) && !HIWORD(ctx.SegDs) && !HIWORD(ctx.SegEs) && !HIWORD(ctx.SegFs) && !HIWORD(ctx.SegGs),
+       "cs %08x, ds %08x, es %08x, fs %08x, gs %08x\n", ctx.SegCs, ctx.SegDs, ctx.SegEs, ctx.SegFs, ctx.SegGs);
+
+    ret = GetThreadSelectorEntry(GetCurrentThread(), ctx.SegCs, &entry);
+    ok(ret, "GetThreadSelectorEntry(SegCs) error %u\n", GetLastError());
+
+    ret = GetThreadSelectorEntry(GetCurrentThread(), ctx.SegDs, &entry);
+    ok(ret, "GetThreadSelectorEntry(SegDs) error %u\n", GetLastError());
+
+    memset(&entry, 0x11, sizeof(entry));
+    ret = GetThreadSelectorEntry(GetCurrentThread(), ctx.SegFs, &entry);
+    ok(ret, "GetThreadSelectorEntry(SegFs) error %u\n", GetLastError());
+
+    teb_fs = (TEB *)((entry.HighWord.Bits.BaseHi << 24) | (entry.HighWord.Bits.BaseMid << 16) | entry.BaseLow);
+    ok(teb_fs == teb, "teb_fs %p != teb %p\n", teb_fs, teb);
+
+    ret = (entry.HighWord.Bits.LimitHi << 16) | entry.LimitLow;
+    ok(ret == 0x0fff || ret == 0x4000 /* testbot win7u */, "got %#x\n", ret);
+
+    ok(entry.HighWord.Bits.Dpl == 3, "got %#x\n", entry.HighWord.Bits.Dpl);
+    ok(entry.HighWord.Bits.Sys == 0, "got %#x\n", entry.HighWord.Bits.Sys);
+    ok(entry.HighWord.Bits.Pres == 1, "got %#x\n", entry.HighWord.Bits.Pres);
+    ok(entry.HighWord.Bits.Granularity == 0, "got %#x\n", entry.HighWord.Bits.Granularity);
+    ok(entry.HighWord.Bits.Default_Big == 1, "got %#x\n", entry.HighWord.Bits.Default_Big);
+    ok(entry.HighWord.Bits.Type == 0x13, "got %#x\n", entry.HighWord.Bits.Type);
+    ok(entry.HighWord.Bits.Reserved_0 == 0, "got %#x\n", entry.HighWord.Bits.Reserved_0);
+}
+
 #endif  /* __i386__ */
 
 static HANDLE finish_event;
@@ -1965,6 +2005,7 @@ START_TEST(thread)
    test_GetThreadExitCode();
 #ifdef __i386__
    test_SetThreadContext();
+   test_GetThreadSelectorEntry();
 #endif
    test_QueueUserWorkItem();
    test_RegisterWaitForSingleObject();
