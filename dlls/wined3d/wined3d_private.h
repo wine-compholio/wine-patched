@@ -2914,6 +2914,10 @@ struct wined3d_sampler
     GLuint name;
 };
 
+HRESULT wined3d_sampler_create_from_cs(struct wined3d_device *device, const struct wined3d_sampler_desc *desc,
+        void *parent, struct wined3d_sampler **sampler, BOOL from_cs) DECLSPEC_HIDDEN;
+void wined3d_sampler_init(struct wined3d_sampler *sampler) DECLSPEC_HIDDEN;
+
 struct wined3d_vertex_declaration_element
 {
     const struct wined3d_format *format;
@@ -3153,6 +3157,7 @@ void wined3d_cs_emit_buffer_invalidate_bo_range(struct wined3d_cs *cs,
         struct wined3d_buffer *buffer, unsigned int offset, unsigned int size) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_buffer_preload(struct wined3d_cs *cs, struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_create_vbo(struct wined3d_cs *cs, struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
+void wined3d_cs_emit_sampler_init(struct wined3d_cs *cs, struct wined3d_sampler *sampler) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_get_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,
         unsigned int sub_resource_idx) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_release_dc(struct wined3d_cs *cs, struct wined3d_texture *texture,

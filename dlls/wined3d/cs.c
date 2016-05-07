@@ -79,6 +79,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_EVICT_RESOURCE,
     WINED3D_CS_OP_UPDATE_SUB_RESOURCE,
     WINED3D_CS_OP_CREATE_VBO,
+    WINED3D_CS_OP_SAMPLER_INIT,
     WINED3D_CS_OP_GET_DC,
     WINED3D_CS_OP_RELEASE_DC,
     WINED3D_CS_OP_CREATE_DUMMY_TEXTURES,
@@ -471,6 +472,12 @@ struct wined3d_cs_create_vbo
 {
     enum wined3d_cs_op opcode;
     struct wined3d_buffer *buffer;
+};
+
+struct wined3d_cs_sampler_init
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_sampler *sampler;
 };
 
 struct wined3d_cs_get_release_dc
@@ -2433,6 +2440,26 @@ void wined3d_cs_emit_create_vbo(struct wined3d_cs *cs, struct wined3d_buffer *bu
     cs->ops->finish_prio(cs);
 }
 
+static UINT wined3d_cs_exec_sampler_init(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_sampler_init *op = data;
+
+    wined3d_sampler_init(op->sampler);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_sampler_init(struct wined3d_cs *cs, struct wined3d_sampler *sampler)
+{
+    struct wined3d_cs_sampler_init *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_SAMPLER_INIT;
+    op->sampler = sampler;
+
+    cs->ops->submit(cs, sizeof(*op));
+}
+
 static UINT wined3d_cs_exec_get_dc(struct wined3d_cs *cs, const void *data)
 {
     const struct wined3d_cs_get_release_dc *op = data;
@@ -2625,6 +2652,7 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_EVICT_RESOURCE             */ wined3d_cs_exec_evict_resource,
     /* WINED3D_CS_OP_UPDATE_SUB_RESOURCE        */ wined3d_cs_exec_update_sub_resource,
     /* WINED3D_CS_OP_CREATE_VBO                 */ wined3d_cs_exec_create_vbo,
+    /* WINED3D_CS_OP_SAMPLER_INIT               */ wined3d_cs_exec_sampler_init,
     /* WINED3D_CS_OP_GET_DC                     */ wined3d_cs_exec_get_dc,
     /* WINED3D_CS_OP_RELEASE_DC                 */ wined3d_cs_exec_release_dc,
     /* WINED3D_CS_OP_CREATE_DUMMY_TEXTURES      */ wined3d_cs_exec_create_dummy_textures,
