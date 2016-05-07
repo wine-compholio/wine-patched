@@ -2871,6 +2871,9 @@ static inline void *_wined3d_cs_mt_require_space(struct wined3d_cs *cs, size_t s
     struct wined3d_cs_queue *queue = prio ? &cs->prio_queue : &cs->queue;
     size_t queue_size = sizeof(queue->data) / sizeof(*queue->data);
 
+    if (cs->thread_id == GetCurrentThreadId())
+        ERR("Attempting to queue a command from the CS thread.\n");
+
     if (queue_size - size < queue->head)
     {
         struct wined3d_cs_skip *skip;
@@ -2943,18 +2946,6 @@ static void wined3d_cs_emit_stop(struct wined3d_cs *cs)
 static void wined3d_cs_mt_finish(struct wined3d_cs *cs)
 {
     BOOL fence;
-
-    if (cs->thread_id == GetCurrentThreadId())
-    {
-        static BOOL once;
-        if (!once)
-        {
-            FIXME("flush_and_wait called from cs thread\n");
-            once = TRUE;
-        }
-        return;
-    }
-
     wined3d_cs_emit_fence(cs, &fence);
 
     /* A busy wait should be fine, we're not supposed to have to wait very

@@ -3535,6 +3535,9 @@ struct wined3d_context *context_acquire(const struct wined3d_device *device, str
 
     TRACE("device %p, target %p.\n", device, target);
 
+    if (wined3d_settings.cs_multithreaded && device->cs->thread_id != GetCurrentThreadId())
+        FIXME("Acquiring a GL context from outside the CS thread.\n");
+
     if (current_context && current_context->destroyed)
         current_context = NULL;
 
