@@ -1185,7 +1185,11 @@ HRESULT CDECL wined3d_texture_update_desc(struct wined3d_texture *texture, UINT 
     wined3d_texture_invalidate_location(texture, 0, ~valid_location);
 
     if (create_dib)
-        wined3d_surface_create_dc(surface);
+    {
+        HDC dc;
+        wined3d_texture_get_dc(texture, 0, &dc);
+        wined3d_texture_release_dc(texture, 0, dc);
+    }
 
     return WINED3D_OK;
 }
@@ -2175,11 +2179,15 @@ static HRESULT texture_init(struct wined3d_texture *texture, const struct wined3
 
             TRACE("Created surface level %u, layer %u @ %p.\n", i, j, surface);
 
-            if (((desc->usage & WINED3DUSAGE_OWNDC) || (device->wined3d->flags & WINED3D_NO3D))
-                    && FAILED(hr = wined3d_surface_create_dc(surface)))
+            if ((desc->usage & WINED3DUSAGE_OWNDC) || (device->wined3d->flags & WINED3D_NO3D))
             {
-                wined3d_texture_cleanup_main(texture);
-                return hr;
+                HDC dc;
+                if (FAILED(hr = wined3d_texture_get_dc(texture, idx, &dc)))
+                {
+                    wined3d_texture_cleanup_main(texture);
+                    return hr;
+                }
+                wined3d_texture_release_dc(texture, idx, dc);
             }
         }
     }
