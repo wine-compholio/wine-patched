@@ -84,6 +84,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_CREATE_VBO,
     WINED3D_CS_OP_RESOURCE_CLEANUP,
     WINED3D_CS_OP_BUFFER_CLEANUP,
+    WINED3D_CS_OP_TEXTURE_CLEANUP,
     WINED3D_CS_OP_STOP,
 };
 
@@ -497,6 +498,12 @@ struct wined3d_cs_buffer_cleanup
 {
     enum wined3d_cs_op opcode;
     struct wined3d_buffer *buffer;
+};
+
+struct wined3d_cs_texture_cleanup
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_texture *texture;
 };
 
 static void wined3d_cs_mt_submit(struct wined3d_cs *cs, size_t size)
@@ -2496,6 +2503,26 @@ void wined3d_cs_emit_buffer_cleanup(struct wined3d_cs *cs, struct wined3d_buffer
     cs->ops->submit(cs, sizeof(*op));
 }
 
+static UINT wined3d_cs_exec_texture_cleanup(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_texture_cleanup *op = data;
+
+    wined3d_texture_cleanup(op->texture);
+
+    return sizeof(*op);
+}
+
+void wined3d_cs_emit_texture_cleanup(struct wined3d_cs *cs, struct wined3d_texture *texture)
+{
+    struct wined3d_cs_texture_cleanup *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op));
+    op->opcode = WINED3D_CS_OP_TEXTURE_CLEANUP;
+    op->texture = texture;
+
+    cs->ops->submit(cs, sizeof(*op));
+}
+
 static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void *data) =
 {
     /* WINED3D_CS_OP_NOP                        */ wined3d_cs_exec_nop,
@@ -2558,6 +2585,7 @@ static UINT (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_CREATE_VBO                 */ wined3d_cs_exec_create_vbo,
     /* WINED3D_CS_OP_RESOURCE_CLEANUP           */ wined3d_cs_exec_resource_cleanup,
     /* WINED3D_CS_OP_BUFFER_CLEANUP             */ wined3d_cs_exec_buffer_cleanup,
+    /* WINED3D_CS_OP_TEXTURE_CLEANUP            */ wined3d_cs_exec_texture_cleanup,
 };
 
 static inline void *_wined3d_cs_mt_require_space(struct wined3d_cs *cs, size_t size, BOOL prio)
