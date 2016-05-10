@@ -957,17 +957,24 @@ GpStatus WINGDIPAPI GdipEnumerateMetafileDestPointI(GpGraphics *graphics,
 GpStatus WINGDIPAPI GdipGetMetafileHeaderFromMetafile(GpMetafile * metafile,
     MetafileHeader * header)
 {
-    static int calls;
+    GpStatus status;
 
     TRACE("(%p, %p)\n", metafile, header);
 
     if(!metafile || !header)
         return InvalidParameter;
 
-    if(!(calls++))
-        FIXME("not implemented\n");
+    if (!metafile->hemf)
+        return InvalidParameter;
 
-    memset(header, 0, sizeof(MetafileHeader));
+    status = GdipGetMetafileHeaderFromEmf(metafile->hemf, header);
+    if (status != Ok) return status;
+
+    header->Type = metafile->metafile_type;
+    header->DpiX = metafile->image.xres;
+    header->DpiY = metafile->image.yres;
+    header->Width = metafile->bounds.Width;
+    header->Height = metafile->bounds.Height;
 
     return Ok;
 }
