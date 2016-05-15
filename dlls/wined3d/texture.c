@@ -1688,6 +1688,8 @@ void *wined3d_texture_map_internal(struct wined3d_texture *texture, unsigned int
             case WINED3D_LOCATION_BUFFER:
                 sub_resource->map_buffer = wined3d_device_get_bo(device, sub_resource->size,
                         GL_STREAM_DRAW, GL_PIXEL_UNPACK_BUFFER, context);
+                if (!sub_resource->buffer)
+                    sub_resource->buffer = sub_resource->map_buffer;
                 ret = !!sub_resource->map_buffer;
                 break;
 
