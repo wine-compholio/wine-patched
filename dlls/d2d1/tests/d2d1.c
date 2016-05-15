@@ -1103,6 +1103,7 @@ static void test_bitmap_brush(void)
     hr = ID2D1RenderTarget_EndDraw(rt, NULL, NULL);
     ok(SUCCEEDED(hr), "Failed to end draw, hr %#x.\n", hr);
     match = compare_surface(surface, "393636185359a550d459e1e5f0e25411814f724c");
+    todo_wine_if (compare_surface(surface, "f428a7d2f886e33a8be006a831fb38d88b235884"))
     ok(match, "Surface does not match.\n");
 
     ID2D1RenderTarget_BeginDraw(rt);
