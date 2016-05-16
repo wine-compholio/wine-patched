@@ -921,6 +921,16 @@ BOOL  WINAPI EnumerateLoadedModulesW64(HANDLE hProcess,
 }
 
 /******************************************************************
+ *      EnumerateLoadedModulesExW (DBGHELP.@)
+ *
+ */
+BOOL WINAPI EnumerateLoadedModulesExW(HANDLE process, PENUMLOADED_MODULES_CALLBACKW64 callback,
+                                      PVOID context)
+{
+    return EnumerateLoadedModulesW64(process, callback, context);
+}
+
+/******************************************************************
  *		SymGetModuleInfo (DBGHELP.@)
  *
  */

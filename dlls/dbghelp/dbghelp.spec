@@ -5,7 +5,7 @@
 @ stdcall EnumerateLoadedModules(long ptr ptr)
 @ stdcall EnumerateLoadedModules64(long ptr ptr)
 @ stub EnumerateLoadedModulesEx
-@ stub EnumerateLoadedModulesExW
+@ stub EnumerateLoadedModulesExW(long ptr ptr)
 @ stdcall EnumerateLoadedModulesW64(long ptr ptr)
 @ stdcall ExtensionApiVersion()
 @ stdcall FindDebugInfoFile(str str ptr)
