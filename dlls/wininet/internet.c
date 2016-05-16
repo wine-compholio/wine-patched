@@ -1919,6 +1919,8 @@ BOOL WINAPI InternetCrackUrlW(const WCHAR *lpszUrl, DWORD dwUrlLength, DWORD dwF
     {
         if (lpUC->lpszUrlPath && (lpUC->dwUrlPathLength > 0))
             lpUC->lpszUrlPath[0] = 0;
+        else if (lpUC->dwUrlPathLength > 0)
+            lpUC->lpszUrlPath = (WCHAR*)lpszcp;
         lpUC->dwUrlPathLength = 0;
     }
 
