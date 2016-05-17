@@ -411,7 +411,11 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
         unsigned int start_idx, unsigned int index_count, unsigned int start_instance,
         unsigned int instance_count, BOOL indexed)
 {
+#if defined(STAGING_CSMT)
     const struct wined3d_fb_state *fb = &state->fb;
+#else  /* STAGING_CSMT */
+    const struct wined3d_fb_state *fb = state->fb;
+#endif /* STAGING_CSMT */
     const struct wined3d_stream_info *stream_info;
     struct wined3d_event_query *ib_query = NULL;
     struct wined3d_stream_info si_emulated;
@@ -437,6 +441,7 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
     for (i = 0; i < gl_info->limits.buffers; ++i)
     {
         struct wined3d_rendertarget_view *rtv = fb->render_targets[i];
+#if defined(STAGING_CSMT)
 
         if (rtv && rtv->format->id != WINED3DFMT_NULL)
         {
@@ -450,6 +455,21 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
             else
             {
                 wined3d_texture_prepare_location(target, rtv->sub_resource_idx,
+#else  /* STAGING_CSMT */
+        struct wined3d_surface *target = wined3d_rendertarget_view_get_surface(rtv);
+
+        if (target && rtv->format->id != WINED3DFMT_NULL)
+        {
+            if (state->render_states[WINED3D_RS_COLORWRITEENABLE])
+            {
+                surface_load_location(target, context, rtv->resource->draw_binding);
+                wined3d_texture_invalidate_location(target->container,
+                        rtv->sub_resource_idx, ~rtv->resource->draw_binding);
+            }
+            else
+            {
+                wined3d_texture_prepare_location(target->container, rtv->sub_resource_idx,
+#endif /* STAGING_CSMT */
                         context, rtv->resource->draw_binding);
             }
         }
@@ -469,8 +489,13 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
         {
             RECT current_rect, draw_rect, r;
 
+#if defined(STAGING_CSMT)
             if (!context->render_offscreen && ds != device->cs->onscreen_depth_stencil)
                 wined3d_cs_switch_onscreen_ds(device->cs, context, ds);
+#else  /* STAGING_CSMT */
+            if (!context->render_offscreen && ds != device->onscreen_depth_stencil)
+                device_switch_onscreen_ds(device, context, ds);
+#endif /* STAGING_CSMT */
 
             if (surface_get_sub_resource(ds)->locations & location)
                 SetRect(&current_rect, 0, 0, ds->ds_current_size.cx, ds->ds_current_size.cy);
@@ -481,7 +506,11 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
 
             IntersectRect(&r, &draw_rect, &current_rect);
             if (!EqualRect(&r, &draw_rect))
+#if defined(STAGING_CSMT)
                 wined3d_texture_load_location(ds->container, surface_get_sub_resource_idx(ds), context, location);
+#else  /* STAGING_CSMT */
+                surface_load_location(ds, context, location);
+#endif /* STAGING_CSMT */
             else
                 wined3d_texture_prepare_location(ds->container, dsv->sub_resource_idx, context, location);
         }

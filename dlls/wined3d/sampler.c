@@ -33,6 +33,7 @@ ULONG CDECL wined3d_sampler_incref(struct wined3d_sampler *sampler)
     return refcount;
 }
 
+#if defined(STAGING_CSMT)
 void wined3d_sampler_destroy(struct wined3d_sampler *sampler)
 {
     struct wined3d_context *context = context_acquire(sampler->device, NULL);
@@ -54,6 +55,24 @@ ULONG CDECL wined3d_sampler_decref(struct wined3d_sampler *sampler)
     {
         struct wined3d_device *device = sampler->device;
         wined3d_cs_emit_sampler_destroy(device->cs, sampler);
+#else  /* STAGING_CSMT */
+ULONG CDECL wined3d_sampler_decref(struct wined3d_sampler *sampler)
+{
+    ULONG refcount = InterlockedDecrement(&sampler->refcount);
+    const struct wined3d_gl_info *gl_info;
+    struct wined3d_context *context;
+
+    TRACE("%p decreasing refcount to %u.\n", sampler, refcount);
+
+    if (!refcount)
+    {
+        context = context_acquire(sampler->device, NULL);
+        gl_info = context->gl_info;
+        GL_EXTCALL(glDeleteSamplers(1, &sampler->name));
+        context_release(context);
+
+        HeapFree(GetProcessHeap(), 0, sampler);
+#endif /* STAGING_CSMT */
     }
 
     return refcount;
@@ -66,6 +85,7 @@ void * CDECL wined3d_sampler_get_parent(const struct wined3d_sampler *sampler)
     return sampler->parent;
 }
 
+#if defined(STAGING_CSMT)
 void wined3d_sampler_init(struct wined3d_sampler *sampler)
 {
     const struct wined3d_gl_info *gl_info;
@@ -97,6 +117,45 @@ void wined3d_sampler_init(struct wined3d_sampler *sampler)
             wined3d_gl_compare_func(sampler->desc.comparison_func)));
     if ((context->d3d_info->wined3d_creation_flags & WINED3D_SRGB_READ_WRITE_CONTROL)
             && gl_info->supported[EXT_TEXTURE_SRGB_DECODE] && !sampler->desc.srgb_decode)
+#else  /* STAGING_CSMT */
+static void wined3d_sampler_init(struct wined3d_sampler *sampler, struct wined3d_device *device,
+        const struct wined3d_sampler_desc *desc, void *parent)
+{
+    const struct wined3d_gl_info *gl_info;
+    struct wined3d_context *context;
+
+    sampler->refcount = 1;
+    sampler->device = device;
+    sampler->parent = parent;
+    sampler->desc = *desc;
+
+    context = context_acquire(device, NULL);
+    gl_info = context->gl_info;
+
+    GL_EXTCALL(glGenSamplers(1, &sampler->name));
+    GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_WRAP_S,
+            gl_info->wrap_lookup[desc->address_u - WINED3D_TADDRESS_WRAP]));
+    GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_WRAP_T,
+            gl_info->wrap_lookup[desc->address_v - WINED3D_TADDRESS_WRAP]));
+    GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_WRAP_R,
+            gl_info->wrap_lookup[desc->address_w - WINED3D_TADDRESS_WRAP]));
+    GL_EXTCALL(glSamplerParameterfv(sampler->name, GL_TEXTURE_BORDER_COLOR, &desc->border_color[0]));
+    GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_MAG_FILTER,
+            wined3d_gl_mag_filter(desc->mag_filter)));
+    GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_MIN_FILTER,
+            wined3d_gl_min_mip_filter(desc->min_filter, desc->mip_filter)));
+    GL_EXTCALL(glSamplerParameterf(sampler->name, GL_TEXTURE_LOD_BIAS, desc->lod_bias));
+    GL_EXTCALL(glSamplerParameterf(sampler->name, GL_TEXTURE_MIN_LOD, desc->min_lod));
+    GL_EXTCALL(glSamplerParameterf(sampler->name, GL_TEXTURE_MAX_LOD, desc->max_lod));
+    if (gl_info->supported[EXT_TEXTURE_FILTER_ANISOTROPIC])
+        GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_MAX_ANISOTROPY_EXT, desc->max_anisotropy));
+    if (desc->compare)
+        GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE));
+    GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_COMPARE_FUNC,
+            wined3d_gl_compare_func(desc->comparison_func)));
+    if ((context->d3d_info->wined3d_creation_flags & WINED3D_SRGB_READ_WRITE_CONTROL)
+            && gl_info->supported[EXT_TEXTURE_SRGB_DECODE] && !desc->srgb_decode)
+#endif /* STAGING_CSMT */
         GL_EXTCALL(glSamplerParameteri(sampler->name, GL_TEXTURE_SRGB_DECODE_EXT, GL_SKIP_DECODE_EXT));
     checkGLcall("sampler creation");
 
@@ -108,12 +167,14 @@ void wined3d_sampler_init(struct wined3d_sampler *sampler)
 HRESULT CDECL wined3d_sampler_create(struct wined3d_device *device, const struct wined3d_sampler_desc *desc,
         void *parent, struct wined3d_sampler **sampler)
 {
+#if defined(STAGING_CSMT)
     return wined3d_sampler_create_from_cs(device, desc, parent, sampler, FALSE);
 }
 
 HRESULT wined3d_sampler_create_from_cs(struct wined3d_device *device, const struct wined3d_sampler_desc *desc,
         void *parent, struct wined3d_sampler **sampler, BOOL from_cs)
 {
+#endif /* STAGING_CSMT */
     struct wined3d_sampler *object;
 
     TRACE("device %p, desc %p, parent %p, sampler %p.\n", device, desc, parent, sampler);
@@ -134,6 +195,7 @@ HRESULT wined3d_sampler_create_from_cs(struct wined3d_device *device, const stru
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
         return E_OUTOFMEMORY;
 
+#if defined(STAGING_CSMT)
     object->refcount = 1;
     object->device = device;
     object->parent = parent;
@@ -142,6 +204,9 @@ HRESULT wined3d_sampler_create_from_cs(struct wined3d_device *device, const stru
         wined3d_sampler_init(object);
     else
         wined3d_cs_emit_sampler_init(device->cs, object);
+#else  /* STAGING_CSMT */
+    wined3d_sampler_init(object, device, desc, parent);
+#endif /* STAGING_CSMT */
 
     TRACE("Created sampler %p.\n", object);
     *sampler = object;
