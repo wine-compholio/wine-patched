@@ -1222,7 +1222,7 @@ UINT CDECL wined3d_device_get_available_texture_mem(const struct wined3d_device 
 
     /* We can not acquire the context unless there is a swapchain. */
     if (device->swapchains && gl_info->supported[NVX_GPU_MEMORY_INFO] &&
-            !wined3d_settings.emulated_textureram)
+            !wined3d_settings.emulated_textureram && !wined3d_settings.cs_multithreaded)
     {
         GLint vram_free_kb;
         UINT64 vram_free;
