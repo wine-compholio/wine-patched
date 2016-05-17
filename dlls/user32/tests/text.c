@@ -2,7 +2,7 @@
  * DrawText tests
  *
  * Copyright (c) 2004 Zach Gorman
- * Copyright 2007 Dmitry Timoshkov
+ * Copyright 2007,2016 Dmitry Timoshkov
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -759,9 +759,44 @@ static void test_DrawState(void)
     DestroyWindow(hwnd);
 }
 
+static void test_string_conversions(void)
+{
+    char buf[64] = "string";
+    int i;
+    BOOL ret;
+    struct
+    {
+        char *src, *dst;
+        unsigned len;
+        BOOL ret;
+    } test[] =
+    {
+        { NULL, NULL, 1, FALSE },
+        { buf, NULL, 1, FALSE },
+        { NULL, buf, 1, FALSE },
+        { buf, buf, 1, TRUE }
+    };
+
+    for (i = 0; i < sizeof(test)/sizeof(test[0]); i++)
+    {
+        ret = CharToOemA(test[i].src, test[i].dst);
+        ok(ret == test[i].ret, "%d: expected %d, got %d\n", i, test[i].ret, ret);
+
+        ret = CharToOemBuffA(test[i].src, test[i].dst, test[i].len);
+        ok(ret == test[i].ret, "%d: expected %d, got %d\n", i, test[i].ret, ret);
+
+        ret = OemToCharA(test[i].src, test[i].dst);
+        ok(ret == test[i].ret, "%d: expected %d, got %d\n", i, test[i].ret, ret);
+
+        ret = OemToCharBuffA(test[i].src, test[i].dst, test[i].len);
+        ok(ret == test[i].ret, "%d: expected %d, got %d\n", i, test[i].ret, ret);
+    }
+}
+
 START_TEST(text)
 {
     test_TabbedText();
     test_DrawTextCalcRect();
     test_DrawState();
+    test_string_conversions();
 }
