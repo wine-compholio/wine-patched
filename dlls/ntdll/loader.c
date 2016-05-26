@@ -436,7 +436,6 @@ static WINE_MODREF *get_modref( HMODULE hmod )
         mod = CONTAINING_RECORD(entry, LDR_MODULE, InMemoryOrderModuleList);
         if (mod->BaseAddress == hmod)
             return cached_modref = CONTAINING_RECORD(mod, WINE_MODREF, ldr);
-        if (mod->BaseAddress > (void*)hmod) break;
     }
     return NULL;
 }
@@ -1017,7 +1016,6 @@ static WINE_MODREF *alloc_module( HMODULE hModule, LPCWSTR filename, LPCWSTR fak
     WINE_MODREF *wm;
     const WCHAR *p;
     const IMAGE_NT_HEADERS *nt = RtlImageNtHeader(hModule);
-    PLIST_ENTRY entry, mark;
 
     if (!(wm = RtlAllocateHeap( GetProcessHeap(), 0, sizeof(*wm) ))) return NULL;
 
@@ -1050,18 +1048,8 @@ static WINE_MODREF *alloc_module( HMODULE hModule, LPCWSTR filename, LPCWSTR fak
 
     InsertTailList(&NtCurrentTeb()->Peb->LdrData->InLoadOrderModuleList,
                    &wm->ldr.InLoadOrderModuleList);
-
-    /* insert module in MemoryList, sorted in increasing base addresses */
-    mark = &NtCurrentTeb()->Peb->LdrData->InMemoryOrderModuleList;
-    for (entry = mark->Flink; entry != mark; entry = entry->Flink)
-    {
-        if (CONTAINING_RECORD(entry, LDR_MODULE, InMemoryOrderModuleList)->BaseAddress > wm->ldr.BaseAddress)
-            break;
-    }
-    entry->Blink->Flink = &wm->ldr.InMemoryOrderModuleList;
-    wm->ldr.InMemoryOrderModuleList.Blink = entry->Blink;
-    wm->ldr.InMemoryOrderModuleList.Flink = entry;
-    entry->Blink = &wm->ldr.InMemoryOrderModuleList;
+    InsertTailList(&NtCurrentTeb()->Peb->LdrData->InMemoryOrderModuleList,
+                   &wm->ldr.InMemoryOrderModuleList);
 
     /* wait until init is called for inserting into this list */
     wm->ldr.InInitializationOrderModuleList.Flink = NULL;
@@ -1506,7 +1494,6 @@ NTSTATUS WINAPI LdrFindEntryForAddress(const void* addr, PLDR_MODULE* pmod)
             *pmod = mod;
             return STATUS_SUCCESS;
         }
-        if (mod->BaseAddress > addr) break;
     }
     return STATUS_NO_MORE_ENTRIES;
 }
@@ -3456,6 +3443,8 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
     /* the main exe needs to be the first in the load order list */
     RemoveEntryList( &wm->ldr.InLoadOrderModuleList );
     InsertHeadList( &peb->LdrData->InLoadOrderModuleList, &wm->ldr.InLoadOrderModuleList );
+    RemoveEntryList( &wm->ldr.InMemoryOrderModuleList );
+    InsertHeadList( &peb->LdrData->InMemoryOrderModuleList, &wm->ldr.InMemoryOrderModuleList );
 
     if ((status = virtual_alloc_thread_stack( NtCurrentTeb(), 0, 0 )) != STATUS_SUCCESS) goto error;
     if ((status = server_init_process_done()) != STATUS_SUCCESS) goto error;
