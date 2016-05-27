@@ -480,6 +480,15 @@ CONFIGRET WINAPI CM_Set_Class_Registry_PropertyW(LPGUID class, ULONG prop, PVOID
 }
 
 /***********************************************************************
+ *      CM_Get_DevNode_Status (SETUPAPI.@)
+ */
+CONFIGRET WINAPI CM_Get_DevNode_Status(ULONG *status, ULONG *problem, DEVINST inst, ULONG flags)
+{
+    FIXME("%p %p 0x%08x 0x%08x: stub\n", status, problem, inst, flags);
+    return CR_FAILURE;
+}
+
+/***********************************************************************
  *              SetupLogFileW  (SETUPAPI.@)
  */
 BOOL WINAPI SetupLogFileW(
