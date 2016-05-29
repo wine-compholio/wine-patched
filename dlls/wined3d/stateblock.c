@@ -430,7 +430,9 @@ void state_unbind_resources(struct wined3d_state *state)
     struct wined3d_texture *texture;
     struct wined3d_buffer *buffer;
     struct wined3d_shader *shader;
+#if defined(STAGING_CSMT)
     struct wined3d_rendertarget_view *view;
+#endif /* STAGING_CSMT */
     unsigned int i, j;
 
     if ((decl = state->vertex_declaration))
@@ -507,6 +509,7 @@ void state_unbind_resources(struct wined3d_state *state)
             }
         }
     }
+#if defined(STAGING_CSMT)
 
     if (state->fb.depth_stencil)
     {
@@ -532,6 +535,7 @@ void state_unbind_resources(struct wined3d_state *state)
             }
         }
     }
+#endif /* STAGING_CSMT */
 }
 
 void state_cleanup(struct wined3d_state *state)
@@ -556,8 +560,10 @@ void state_cleanup(struct wined3d_state *state)
             HeapFree(GetProcessHeap(), 0, light);
         }
     }
+#if defined(STAGING_CSMT)
 
     HeapFree(GetProcessHeap(), 0, state->fb.render_targets);
+#endif /* STAGING_CSMT */
 }
 
 ULONG CDECL wined3d_stateblock_decref(struct wined3d_stateblock *stateblock)
@@ -1007,8 +1013,13 @@ void CDECL wined3d_stateblock_apply(const struct wined3d_stateblock *stateblock)
         gl_primitive_type = stateblock->state.gl_primitive_type;
         prev = device->update_state->gl_primitive_type;
         device->update_state->gl_primitive_type = gl_primitive_type;
+#if defined(STAGING_CSMT)
         if (gl_primitive_type != prev)
             wined3d_cs_emit_set_primitive_type(device->cs, gl_primitive_type);
+#else  /* STAGING_CSMT */
+        if (gl_primitive_type != prev && (gl_primitive_type == GL_POINTS || prev == GL_POINTS))
+            device_invalidate_state(device, STATE_POINT_ENABLE);
+#endif /* STAGING_CSMT */
     }
 
     if (stateblock->changed.indices)
@@ -1266,6 +1277,7 @@ static void state_init_default(struct wined3d_state *state, const struct wined3d
         state->sampler_states[i][WINED3D_SAMP_ELEMENT_INDEX] = 0;
         /* TODO: Vertex offset in the presampled displacement map. */
         state->sampler_states[i][WINED3D_SAMP_DMAP_OFFSET] = 0;
+#if defined(STAGING_CSMT)
         state->textures[i] = NULL;
     }
 
@@ -1312,6 +1324,37 @@ static HRESULT stateblock_init(struct wined3d_stateblock *stateblock,
 
     if (FAILED(hr = state_init(&stateblock->state, gl_info, d3d_info, 0)))
         return hr;
+#else  /* STAGING_CSMT */
+    }
+}
+
+void state_init(struct wined3d_state *state, struct wined3d_fb_state *fb,
+        const struct wined3d_gl_info *gl_info, const struct wined3d_d3d_info *d3d_info,
+        DWORD flags)
+{
+    unsigned int i;
+
+    state->flags = flags;
+    state->fb = fb;
+
+    for (i = 0; i < LIGHTMAP_SIZE; i++)
+    {
+        list_init(&state->light_map[i]);
+    }
+
+    if (flags & WINED3D_STATE_INIT_DEFAULT)
+        state_init_default(state, gl_info);
+}
+
+static HRESULT stateblock_init(struct wined3d_stateblock *stateblock,
+        struct wined3d_device *device, enum wined3d_stateblock_type type)
+{
+    const struct wined3d_d3d_info *d3d_info = &device->adapter->d3d_info;
+
+    stateblock->ref = 1;
+    stateblock->device = device;
+    state_init(&stateblock->state, NULL, &device->adapter->gl_info, d3d_info, 0);
+#endif /* STAGING_CSMT */
 
     if (type == WINED3D_SBT_RECORDED)
         return WINED3D_OK;

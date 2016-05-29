@@ -2332,7 +2332,11 @@ static void shader_trace_init(const struct wined3d_shader_frontend *fe, void *fe
     string_buffer_free(&buffer);
 }
 
+#if defined(STAGING_CSMT)
 void shader_cleanup(struct wined3d_shader *shader)
+#else  /* STAGING_CSMT */
+static void shader_cleanup(struct wined3d_shader *shader)
+#endif /* STAGING_CSMT */
 {
     HeapFree(GetProcessHeap(), 0, shader->output_signature.elements);
     HeapFree(GetProcessHeap(), 0, shader->input_signature.elements);
@@ -2600,10 +2604,16 @@ ULONG CDECL wined3d_shader_decref(struct wined3d_shader *shader)
 
     if (!refcount)
     {
+#if defined(STAGING_CSMT)
         const struct wined3d_device *device = shader->device;
 
         shader->parent_ops->wined3d_object_destroyed(shader->parent);
         wined3d_cs_emit_shader_cleanup(device->cs, shader);
+#else  /* STAGING_CSMT */
+        shader_cleanup(shader);
+        shader->parent_ops->wined3d_object_destroyed(shader->parent);
+        HeapFree(GetProcessHeap(), 0, shader);
+#endif /* STAGING_CSMT */
     }
 
     return refcount;
@@ -2924,7 +2934,11 @@ void find_ps_compile_args(const struct wined3d_state *state, const struct wined3
     UINT i;
 
     memset(args, 0, sizeof(*args)); /* FIXME: Make sure all bits are set. */
+#if defined(STAGING_CSMT)
     if (!gl_info->supported[ARB_FRAMEBUFFER_SRGB] && needs_srgb_write(context, state, &state->fb))
+#else  /* STAGING_CSMT */
+    if (!gl_info->supported[ARB_FRAMEBUFFER_SRGB] && needs_srgb_write(context, state, state->fb))
+#endif /* STAGING_CSMT */
     {
         static unsigned int warned = 0;
 
