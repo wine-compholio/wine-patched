@@ -1603,6 +1603,31 @@ static BOOL PATH_StrokePath( HDC hdc, const struct gdi_path *pPath )
     DWORD mapMode, graphicsMode;
     XFORM xform;
     BOOL ret = TRUE;
+    HPEN hpen;
+    int logpen_size;
+    EXTLOGPEN *logpen;
+
+    /* PS_GEOMETRIC pens specify width in logical units, therefore we need
+     * to scale currently selected geometric pen for the new mapping mode.
+     */
+    hpen = GetCurrentObject(hdc, OBJ_PEN);
+    logpen_size = GetObjectW(hpen, 0, NULL);
+    logpen = HeapAlloc(GetProcessHeap(), 0, logpen_size);
+    if (!logpen) return FALSE;
+    GetObjectW(hpen, logpen_size, logpen);
+    if (logpen->elpPenStyle & PS_GEOMETRIC)
+    {
+        POINT pen_width;
+        pen_width.x = logpen->elpWidth;
+        pen_width.y = 0;
+        LPtoDP(hdc, &pen_width, 1);
+        logpen->elpWidth = pen_width.x;
+    }
+    else
+    {
+        HeapFree(GetProcessHeap(), 0, logpen);
+        logpen = NULL;
+    }
 
     /* Save the mapping mode info */
     mapMode=GetMapMode(hdc);
@@ -1621,13 +1646,31 @@ static BOOL PATH_StrokePath( HDC hdc, const struct gdi_path *pPath )
     ModifyWorldTransform(hdc, &xform, MWT_IDENTITY);
     SetGraphicsMode(hdc, graphicsMode);
 
+    if (logpen)
+    {
+        POINT pen_width;
+        LOGBRUSH logbrush;
+
+        pen_width.x = logpen->elpWidth;
+        pen_width.y = 0;
+        DPtoLP(hdc, &pen_width, 1);
+        logpen->elpWidth = pen_width.x;
+        logbrush.lbStyle = logpen->elpBrushStyle;
+        logbrush.lbColor = logpen->elpColor;
+        logbrush.lbHatch = logpen->elpHatch;
+        hpen = ExtCreatePen(logpen->elpPenStyle, logpen->elpWidth,
+                            &logbrush, logpen->elpNumEntries,
+                            logpen->elpNumEntries ? logpen->elpStyleEntry : NULL);
+        hpen = SelectObject(hdc, hpen);
+    }
+
     /* Allocate enough memory for the worst case without beziers (one PT_MOVETO
      * and the rest PT_LINETO with PT_CLOSEFIGURE at the end) plus some buffer 
      * space in case we get one to keep the number of reallocations small. */
     nAlloc = pPath->count + 1 + 300;
     pLinePts = HeapAlloc(GetProcessHeap(), 0, nAlloc * sizeof(POINT));
     nLinePts = 0;
-    
+
     for(i = 0; i < pPath->count; i++) {
         if((i == 0 || (pPath->flags[i-1] & PT_CLOSEFIGURE)) &&
 	   (pPath->flags[i] != PT_MOVETO)) {
@@ -1692,6 +1735,14 @@ static BOOL PATH_StrokePath( HDC hdc, const struct gdi_path *pPath )
 
  end:
     HeapFree(GetProcessHeap(), 0, pLinePts);
+
+    /* Restore original not scaled pen */
+    if (logpen)
+    {
+        hpen = SelectObject(hdc, hpen);
+        DeleteObject(hpen);
+        HeapFree(GetProcessHeap(), 0, logpen);
+    }
 
     /* Restore the old mapping mode */
     SetMapMode(hdc, mapMode);
