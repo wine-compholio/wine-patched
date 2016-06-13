@@ -1339,7 +1339,11 @@ static void color_fill_test(void)
          * result on Wine.
          * {D3DFMT_YUY2,     "D3DFMT_YUY2",     BLOCKS,                              0},
          * {D3DFMT_UYVY,     "D3DFMT_UYVY",     BLOCKS,                              0}, */
+#if defined(STAGING_CSMT)
         {D3DFMT_DXT1,     "D3DFMT_DXT1",     BLOCKS,                              0},
+#else  /* STAGING_CSMT */
+        {D3DFMT_DXT1,     "D3DFMT_DXT1",     BLOCKS | TODO_FILL_RETURN,           0},
+#endif /* STAGING_CSMT */
         /* Vendor-specific formats like ATI2N are a non-issue here since they're not
          * supported as offscreen plain surfaces and do not support D3DUSAGE_RENDERTARGET
          * when created as texture. */
@@ -17620,7 +17624,11 @@ static void add_dirty_rect_test(void)
     fill_surface(surface_managed, 0x0000ff00, D3DLOCK_NO_DIRTY_UPDATE);
     add_dirty_rect_test_draw(device);
     color = getPixelColor(device, 320, 240);
+#if defined(STAGING_CSMT)
     todo_wine ok(color_match(color, 0x00ff0000, 1),
+#else  /* STAGING_CSMT */
+    ok(color_match(color, 0x00ff0000, 1),
+#endif /* STAGING_CSMT */
             "Expected color 0x00ff0000, got 0x%08x.\n", color);
     hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
     ok(SUCCEEDED(hr), "Failed to present, hr %#x.\n", hr);
