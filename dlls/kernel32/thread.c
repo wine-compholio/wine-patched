@@ -113,6 +113,54 @@ HANDLE WINAPI CreateRemoteThread( HANDLE hProcess, SECURITY_ATTRIBUTES *sa, SIZE
 }
 
 
+/***************************************************************************
+ *                  CreateRemoteThreadEx   (KERNEL32.@)
+ */
+HANDLE WINAPI CreateRemoteThreadEx( HANDLE hProcess, SECURITY_ATTRIBUTES *sa, SIZE_T stack,
+                                    LPTHREAD_START_ROUTINE start, LPVOID param, DWORD flags,
+                                    LPPROC_THREAD_ATTRIBUTE_LIST attrs, LPDWORD id )
+{
+    FIXME( "attribute list ignored\n" );
+    return CreateRemoteThread( hProcess, sa, stack, start, param, flags, id );
+}
+
+
+/***************************************************************************
+ *                  InitializeProcThreadAttributeList   (KERNEL32.@)
+ */
+BOOL WINAPI InitializeProcThreadAttributeList( LPPROC_THREAD_ATTRIBUTE_LIST *attrs,
+                                               DWORD count, DWORD flags, PSIZE_T size )
+{
+    FIXME( "%p,%u,%08x,%p: stub\n", attrs, count, flags, size );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
+}
+
+
+/***************************************************************************
+ *                  DeleteProcThreadAttributeList   (KERNEL32.@)
+ */
+void WINAPI DeleteProcThreadAttributeList( LPPROC_THREAD_ATTRIBUTE_LIST attrs )
+{
+    FIXME( "%p: stub\n", attrs );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+}
+
+
+/***************************************************************************
+ *                  UpdateProcThreadAttribute   (KERNEL32.@)
+ */
+BOOL WINAPI UpdateProcThreadAttribute( LPPROC_THREAD_ATTRIBUTE_LIST attrs, DWORD flags,
+                                       DWORD_PTR attributes, void *value, SIZE_T size,
+                                       void *prev_value, SIZE_T *ret_size )
+{
+    FIXME( "%p,%08x,%08lx,%p,%08lx,%p,%p: stub\n", attrs, flags, attributes, value,
+                                                   size, prev_value, ret_size );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
+}
+
+
 /***********************************************************************
  * OpenThread  [KERNEL32.@]   Retrieves a handle to a thread from its thread id
  */
