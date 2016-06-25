@@ -213,7 +213,9 @@ HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *
             ERR("Failed to allocate system memory.\n");
             return E_OUTOFMEMORY;
         }
+#if defined(STAGING_CSMT)
         resource->heap_memory = resource->map_heap_memory;
+#endif /* STAGING_CSMT */
     }
     else
     {
@@ -237,6 +239,7 @@ HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *
     return WINED3D_OK;
 }
 
+#if defined(STAGING_CSMT)
 void wined3d_resource_cleanup_cs(struct wined3d_resource *resource)
 {
     wined3d_resource_free_sysmem(resource);
@@ -244,6 +247,7 @@ void wined3d_resource_cleanup_cs(struct wined3d_resource *resource)
     context_resource_released(resource->device, resource, resource->type);
 }
 
+#endif /* STAGING_CSMT */
 void resource_cleanup(struct wined3d_resource *resource)
 {
     const struct wined3d *d3d = resource->device->wined3d;
@@ -256,8 +260,14 @@ void resource_cleanup(struct wined3d_resource *resource)
         adapter_adjust_memory(resource->device->adapter, (INT64)0 - resource->size);
     }
 
+#if defined(STAGING_CSMT)
     device_resource_released(resource->device, resource);
     wined3d_cs_emit_resource_cleanup(resource->device->cs, resource);
+#else  /* STAGING_CSMT */
+    wined3d_resource_free_sysmem(resource);
+
+    device_resource_released(resource->device, resource);
+#endif /* STAGING_CSMT */
 }
 
 void resource_unload(struct wined3d_resource *resource)
@@ -340,7 +350,11 @@ BOOL wined3d_resource_allocate_sysmem(struct wined3d_resource *resource)
     p = (void **)(((ULONG_PTR)mem + align) & ~(RESOURCE_ALIGNMENT - 1)) - 1;
     *p = mem;
 
+#if defined(STAGING_CSMT)
     resource->map_heap_memory = ++p;
+#else  /* STAGING_CSMT */
+    resource->heap_memory = ++p;
+#endif /* STAGING_CSMT */
 
     return TRUE;
 }
