@@ -82,6 +82,11 @@ MAKE_FUNCPTR(gnutls_transport_set_push_function);
 #define GNUTLS_CIPHER_AES_192_CBC 92
 #define GNUTLS_CIPHER_AES_128_GCM 93
 #define GNUTLS_CIPHER_AES_256_GCM 94
+
+#define GNUTLS_KX_ANON_ECDH     11
+#define GNUTLS_KX_ECDHE_RSA     12
+#define GNUTLS_KX_ECDHE_ECDSA   13
+#define GNUTLS_KX_ECDHE_PSK     14
 #endif
 
 static int compat_cipher_get_block_size(gnutls_cipher_algorithm_t cipher)
