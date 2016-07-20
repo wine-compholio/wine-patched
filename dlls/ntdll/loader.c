@@ -63,6 +63,7 @@ WINE_DECLARE_DEBUG_CHANNEL(pid);
 
 typedef DWORD (CALLBACK *DLLENTRYPROC)(HMODULE,DWORD,LPVOID);
 
+static BOOL process_attaching = TRUE;   /* set on process attach to avoid calling callbacks too early */
 static BOOL process_detaching = FALSE;  /* set on process detach to avoid deadlocks with thread detach */
 static int free_lib_count;   /* recursion depth of LdrUnloadDll calls */
 
@@ -443,7 +444,7 @@ static FARPROC find_forwarded_export( HMODULE module, const char *forward, LPCWS
     {
         TRACE( "delay loading %s for '%s'\n", debugstr_w(mod_name), forward );
         if (load_dll( load_path, mod_name, 0, &wm ) == STATUS_SUCCESS &&
-            !(wm->ldr.Flags & LDR_DONT_RESOLVE_REFS))
+            !(wm->ldr.Flags & LDR_DONT_RESOLVE_REFS) && !process_attaching)
         {
             if (process_attach( wm, NULL ) != STATUS_SUCCESS)
             {
@@ -2961,6 +2962,7 @@ static NTSTATUS attach_process_dlls( void *wm )
 {
     NTSTATUS status;
 
+    process_attaching = FALSE;
     pthread_sigmask( SIG_UNBLOCK, &server_block_set, NULL );
 
     RtlEnterCriticalSection( &loader_section );
