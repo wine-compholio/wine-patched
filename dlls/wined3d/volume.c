@@ -119,6 +119,7 @@ static void wined3d_volume_download_data(struct wined3d_volume *volume,
 
 }
 
+#if !defined(STAGING_CSMT)
 static DWORD volume_access_from_location(DWORD location)
 {
     switch (location)
@@ -140,6 +141,7 @@ static DWORD volume_access_from_location(DWORD location)
     }
 }
 
+#endif /* STAGING_CSMT */
 /* Context activation is done by the caller. */
 static void wined3d_volume_srgb_transfer(struct wined3d_volume *volume,
         struct wined3d_context *context, BOOL dest_is_srgb)
@@ -170,7 +172,9 @@ static void wined3d_volume_srgb_transfer(struct wined3d_volume *volume,
 BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
         struct wined3d_context *context, DWORD location)
 {
+#if !defined(STAGING_CSMT)
     DWORD required_access = volume_access_from_location(location);
+#endif /* STAGING_CSMT */
     unsigned int sub_resource_idx = volume->texture_level;
     struct wined3d_texture *texture = volume->container;
     struct wined3d_texture_sub_resource *sub_resource;
@@ -179,6 +183,7 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
     TRACE("Volume %p, loading %s, have %s.\n", volume, wined3d_debug_location(location),
         wined3d_debug_location(sub_resource->locations));
 
+#if !defined(STAGING_CSMT)
     if ((sub_resource->locations & location) == location)
     {
         TRACE("Location(s) already up to date.\n");
@@ -192,9 +197,11 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
         return FALSE;
     }
 
+#endif /* STAGING_CSMT */
     if (!wined3d_texture_prepare_location(texture, sub_resource_idx, context, location))
         return FALSE;
 
+#if !defined(STAGING_CSMT)
     if (sub_resource->locations & WINED3D_LOCATION_DISCARDED)
     {
         TRACE("Volume previously discarded, nothing to do.\n");
@@ -203,6 +210,7 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
         goto done;
     }
 
+#endif /* STAGING_CSMT */
     switch (location)
     {
         case WINED3D_LOCATION_TEXTURE_RGB:
@@ -217,7 +225,11 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
             }
             else if (sub_resource->locations & WINED3D_LOCATION_BUFFER)
             {
+#if !defined(STAGING_CSMT)
                 struct wined3d_const_bo_address data = {sub_resource->buffer_object, NULL};
+#else  /* STAGING_CSMT */
+                struct wined3d_const_bo_address data = {sub_resource->buffer->name, NULL};
+#endif /* STAGING_CSMT */
                 wined3d_texture_bind_and_dirtify(texture, context,
                         location == WINED3D_LOCATION_TEXTURE_SRGB);
                 wined3d_volume_upload_data(texture, sub_resource_idx, context, &data);
@@ -262,7 +274,11 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
         case WINED3D_LOCATION_BUFFER:
             if (sub_resource->locations & (WINED3D_LOCATION_TEXTURE_RGB | WINED3D_LOCATION_TEXTURE_SRGB))
             {
+#if !defined(STAGING_CSMT)
                 struct wined3d_bo_address data = {sub_resource->buffer_object, NULL};
+#else  /* STAGING_CSMT */
+                struct wined3d_bo_address data = {sub_resource->buffer->name, NULL};
+#endif /* STAGING_CSMT */
 
                 if (sub_resource->locations & WINED3D_LOCATION_TEXTURE_RGB)
                     wined3d_texture_bind_and_dirtify(texture, context, FALSE);
@@ -285,7 +301,9 @@ BOOL wined3d_volume_load_location(struct wined3d_volume *volume,
             return FALSE;
     }
 
+#if !defined(STAGING_CSMT)
 done:
+#endif /* STAGING_CSMT */
     wined3d_texture_validate_location(texture, sub_resource_idx, location);
 
     return TRUE;

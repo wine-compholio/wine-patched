@@ -35,6 +35,9 @@ static void wined3d_query_init(struct wined3d_query *query, struct wined3d_devic
     query->type = type;
     query->data_size = data_size;
     query->query_ops = query_ops;
+#if defined(STAGING_CSMT)
+    list_init(&query->poll_list_entry);
+#endif /* STAGING_CSMT */
 }
 
 static struct wined3d_event_query *wined3d_event_query_from_query(struct wined3d_query *query)
@@ -264,6 +267,11 @@ static void wined3d_query_destroy_object(void *object)
 {
     struct wined3d_query *query = object;
 
+#if defined(STAGING_CSMT)
+    if (!list_empty(&query->poll_list_entry))
+        list_remove(&query->poll_list_entry);
+
+#endif /* STAGING_CSMT */
     /* Queries are specific to the GL context that created them. Not
      * deleting the query will obviously leak it, but that's still better
      * than potentially deleting a different query with the same id in this
@@ -339,7 +347,21 @@ HRESULT CDECL wined3d_query_issue(struct wined3d_query *query, DWORD flags)
 {
     TRACE("query %p, flags %#x.\n", query, flags);
 
+#if !defined(STAGING_CSMT)
     return query->query_ops->query_issue(query, flags);
+#else  /* STAGING_CSMT */
+    if (flags & WINED3DISSUE_END)
+        query->counter_main++;
+
+    wined3d_cs_emit_query_issue(query->device->cs, query, flags);
+
+    if (flags & WINED3DISSUE_BEGIN)
+        query->state = QUERY_BUILDING;
+    else
+        query->state = QUERY_SIGNALLED;
+
+    return WINED3D_OK;
+#endif /* STAGING_CSMT */
 }
 
 static void fill_query_data(void *out, unsigned int out_size, const void *result, unsigned int result_size)
@@ -351,6 +373,7 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
         void *data, DWORD size, DWORD flags)
 {
     struct wined3d_occlusion_query *oq = wined3d_occlusion_query_from_query(query);
+#if !defined(STAGING_CSMT)
     struct wined3d_device *device = query->device;
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     struct wined3d_context *context;
@@ -362,6 +385,9 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
 
     if (!oq->context)
         query->state = QUERY_CREATED;
+#else  /* STAGING_CSMT */
+    GLuint samples;
+#endif /* STAGING_CSMT */
 
     if (query->state == QUERY_CREATED)
     {
@@ -372,6 +398,10 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
         return S_OK;
     }
 
+#if defined(STAGING_CSMT)
+    TRACE("(%p) : type D3DQUERY_OCCLUSION, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+
+#endif /* STAGING_CSMT */
     if (query->state == QUERY_BUILDING)
     {
         /* Msdn says this returns an error, but our tests show that S_FALSE is returned */
@@ -379,12 +409,45 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
         return S_FALSE;
     }
 
+#if defined(STAGING_CSMT)
+    if (!wined3d_settings.cs_multithreaded)
+    {
+        if (!query->query_ops->query_poll(query))
+            return S_FALSE;
+    }
+    else if (query->counter_main != query->counter_retrieved)
+    {
+        return S_FALSE;
+    }
+
+    if (data)
+        fill_query_data(data, size, &oq->samples, sizeof(oq->samples));
+
+    return S_OK;
+}
+
+static BOOL wined3d_occlusion_query_ops_poll(struct wined3d_query *query)
+{
+    struct wined3d_occlusion_query *oq = wined3d_occlusion_query_from_query(query);
+    struct wined3d_device *device = query->device;
+    const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
+    struct wined3d_context *context;
+    GLuint available;
+    GLuint samples;
+    BOOL ret;
+
+#endif /* STAGING_CSMT */
     if (oq->context->tid != GetCurrentThreadId())
     {
         FIXME("%p Wrong thread, returning 1.\n", query);
+#if !defined(STAGING_CSMT)
         samples = 1;
         fill_query_data(data, size, &samples, sizeof(samples));
         return S_OK;
+#else  /* STAGING_CSMT */
+        oq->samples = 1;
+        return TRUE;
+#endif /* STAGING_CSMT */
     }
 
     context = context_acquire(device, context_get_rt_surface(oq->context));
@@ -395,6 +458,7 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
 
     if (available)
     {
+#if !defined(STAGING_CSMT)
         if (size)
         {
             GL_EXTCALL(glGetQueryObjectuiv(oq->id, GL_QUERY_RESULT, &samples));
@@ -403,34 +467,55 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
             fill_query_data(data, size, &samples, sizeof(samples));
         }
         res = S_OK;
+#else  /* STAGING_CSMT */
+        GL_EXTCALL(glGetQueryObjectuiv(oq->id, GL_QUERY_RESULT, &samples));
+        checkGLcall("glGetQueryObjectuiv(GL_QUERY_RESULT)");
+        TRACE("Returning %d samples.\n", samples);
+        oq->samples = samples;
+        ret = TRUE;
+#endif /* STAGING_CSMT */
     }
     else
     {
+#if !defined(STAGING_CSMT)
         res = S_FALSE;
+#else  /* STAGING_CSMT */
+        ret = FALSE;
+#endif /* STAGING_CSMT */
     }
 
     context_release(context);
 
+#if !defined(STAGING_CSMT)
     return res;
 }
 
 static HRESULT wined3d_event_query_ops_get_data(struct wined3d_query *query,
         void *data, DWORD size, DWORD flags)
+#else  /* STAGING_CSMT */
+    return ret;
+}
+
+static BOOL wined3d_event_query_ops_poll(struct wined3d_query *query)
+#endif /* STAGING_CSMT */
 {
     struct wined3d_event_query *event_query = wined3d_event_query_from_query(query);
     enum wined3d_event_query_result ret;
+#if !defined(STAGING_CSMT)
     BOOL signaled;
 
     TRACE("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
 
     if (!data || !size)
         return S_OK;
+#endif /* STAGING_CSMT */
 
     ret = wined3d_event_query_test(event_query, query->device);
     switch(ret)
     {
         case WINED3D_EVENT_QUERY_OK:
         case WINED3D_EVENT_QUERY_NOT_STARTED:
+#if !defined(STAGING_CSMT)
             signaled = TRUE;
             fill_query_data(data, size, &signaled, sizeof(signaled));
             break;
@@ -439,17 +524,58 @@ static HRESULT wined3d_event_query_ops_get_data(struct wined3d_query *query,
             signaled = FALSE;
             fill_query_data(data, size, &signaled, sizeof(signaled));
             break;
+#else  /* STAGING_CSMT */
+            return TRUE;
+
+        case WINED3D_EVENT_QUERY_WAITING:
+            return FALSE;
+#endif /* STAGING_CSMT */
 
         case WINED3D_EVENT_QUERY_WRONG_THREAD:
             FIXME("(%p) Wrong thread, reporting GPU idle.\n", query);
+#if !defined(STAGING_CSMT)
             signaled = TRUE;
             fill_query_data(data, size, &signaled, sizeof(signaled));
             break;
+#else  /* STAGING_CSMT */
+            return TRUE;
+#endif /* STAGING_CSMT */
 
         case WINED3D_EVENT_QUERY_ERROR:
             ERR("The GL event query failed, returning D3DERR_INVALIDCALL\n");
+#if !defined(STAGING_CSMT)
             return WINED3DERR_INVALIDCALL;
     }
+#else  /* STAGING_CSMT */
+            return TRUE;
+
+        default:
+            ERR("Unexpected wined3d_event_query_test result %u\n", ret);
+            return TRUE;
+    }
+}
+
+static HRESULT wined3d_event_query_ops_get_data(struct wined3d_query *query,
+        void *pData, DWORD dwSize, DWORD flags)
+{
+    BOOL *data = pData;
+    enum wined3d_event_query_result ret;
+
+    TRACE("query %p, pData %p, dwSize %#x, flags %#x.\n", query, pData, dwSize, flags);
+
+    if (!pData || !dwSize)
+        return S_OK;
+
+    if (!wined3d_settings.cs_multithreaded)
+        ret = query->query_ops->query_poll(query);
+    else if (query->counter_main != query->counter_retrieved)
+        ret = FALSE;
+    else
+        ret = TRUE;
+
+    if (data)
+        fill_query_data(data, dwSize, &ret, sizeof(ret));
+#endif /* STAGING_CSMT */
 
     return S_OK;
 }
@@ -468,7 +594,11 @@ enum wined3d_query_type CDECL wined3d_query_get_type(const struct wined3d_query 
     return query->type;
 }
 
+#if !defined(STAGING_CSMT)
 static HRESULT wined3d_event_query_ops_issue(struct wined3d_query *query, DWORD flags)
+#else  /* STAGING_CSMT */
+static BOOL wined3d_event_query_ops_issue(struct wined3d_query *query, DWORD flags)
+#endif /* STAGING_CSMT */
 {
     TRACE("query %p, flags %#x.\n", query, flags);
 
@@ -477,12 +607,16 @@ static HRESULT wined3d_event_query_ops_issue(struct wined3d_query *query, DWORD 
         struct wined3d_event_query *event_query = wined3d_event_query_from_query(query);
 
         wined3d_event_query_issue(event_query, query->device);
+#if defined(STAGING_CSMT)
+        return TRUE;
+#endif /* STAGING_CSMT */
     }
     else if (flags & WINED3DISSUE_BEGIN)
     {
         /* Started implicitly at query creation. */
         ERR("Event query issued with START flag - what to do?\n");
     }
+#if !defined(STAGING_CSMT)
 
     if (flags & WINED3DISSUE_BEGIN)
         query->state = QUERY_BUILDING;
@@ -493,11 +627,20 @@ static HRESULT wined3d_event_query_ops_issue(struct wined3d_query *query, DWORD 
 }
 
 static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DWORD flags)
+#else  /* STAGING_CSMT */
+    return FALSE;
+}
+
+static BOOL wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DWORD flags)
+#endif /* STAGING_CSMT */
 {
     struct wined3d_occlusion_query *oq = wined3d_occlusion_query_from_query(query);
     struct wined3d_device *device = query->device;
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     struct wined3d_context *context;
+#if defined(STAGING_CSMT)
+    BOOL poll = FALSE;
+#endif /* STAGING_CSMT */
 
     TRACE("query %p, flags %#x.\n", query, flags);
 
@@ -505,7 +648,11 @@ static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DW
      * restart. */
     if (flags & WINED3DISSUE_BEGIN)
     {
+#if !defined(STAGING_CSMT)
         if (query->state == QUERY_BUILDING)
+#else  /* STAGING_CSMT */
+        if (oq->started)
+#endif /* STAGING_CSMT */
         {
             if (oq->context->tid != GetCurrentThreadId())
             {
@@ -535,13 +682,20 @@ static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DW
         checkGLcall("glBeginQuery()");
 
         context_release(context);
+#if defined(STAGING_CSMT)
+        oq->started = TRUE;
+#endif /* STAGING_CSMT */
     }
     if (flags & WINED3DISSUE_END)
     {
         /* MSDN says END on a non-building occlusion query returns an error,
          * but our tests show that it returns OK. But OpenGL doesn't like it,
          * so avoid generating an error. */
+#if !defined(STAGING_CSMT)
         if (query->state == QUERY_BUILDING)
+#else  /* STAGING_CSMT */
+        if (oq->started)
+#endif /* STAGING_CSMT */
         {
             if (oq->context->tid != GetCurrentThreadId())
             {
@@ -555,6 +709,7 @@ static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DW
                 checkGLcall("glEndQuery()");
 
                 context_release(context);
+#if !defined(STAGING_CSMT)
             }
         }
     }
@@ -565,17 +720,61 @@ static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DW
         query->state = QUERY_SIGNALLED;
 
     return WINED3D_OK; /* can be WINED3DERR_INVALIDCALL.    */
+#else  /* STAGING_CSMT */
+                poll = TRUE;
+            }
+        }
+        oq->started = FALSE;
+    }
+
+    return poll;
+#endif /* STAGING_CSMT */
 }
 
 static HRESULT wined3d_timestamp_query_ops_get_data(struct wined3d_query *query,
         void *data, DWORD size, DWORD flags)
 {
     struct wined3d_timestamp_query *tq = wined3d_timestamp_query_from_query(query);
+#if defined(STAGING_CSMT)
+
+    TRACE("(%p) : type D3DQUERY_TIMESTAMP, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+
+    if (query->state == QUERY_CREATED)
+    {
+        UINT64 zero = 0;
+        /* D3D allows GetData on a new query, OpenGL doesn't. So just invent the data ourselves */
+        TRACE("Query wasn't yet started, returning S_OK.\n");
+        if (data)
+            fill_query_data(data, size, &zero, sizeof(zero));
+        return S_OK;
+    }
+
+    if (!wined3d_settings.cs_multithreaded)
+    {
+        if (!query->query_ops->query_poll(query))
+            return S_FALSE;
+    }
+    else if (query->counter_main != query->counter_retrieved)
+    {
+        return S_FALSE;
+    }
+
+    if (data)
+        fill_query_data(data, size, &tq->timestamp, sizeof(tq->timestamp));
+
+    return S_OK;
+}
+
+static BOOL wined3d_timestamp_query_ops_poll(struct wined3d_query *query)
+{
+    struct wined3d_timestamp_query *tq = wined3d_timestamp_query_from_query(query);
+#endif /* STAGING_CSMT */
     struct wined3d_device *device = query->device;
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     struct wined3d_context *context;
     GLuint available;
     GLuint64 timestamp;
+#if !defined(STAGING_CSMT)
     HRESULT res;
 
     TRACE("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
@@ -590,14 +789,28 @@ static HRESULT wined3d_timestamp_query_ops_get_data(struct wined3d_query *query,
         timestamp = 0;
         fill_query_data(data, size, &timestamp, sizeof(timestamp));
         return S_OK;
+#else  /* STAGING_CSMT */
+    BOOL ret;
+
+    if (!gl_info->supported[ARB_TIMER_QUERY])
+    {
+        TRACE("Faking timestamp.\n");
+        QueryPerformanceCounter((LARGE_INTEGER *)&tq->timestamp);
+        return TRUE;
+#endif /* STAGING_CSMT */
     }
 
     if (tq->context->tid != GetCurrentThreadId())
     {
         FIXME("%p Wrong thread, returning 1.\n", query);
+#if !defined(STAGING_CSMT)
         timestamp = 1;
         fill_query_data(data, size, &timestamp, sizeof(timestamp));
         return S_OK;
+#else  /* STAGING_CSMT */
+        tq->timestamp = 1;
+        return TRUE;
+#endif /* STAGING_CSMT */
     }
 
     context = context_acquire(device, context_get_rt_surface(tq->context));
@@ -608,6 +821,7 @@ static HRESULT wined3d_timestamp_query_ops_get_data(struct wined3d_query *query,
 
     if (available)
     {
+#if !defined(STAGING_CSMT)
         if (size)
         {
             GL_EXTCALL(glGetQueryObjectui64v(tq->id, GL_QUERY_RESULT, &timestamp));
@@ -616,18 +830,36 @@ static HRESULT wined3d_timestamp_query_ops_get_data(struct wined3d_query *query,
             fill_query_data(data, size, &timestamp, sizeof(timestamp));
         }
         res = S_OK;
+#else  /* STAGING_CSMT */
+        GL_EXTCALL(glGetQueryObjectui64v(tq->id, GL_QUERY_RESULT, &timestamp));
+        checkGLcall("glGetQueryObjectui64v(GL_QUERY_RESULT)");
+        TRACE("Returning timestamp %s.\n", wine_dbgstr_longlong(timestamp));
+        tq->timestamp = timestamp;
+        ret = TRUE;
+#endif /* STAGING_CSMT */
     }
     else
     {
+#if !defined(STAGING_CSMT)
         res = S_FALSE;
+#else  /* STAGING_CSMT */
+        ret = FALSE;
+#endif /* STAGING_CSMT */
     }
 
     context_release(context);
 
+#if !defined(STAGING_CSMT)
     return res;
 }
 
 static HRESULT wined3d_timestamp_query_ops_issue(struct wined3d_query *query, DWORD flags)
+#else  /* STAGING_CSMT */
+    return ret;
+}
+
+static BOOL wined3d_timestamp_query_ops_issue(struct wined3d_query *query, DWORD flags)
+#endif /* STAGING_CSMT */
 {
     struct wined3d_timestamp_query *tq = wined3d_timestamp_query_from_query(query);
     struct wined3d_device *device = query->device;
@@ -649,18 +881,28 @@ static HRESULT wined3d_timestamp_query_ops_issue(struct wined3d_query *query, DW
         GL_EXTCALL(glQueryCounter(tq->id, GL_TIMESTAMP));
         checkGLcall("glQueryCounter()");
         context_release(context);
+#if !defined(STAGING_CSMT)
 
         query->state = QUERY_SIGNALLED;
     }
 
     return WINED3D_OK;
+#else  /* STAGING_CSMT */
+    }
+
+    if (flags & WINED3DISSUE_END)
+        return TRUE;
+    return FALSE;
+#endif /* STAGING_CSMT */
 }
 
 static HRESULT wined3d_timestamp_disjoint_query_ops_get_data(struct wined3d_query *query,
         void *data, DWORD size, DWORD flags)
 {
     TRACE("query %p, data %p, size %#x, flags %#x.\n", query, data, size, flags);
+#if !defined(STAGING_CSMT)
 
+#endif /* STAGING_CSMT */
     if (query->type == WINED3D_QUERY_TYPE_TIMESTAMP_DISJOINT)
     {
         static const struct wined3d_query_data_timestamp_disjoint disjoint_data = {1000 * 1000 * 1000, FALSE};
@@ -682,6 +924,7 @@ static HRESULT wined3d_timestamp_disjoint_query_ops_get_data(struct wined3d_quer
     return S_OK;
 }
 
+#if !defined(STAGING_CSMT)
 static HRESULT wined3d_timestamp_disjoint_query_ops_issue(struct wined3d_query *query, DWORD flags)
 {
     TRACE("query %p, flags %#x.\n", query, flags);
@@ -692,6 +935,17 @@ static HRESULT wined3d_timestamp_disjoint_query_ops_issue(struct wined3d_query *
         query->state = QUERY_SIGNALLED;
 
     return WINED3D_OK;
+#else  /* STAGING_CSMT */
+static BOOL wined3d_timestamp_disjoint_query_ops_poll(struct wined3d_query *query)
+{
+    return TRUE;
+}
+
+static BOOL wined3d_timestamp_disjoint_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    TRACE("query %p, flags %#x.\n", query, flags);
+    return FALSE;
+#endif /* STAGING_CSMT */
 }
 
 static HRESULT wined3d_statistics_query_ops_get_data(struct wined3d_query *query,
@@ -706,10 +960,22 @@ static HRESULT wined3d_statistics_query_ops_get_data(struct wined3d_query *query
     return S_OK;
 }
 
+#if !defined(STAGING_CSMT)
 static HRESULT wined3d_statistics_query_ops_issue(struct wined3d_query *query, DWORD flags)
 {
     FIXME("query %p, flags %#x.\n", query, flags);
     return WINED3D_OK;
+#else  /* STAGING_CSMT */
+static BOOL wined3d_statistics_query_ops_poll(struct wined3d_query *query)
+{
+    return TRUE;
+}
+
+static BOOL wined3d_statistics_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+    return FALSE;
+#endif /* STAGING_CSMT */
 }
 
 static HRESULT wined3d_overflow_query_ops_get_data(struct wined3d_query *query,
@@ -724,15 +990,30 @@ static HRESULT wined3d_overflow_query_ops_get_data(struct wined3d_query *query,
     return S_OK;
 }
 
+#if !defined(STAGING_CSMT)
 static HRESULT wined3d_overflow_query_ops_issue(struct wined3d_query *query, DWORD flags)
 {
     FIXME("query %p, flags %#x.\n", query, flags);
     return WINED3D_OK;
+#else  /* STAGING_CSMT */
+static BOOL wined3d_overflow_query_ops_poll(struct wined3d_query *query)
+{
+    return TRUE;
+}
+
+static BOOL wined3d_overflow_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+    return FALSE;
+#endif /* STAGING_CSMT */
 }
 
 static const struct wined3d_query_ops event_query_ops =
 {
     wined3d_event_query_ops_get_data,
+#if defined(STAGING_CSMT)
+    wined3d_event_query_ops_poll,
+#endif /* STAGING_CSMT */
     wined3d_event_query_ops_issue,
 };
 
@@ -764,6 +1045,9 @@ static HRESULT wined3d_event_query_create(struct wined3d_device *device,
 static const struct wined3d_query_ops occlusion_query_ops =
 {
     wined3d_occlusion_query_ops_get_data,
+#if defined(STAGING_CSMT)
+    wined3d_occlusion_query_ops_poll,
+#endif /* STAGING_CSMT */
     wined3d_occlusion_query_ops_issue,
 };
 
@@ -795,6 +1079,9 @@ static HRESULT wined3d_occlusion_query_create(struct wined3d_device *device,
 static const struct wined3d_query_ops timestamp_query_ops =
 {
     wined3d_timestamp_query_ops_get_data,
+#if defined(STAGING_CSMT)
+    wined3d_timestamp_query_ops_poll,
+#endif /* STAGING_CSMT */
     wined3d_timestamp_query_ops_issue,
 };
 
@@ -826,6 +1113,9 @@ static HRESULT wined3d_timestamp_query_create(struct wined3d_device *device,
 static const struct wined3d_query_ops timestamp_disjoint_query_ops =
 {
     wined3d_timestamp_disjoint_query_ops_get_data,
+#if defined(STAGING_CSMT)
+    wined3d_timestamp_disjoint_query_ops_poll,
+#endif /* STAGING_CSMT */
     wined3d_timestamp_disjoint_query_ops_issue,
 };
 
@@ -861,6 +1151,9 @@ static HRESULT wined3d_timestamp_disjoint_query_create(struct wined3d_device *de
 static const struct wined3d_query_ops statistics_query_ops =
 {
     wined3d_statistics_query_ops_get_data,
+#if defined(STAGING_CSMT)
+    wined3d_statistics_query_ops_poll,
+#endif /* STAGING_CSMT */
     wined3d_statistics_query_ops_issue,
 };
 
@@ -886,6 +1179,9 @@ static HRESULT wined3d_statistics_query_create(struct wined3d_device *device,
 static const struct wined3d_query_ops overflow_query_ops =
 {
     wined3d_overflow_query_ops_get_data,
+#if defined(STAGING_CSMT)
+    wined3d_overflow_query_ops_poll,
+#endif /* STAGING_CSMT */
     wined3d_overflow_query_ops_issue,
 };
 
