@@ -1539,7 +1539,7 @@ static HRESULT WINAPI PngFrameEncode_SetPalette(IWICBitmapFrameEncode *iface,
     IWICPalette *pIPalette)
 {
     FIXME("(%p,%p): stub\n", iface, pIPalette);
-    return WINCODEC_ERR_UNSUPPORTEDOPERATION;
+    return S_OK;
 }
 
 static HRESULT WINAPI PngFrameEncode_SetThumbnail(IWICBitmapFrameEncode *iface,
