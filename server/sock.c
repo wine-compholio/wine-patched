@@ -1065,6 +1065,13 @@ static void ifchange_wake_up( struct object *obj, unsigned int status )
     }
 }
 
+static inline int should_retry( int err )
+{
+    if (err == EWOULDBLOCK) return 1;
+    if (err == EAGAIN) return 1;
+    return 0;
+}
+
 static void ifchange_poll_event( struct fd *fd, int event )
 {
     struct object *ifchange = get_fd_user( fd );
@@ -1075,7 +1082,7 @@ static void ifchange_poll_event( struct fd *fd, int event )
     r = recv( get_unix_fd(fd), buffer, sizeof(buffer), MSG_DONTWAIT );
     if (r < 0)
     {
-        if (errno == EWOULDBLOCK || errno == EAGAIN)
+        if (should_retry( errno ))
             return; /* retry when poll() says the socket is ready */
         status = sock_get_ntstatus( errno );
     }
