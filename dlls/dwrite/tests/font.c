@@ -842,8 +842,10 @@ static void test_CreateFontFromLOGFONT(void)
     EXPECT_HR(hr, S_OK);
 
 if (0)
+{
     /* null out parameter crashes this call */
     hr = IDWriteGdiInterop_CreateFontFromLOGFONT(interop, NULL, NULL);
+}
 
     font = (void*)0xdeadbeef;
     hr = IDWriteGdiInterop_CreateFontFromLOGFONT(interop, NULL, &font);
@@ -1013,7 +1015,9 @@ static void test_CreateBitmapRenderTarget(void)
     EXPECT_HR(hr, S_OK);
 
 if (0) /* crashes on native */
+{
     hr = IDWriteBitmapRenderTarget_GetSize(target, NULL);
+}
 
     size.cx = size.cy = -1;
     hr = IDWriteBitmapRenderTarget_GetSize(target, &size);
@@ -1159,7 +1163,9 @@ if (0) /* crashes on native */
 
     /* transform tests, current hdc transform is not immediately affected */
 if (0) /* crashes on native */
+{
     hr = IDWriteBitmapRenderTarget_GetCurrentTransform(target, NULL);
+}
 
     memset(&m, 0xcc, sizeof(m));
     hr = IDWriteBitmapRenderTarget_GetCurrentTransform(target, &m);
@@ -1406,7 +1412,9 @@ static void test_GetFamilyNames(void)
     EXPECT_HR(hr, S_OK);
 
 if (0) /* crashes on native */
+{
     hr = IDWriteFontFamily_GetFamilyNames(family, NULL);
+}
 
     hr = IDWriteFontFamily_GetFamilyNames(family, &names);
     ok(hr == S_OK, "got 0x%08x\n", hr);
@@ -1421,7 +1429,9 @@ if (0) /* crashes on native */
 
     /* GetStringLength */
 if (0) /* crashes on native */
+{
     hr = IDWriteLocalizedStrings_GetStringLength(names, 0, NULL);
+}
 
     len = 100;
     hr = IDWriteLocalizedStrings_GetStringLength(names, 10, &len);
@@ -1441,7 +1451,9 @@ if (0) /* crashes on native */
     ok(hr == E_FAIL, "got 0x%08x\n", hr);
 
 if (0)
+{
     hr = IDWriteLocalizedStrings_GetString(names, 0, NULL, 100);
+}
 
     buffer[0] = 1;
     hr = IDWriteLocalizedStrings_GetString(names, 10, buffer, 100);
@@ -1513,7 +1525,9 @@ static void test_CreateFontFace(void)
     ok(hr == E_NOINTERFACE, "got 0x%08x\n", hr);
 
 if (0) /* crashes on native */
+{
     hr = IDWriteFont_CreateFontFace(font, NULL);
+}
 
     fontface = NULL;
     hr = IDWriteFont_CreateFontFace(font, &fontface);
@@ -1846,7 +1860,9 @@ static void test_GetMetrics(void)
     DeleteObject(hfont);
 
 if (0) /* crashes on native */
+{
     IDWriteFont_GetMetrics(font, NULL);
+}
 
     memset(&metrics, 0, sizeof(metrics));
     IDWriteFont_GetMetrics(font, &metrics);
@@ -2649,7 +2665,9 @@ if (0) { /* crashes on win10 */
 todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
 if (face2)
+{
     IDWriteFontFace_Release(face2);
+}
 
     file2 = NULL;
     hr = IDWriteFactory_CreateCustomFontFileReference(factory, &fontrsrc, sizeof(HRSRC), &rloader, &file2);
@@ -2682,7 +2700,9 @@ if (face2)
     ok(indices[1] == 11, "got index %i\n", indices[1]);
 
 if (0) /* crashes on native */
+{
     hr = IDWriteFontFace_GetGlyphIndices(face, NULL, 1, NULL);
+}
 
     hr = IDWriteFontFace_GetGlyphIndices(face, codePoints, 1, indices);
     ok(hr == S_OK, "got 0x%08x\n", hr);
@@ -4130,7 +4150,9 @@ static void test_GetKerningPairAdjustments(void)
         ok(hr == E_INVALIDARG || broken(hr == S_OK) /* win8 */, "got 0x%08x\n", hr);
 
     if (0) /* crashes on native */
+    {
         hr = IDWriteFontFace1_GetKerningPairAdjustments(fontface1, 1, NULL, NULL);
+    }
 
         adjustments[0] = 1;
         hr = IDWriteFontFace1_GetKerningPairAdjustments(fontface1, 1, NULL, adjustments);
@@ -4837,7 +4859,9 @@ static void test_GetGdiCompatibleMetrics_face(IDWriteFontFace *face)
             expected.subscriptSizeY = round(round(design_metrics1.subscriptSizeY * scale) / scale);
             expected.superscriptPositionX = round(round(design_metrics1.superscriptPositionX * scale) / scale);
         if (0) /* this fails for 3 emsizes, Tahoma from [5, 2048] range */
+        {
             expected.superscriptPositionY = round(round(design_metrics1.superscriptPositionY * scale) / scale);
+        }
             expected.superscriptSizeX = round(round(design_metrics1.superscriptSizeX * scale) / scale);
             expected.superscriptSizeY = round(round(design_metrics1.superscriptSizeY * scale) / scale);
             expected.hasTypographicMetrics = design_metrics1.hasTypographicMetrics;
@@ -4904,7 +4928,9 @@ static void test_GetPanose(void)
         DWRITE_PANOSE panose;
 
     if (0) /* crashes on native */
+    {
         IDWriteFont1_GetPanose(font1, NULL);
+    }
 
         memset(&panose, 0, sizeof(panose));
         IDWriteFont1_GetPanose(font1, &panose);
@@ -5211,8 +5237,10 @@ static void test_GetRecommendedRenderingMode(void)
         win_skip("IDWriteFontFace3::GetRecommendedRenderingMode() is not supported.\n");
 
 if (0) /* crashes on native */
+{
     hr = IDWriteFontFace_GetRecommendedRenderingMode(fontface, 3.0, 1.0,
         DWRITE_MEASURING_MODE_GDI_CLASSIC, NULL, NULL);
+}
 
     mode = 10;
     hr = IDWriteFontFace_GetRecommendedRenderingMode(fontface, 3.0, 1.0,
