@@ -729,7 +729,9 @@ todo_wine
 todo_wine
         ok(hr == S_OK, "got 0x%08x\n", hr);
 if (hr == S_OK)
+{
         test_dispatch_typeinfo(doc, viewdual_riids);
+}
 
         IWebBrowser2_Release(wb);
 
