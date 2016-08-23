@@ -1521,6 +1521,9 @@ static void bind_dummy_textures(const struct wined3d_device *device, const struc
         GL_EXTCALL(glActiveTexture(GL_TEXTURE0 + i));
         checkGLcall("glActiveTexture");
 
+        gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D, device->dummy_texture_1d[i]);
+        checkGLcall("glBindTexture");
+
         gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_2D, device->dummy_texture_2d[i]);
         checkGLcall("glBindTexture");
 
@@ -1544,6 +1547,9 @@ static void bind_dummy_textures(const struct wined3d_device *device, const struc
 
         if (gl_info->supported[EXT_TEXTURE_ARRAY])
         {
+            gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D_ARRAY, device->dummy_texture_1d_array[i]);
+            checkGLcall("glBindTexture");
+
             gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_2D_ARRAY, device->dummy_texture_2d_array[i]);
             checkGLcall("glBindTexture");
         }
@@ -2391,6 +2397,14 @@ void context_bind_texture(struct wined3d_context *context, GLenum target, GLuint
         {
             case GL_NONE:
                 /* nothing to do */
+                break;
+            case GL_TEXTURE_1D:
+                gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D, device->dummy_texture_1d[unit]);
+                checkGLcall("glBindTexture");
+                break;
+            case GL_TEXTURE_1D_ARRAY:
+                gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D_ARRAY, device->dummy_texture_1d_array[unit]);
+                checkGLcall("glBindTexture");
                 break;
             case GL_TEXTURE_2D:
                 gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_2D, device->dummy_texture_2d[unit]);
