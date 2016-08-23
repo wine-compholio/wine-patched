@@ -2874,11 +2874,13 @@ struct wined3d_device
     /* Textures for when no other textures are mapped */
     struct
     {
+        GLuint tex_1d;
         GLuint tex_2d;
         GLuint tex_rect;
         GLuint tex_3d;
         GLuint tex_cube;
         GLuint tex_cube_array;
+        GLuint tex_1d_array;
         GLuint tex_2d_array;
         GLuint tex_buffer;
     } dummy_textures;
