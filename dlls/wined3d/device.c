@@ -702,6 +702,17 @@ static void create_dummy_textures(struct wined3d_device *device, struct wined3d_
         /* Make appropriate texture active */
         context_active_texture(context, gl_info, i);
 
+        gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_1d[i]);
+        checkGLcall("glGenTextures");
+        TRACE("Dummy 1D texture %u given name %u.\n", i, device->dummy_texture_1d[i]);
+
+        gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D, device->dummy_texture_1d[i]);
+        checkGLcall("glBindTexture");
+
+        gl_info->gl_ops.gl.p_glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA8, 1, 0,
+                GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
+        checkGLcall("glTexImage1D");
+
         gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_2d[i]);
         checkGLcall("glGenTextures");
         TRACE("Dummy 2D texture %u given name %u.\n", i, device->dummy_texture_2d[i]);
@@ -760,6 +771,17 @@ static void create_dummy_textures(struct wined3d_device *device, struct wined3d_
 
         if (gl_info->supported[EXT_TEXTURE_ARRAY])
         {
+            gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_1d_array[i]);
+            checkGLcall("glGenTextures");
+            TRACE("Dummy 1D array texture %u given name %u.\n", i, device->dummy_texture_1d_array[i]);
+
+            gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D_ARRAY, device->dummy_texture_1d_array[i]);
+            checkGLcall("glBindTexture");
+
+            gl_info->gl_ops.gl.p_glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_RGBA8, 1, 1, 0,
+                    GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
+            checkGLcall("glTexImage2D");
+
             gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_2d_array[i]);
             checkGLcall("glGenTextures");
             TRACE("Dummy 2D array texture %u given name %u.\n", i, device->dummy_texture_2d_array[i]);
@@ -783,6 +805,9 @@ static void destroy_dummy_textures(struct wined3d_device *device, const struct w
     {
         gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_2d_array);
         checkGLcall("glDeleteTextures(count, device->dummy_texture_2d_array)");
+
+        gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_1d_array);
+        checkGLcall("glDeleteTextures(count, device->dummy_texture_1d_array)");
     }
 
     if (gl_info->supported[ARB_TEXTURE_CUBE_MAP])
@@ -805,6 +830,9 @@ static void destroy_dummy_textures(struct wined3d_device *device, const struct w
 
     gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_2d);
     checkGLcall("glDeleteTextures(count, device->dummy_texture_2d)");
+
+    gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_1d);
+    checkGLcall("glDeleteTextures(count, device->dummy_texture_1d)");
 
     memset(device->dummy_texture_2d_array, 0, count * sizeof(*device->dummy_texture_2d_array));
     memset(device->dummy_texture_cube, 0, count * sizeof(*device->dummy_texture_cube));

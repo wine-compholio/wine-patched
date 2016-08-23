@@ -2478,10 +2478,12 @@ struct wined3d_device
     struct wined3d_texture *logo_texture;
 
     /* Textures for when no other textures are mapped */
+    GLuint dummy_texture_1d[MAX_COMBINED_SAMPLERS];
     GLuint dummy_texture_2d[MAX_COMBINED_SAMPLERS];
     GLuint dummy_texture_rect[MAX_COMBINED_SAMPLERS];
     GLuint dummy_texture_3d[MAX_COMBINED_SAMPLERS];
     GLuint dummy_texture_cube[MAX_COMBINED_SAMPLERS];
+    GLuint dummy_texture_1d_array[MAX_COMBINED_SAMPLERS];
     GLuint dummy_texture_2d_array[MAX_COMBINED_SAMPLERS];
 
     /* Default sampler used to emulate the direct resource access without using wined3d_sampler */
