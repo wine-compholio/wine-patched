@@ -44,6 +44,10 @@ static GLenum get_texture_view_target(const struct wined3d_gl_info *gl_info,
     }
     view_types[] =
     {
+        {GL_TEXTURE_1D,       0,                          GL_TEXTURE_1D},
+        {GL_TEXTURE_1D,       WINED3D_VIEW_TEXTURE_ARRAY, GL_TEXTURE_1D_ARRAY},
+        {GL_TEXTURE_1D_ARRAY, 0,                          GL_TEXTURE_1D},
+        {GL_TEXTURE_1D_ARRAY, WINED3D_VIEW_TEXTURE_ARRAY, GL_TEXTURE_1D_ARRAY},
         {GL_TEXTURE_2D,       0,                          GL_TEXTURE_2D},
         {GL_TEXTURE_2D,       WINED3D_VIEW_TEXTURE_ARRAY, GL_TEXTURE_2D_ARRAY},
         {GL_TEXTURE_2D_ARRAY, 0,                          GL_TEXTURE_2D},
