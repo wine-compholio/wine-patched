@@ -1784,7 +1784,8 @@ NTSTATUS WINAPI NtSetSecurityObject(HANDLE Handle,
             return STATUS_INVALID_SECURITY_DESCR;
     }
 
-    if (SecurityInformation & SACL_SECURITY_INFORMATION)
+    if (SecurityInformation & SACL_SECURITY_INFORMATION ||
+        SecurityInformation & LABEL_SECURITY_INFORMATION)
     {
         status = RtlGetSaclSecurityDescriptor( SecurityDescriptor, &present, &sacl, &defaulted );
         if (status != STATUS_SUCCESS) return status;
