@@ -495,8 +495,10 @@ int FUNC_NAME(pf_printf)(FUNC_NAME(puts_clbk) pf_puts, void *puts_ctx, const API
         } else if(flags.Format == 'c' || flags.Format == 'C') {
             int ch = pf_args(args_ctx, pos, VT_INT, valist).get_int;
 
-            if((ch&0xff) != ch)
-                FIXME("multibyte characters printing not supported\n");
+            if((ch&0xff) != ch) {
+                static int once;
+                if (!once++) FIXME("multibyte characters printing not supported\n");
+            }
 
             i = FUNC_NAME(pf_handle_string)(pf_puts, puts_ctx, &ch, 1, &flags, locinfo, legacy_wide);
         } else if(flags.Format == 'p') {
