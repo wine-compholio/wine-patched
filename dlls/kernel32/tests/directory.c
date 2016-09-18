@@ -20,10 +20,23 @@
 
 #include <stdarg.h>
 
+#include "ntstatus.h"
+#define WIN32_NO_STATUS
 #include "wine/test.h"
 #include "windef.h"
 #include "winbase.h"
 #include "winerror.h"
+#include "winternl.h"
+
+static NTSTATUS (WINAPI *pNtQueryObject)(HANDLE,OBJECT_INFORMATION_CLASS,PVOID,ULONG,PULONG);
+
+static void init_ntdll(void)
+{
+    HMODULE hntdll = GetModuleHandleA("ntdll.dll");
+    if (!hntdll) return;
+
+    pNtQueryObject = (void *)GetProcAddress(hntdll, "NtQueryObject");
+}
 
 /* If you change something in these tests, please do the same
  * for GetSystemDirectory tests.
@@ -486,15 +499,51 @@ static void test_RemoveDirectoryW(void)
 
 static void test_SetCurrentDirectoryA(void)
 {
+    OBJECT_BASIC_INFORMATION info;
+    WCHAR curdir[MAX_PATH];
+    char tmpdir[MAX_PATH];
+    NTSTATUS status;
+    HANDLE handle;
+
     SetLastError(0);
     ok( !SetCurrentDirectoryA( "\\some_dummy_dir" ), "SetCurrentDirectoryA succeeded\n" );
     ok( GetLastError() == ERROR_FILE_NOT_FOUND, "wrong error %d\n", GetLastError() );
     ok( !SetCurrentDirectoryA( "\\some_dummy\\subdir" ), "SetCurrentDirectoryA succeeded\n" );
     ok( GetLastError() == ERROR_PATH_NOT_FOUND, "wrong error %d\n", GetLastError() );
+
+    GetTempPathA( MAX_PATH, tmpdir );
+    lstrcatA( tmpdir, "Please Remove Me" );
+    ok( CreateDirectoryA( tmpdir, NULL ), "CreateDirectoryA failed\n" );
+
+    GetCurrentDirectoryW( MAX_PATH, curdir );
+    ok( SetCurrentDirectoryA( tmpdir ), "SetCurrentDirectoryA failed\n" );
+
+    SetLastError( 0xdeadbeef );
+    ok( !RemoveDirectoryA( tmpdir ), "RemoveDirectoryA succeeded\n" );
+    ok( GetLastError() == ERROR_SHARING_VIOLATION,
+        "Expected ERROR_SHARING_VIOLATION, got %d\n", GetLastError() );
+
+    if (pNtQueryObject)
+    {
+        handle = NtCurrentTeb()->Peb->ProcessParameters->CurrentDirectory.Handle;
+        ok( handle != NULL, "current directory handle is NULL\n" );
+
+        status = pNtQueryObject( handle, ObjectBasicInformation, &info, sizeof(info), NULL );
+        ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08x\n", status );
+        ok( info.GrantedAccess == (FILE_TRAVERSE|SYNCHRONIZE),
+            "Expected FILE_TRAVERSE|SYNCHRONIZE, got %08x\n", info.GrantedAccess );
+    }
+    else
+        win_skip( "Failed to get pointer to NtQueryObject, skipping handle permission test\n" );
+
+    SetCurrentDirectoryW( curdir );
+    RemoveDirectoryA( tmpdir );
 }
 
 START_TEST(directory)
 {
+    init_ntdll();
+
     test_GetWindowsDirectoryA();
     test_GetWindowsDirectoryW();
 
