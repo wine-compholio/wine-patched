@@ -1359,6 +1359,8 @@ typedef struct PngEncoder {
     BYTE *data;
     UINT stride;
     UINT passes;
+    WICColor palette[256];
+    UINT colors;
 } PngEncoder;
 
 static inline PngEncoder *impl_from_IWICBitmapEncoder(IWICBitmapEncoder *iface)
@@ -1536,10 +1538,24 @@ static HRESULT WINAPI PngFrameEncode_SetColorContexts(IWICBitmapFrameEncode *ifa
 }
 
 static HRESULT WINAPI PngFrameEncode_SetPalette(IWICBitmapFrameEncode *iface,
-    IWICPalette *pIPalette)
+    IWICPalette *palette)
 {
-    FIXME("(%p,%p): stub\n", iface, pIPalette);
-    return WINCODEC_ERR_UNSUPPORTEDOPERATION;
+    PngEncoder *This = impl_from_IWICBitmapFrameEncode(iface);
+    HRESULT hr;
+
+    TRACE("(%p,%p)\n", iface, palette);
+
+    if (!palette) return E_INVALIDARG;
+
+    EnterCriticalSection(&This->lock);
+
+    if (This->frame_initialized)
+        hr = IWICPalette_GetColors(palette, 256, This->palette, &This->colors);
+    else
+        hr = WINCODEC_ERR_NOTINITIALIZED;
+
+    LeaveCriticalSection(&This->lock);
+    return hr;
 }
 
 static HRESULT WINAPI PngFrameEncode_SetThumbnail(IWICBitmapFrameEncode *iface,
@@ -2044,6 +2060,7 @@ HRESULT PngEncoder_CreateInstance(REFIID iid, void** ppv)
     This->frame_committed = FALSE;
     This->committed = FALSE;
     This->data = NULL;
+    This->colors = 0;
     InitializeCriticalSection(&This->lock);
     This->lock.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": PngEncoder.lock");
 
