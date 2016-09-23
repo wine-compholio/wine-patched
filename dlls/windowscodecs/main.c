@@ -144,8 +144,8 @@ HRESULT configure_write_source(IWICBitmapFrameEncode *iface,
     if (!IsEqualGUID(&src_format, format))
     {
         /* FIXME: should use WICConvertBitmapSource to convert */
-        ERR("format %s unsupported\n", debugstr_guid(&src_format));
-        return E_FAIL;
+        FIXME("format %s unsupported\n", debugstr_guid(&src_format));
+        return E_NOTIMPL;
     }
 
     if (xres == 0.0 || yres == 0.0)
