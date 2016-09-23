@@ -1,5 +1,6 @@
 /*
  * Copyright 2010 Vincent Povirk for CodeWeavers
+ * Copyright 2016 Dmitry Timoshkov
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -461,6 +462,12 @@ static HRESULT tiff_get_decode_info(TIFF *tiff, tiff_decode_info *decode_info)
         decode_info->bpp = bps;
         switch (bps)
         {
+        case 1:
+            decode_info->format = &GUID_WICPixelFormat1bppIndexed;
+            break;
+        case 2:
+            decode_info->format = &GUID_WICPixelFormat2bppIndexed;
+            break;
         case 4:
             decode_info->format = &GUID_WICPixelFormat4bppIndexed;
             break;
@@ -1402,6 +1409,10 @@ static const struct tiff_encode_format formats[] = {
     {&GUID_WICPixelFormat24bppBGR, 2, 8, 3, 24, 0, 0, 1},
     {&GUID_WICPixelFormat24bppRGB, 2, 8, 3, 24, 0, 0, 0},
     {&GUID_WICPixelFormatBlackWhite, 1, 1, 1, 1, 0, 0, 0},
+    {&GUID_WICPixelFormat1bppIndexed, 3, 1, 1, 1, 0, 0, 0},
+    {&GUID_WICPixelFormat2bppIndexed, 3, 2, 1, 2, 0, 0, 0},
+    {&GUID_WICPixelFormat4bppIndexed, 3, 4, 1, 4, 0, 0, 0},
+    {&GUID_WICPixelFormat8bppIndexed, 3, 8, 1, 8, 0, 0, 0},
     {&GUID_WICPixelFormat4bppGray, 1, 4, 1, 4, 0, 0, 0},
     {&GUID_WICPixelFormat8bppGray, 1, 8, 1, 8, 0, 0, 0},
     {&GUID_WICPixelFormat32bppBGRA, 2, 8, 4, 32, 1, 2, 1},
@@ -1689,6 +1700,21 @@ static HRESULT WINAPI TiffFrameEncode_WritePixels(IWICBitmapFrameEncode *iface,
             pTIFFSetField(This->parent->tiff, TIFFTAG_RESOLUTIONUNIT, (uint16)2); /* Inch */
             pTIFFSetField(This->parent->tiff, TIFFTAG_XRESOLUTION, (float)This->xres);
             pTIFFSetField(This->parent->tiff, TIFFTAG_YRESOLUTION, (float)This->yres);
+        }
+
+        if (This->format->bpp <= 8 && This->colors && !IsEqualGUID(This->format->guid, &GUID_WICPixelFormatBlackWhite))
+        {
+            uint16 red[256], green[256], blue[256];
+            UINT i;
+
+            for (i = 0; i < This->colors; i++)
+            {
+                red[i] = (This->palette[i] >> 0) & 0xff00;
+                green[i] = This->palette[i] & 0xff00;
+                blue[i] = (This->palette[i] << 8) & 0xff00;
+            }
+
+            pTIFFSetField(This->parent->tiff, TIFFTAG_COLORMAP, red, green, blue);
         }
 
         This->info_written = TRUE;
