@@ -194,6 +194,7 @@ struct fd
     struct async_queue   wait_q;      /* other async waiters of this fd */
     struct completion   *completion;  /* completion object attached to this fd */
     apc_param_t          comp_key;    /* completion key to set in completion events */
+    unsigned int         comp_flags;  /* completion flags */
 };
 
 static void fd_dump( struct object *obj, int verbose );
@@ -1604,6 +1605,7 @@ static struct fd *alloc_fd_object(void)
     fd->fs_locks   = 1;
     fd->poll_index = -1;
     fd->completion = NULL;
+    fd->comp_flags = 0;
     init_async_queue( &fd->read_q );
     init_async_queue( &fd->write_q );
     init_async_queue( &fd->wait_q );
@@ -1639,6 +1641,7 @@ struct fd *alloc_pseudo_fd( const struct fd_ops *fd_user_ops, struct object *use
     fd->fs_locks   = 0;
     fd->poll_index = -1;
     fd->completion = NULL;
+    fd->comp_flags = 0;
     fd->no_fd_status = STATUS_BAD_DEVICE_TYPE;
     init_async_queue( &fd->read_q );
     init_async_queue( &fd->write_q );
@@ -2408,6 +2411,7 @@ void fd_copy_completion( struct fd *src, struct fd *dst )
 {
     assert( !dst->completion );
     dst->completion = fd_get_completion( src, &dst->comp_key );
+    dst->comp_flags = src->comp_flags;
 }
 
 /* flush a file buffers */
@@ -2591,8 +2595,25 @@ DECL_HANDLER(add_fd_completion)
     struct fd *fd = get_handle_fd_obj( current->process, req->handle, 0 );
     if (fd)
     {
-        if (fd->completion)
+        if (fd->completion && (!(fd->comp_flags & COMPLETION_SKIP_ON_SUCCESS) || req->status))
             add_completion( fd->completion, fd->comp_key, req->cvalue, req->status, req->information );
+        release_object( fd );
+    }
+}
+
+/* set fd completion information */
+DECL_HANDLER(set_fd_compl_info)
+{
+    struct fd *fd = get_handle_fd_obj( current->process, req->handle, 0 );
+    if (fd)
+    {
+        if (!(fd->options & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT)))
+        {
+            /* removing COMPLETION_SKIP_ON_SUCCESS is not allowed */
+            fd->comp_flags |= req->flags;
+        }
+        else
+            set_error( STATUS_INVALID_PARAMETER );
         release_object( fd );
     }
 }
