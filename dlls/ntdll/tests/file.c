@@ -3147,12 +3147,11 @@ static void test_file_completion_information(void)
     if (!(h = create_temp_file(0))) return;
 
     status = pNtSetInformationFile(h, &io, &info, sizeof(info) - 1, FileIoCompletionNotificationInformation);
-    todo_wine
     ok(status == STATUS_INFO_LENGTH_MISMATCH || status == STATUS_INVALID_INFO_CLASS /* XP */,
        "expected STATUS_INFO_LENGTH_MISMATCH, got %08x\n", status);
     if (status == STATUS_INVALID_INFO_CLASS || status == STATUS_NOT_IMPLEMENTED)
     {
-        skip("FileIoCompletionNotificationInformation class not supported\n");
+        win_skip("FileIoCompletionNotificationInformation class not supported\n");
         CloseHandle(h);
         return;
     }
