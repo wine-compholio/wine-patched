@@ -1938,7 +1938,7 @@ static HRESULT WINAPI TiffEncoder_CreateNewFrame(IWICBitmapEncoder *iface,
         hr = E_FAIL;
     }
 
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr) && ppIEncoderOptions)
     {
         PROPBAG2 opts[2]= {{0}};
         opts[0].pstrName = (LPOLESTR)wszTiffCompressionMethod;
@@ -1997,7 +1997,7 @@ static HRESULT WINAPI TiffEncoder_CreateNewFrame(IWICBitmapEncoder *iface,
         else
             hr = E_OUTOFMEMORY;
 
-        if (FAILED(hr))
+        if (FAILED(hr) && ppIEncoderOptions)
         {
             IPropertyBag2_Release(*ppIEncoderOptions);
             *ppIEncoderOptions = NULL;
