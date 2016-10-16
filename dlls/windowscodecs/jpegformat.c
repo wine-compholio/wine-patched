@@ -1488,11 +1488,14 @@ static HRESULT WINAPI JpegEncoder_CreateNewFrame(IWICBitmapEncoder *iface,
     opts[5].vt = VT_BOOL;
     opts[5].dwType = PROPBAG2_TYPE_DATA;
 
-    hr = CreatePropertyBag2(opts, 6, ppIEncoderOptions);
-    if (FAILED(hr))
+    if (ppIEncoderOptions)
     {
-        LeaveCriticalSection(&This->lock);
-        return hr;
+        hr = CreatePropertyBag2(opts, 6, ppIEncoderOptions);
+        if (FAILED(hr))
+        {
+            LeaveCriticalSection(&This->lock);
+            return hr;
+        }
     }
 
     This->frame_count = 1;
