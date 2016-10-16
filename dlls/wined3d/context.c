@@ -1705,6 +1705,13 @@ struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
         goto out;
     }
 
+#if defined(STAGING_CSMT)
+    ret->current_fb.rt_size = gl_info->limits.buffers;
+    if (!(ret->current_fb.render_targets = wined3d_calloc(ret->current_fb.rt_size,
+            sizeof(*ret->current_fb.render_targets))))
+        goto out;
+
+#endif /* STAGING_CSMT */
     /* Initialize the texture unit mapping to a 1:1 mapping */
     for (s = 0; s < MAX_COMBINED_SAMPLERS; ++s)
     {
@@ -2013,6 +2020,9 @@ out:
     if (hdc) wined3d_release_dc(swapchain->win_handle, hdc);
     device->shader_backend->shader_free_context_data(ret);
     device->adapter->fragment_pipe->free_context_data(ret);
+#if defined(STAGING_CSMT)
+    HeapFree(GetProcessHeap(), 0, ret->current_fb.render_targets);
+#endif /* STAGING_CSMT */
     HeapFree(GetProcessHeap(), 0, ret->free_event_queries);
     HeapFree(GetProcessHeap(), 0, ret->free_occlusion_queries);
     HeapFree(GetProcessHeap(), 0, ret->free_timestamp_queries);
@@ -2060,6 +2070,9 @@ void context_destroy(struct wined3d_device *device, struct wined3d_context *cont
     device->shader_backend->shader_free_context_data(context);
     device->adapter->fragment_pipe->free_context_data(context);
     HeapFree(GetProcessHeap(), 0, context->fbo_key);
+#if defined(STAGING_CSMT)
+    HeapFree(GetProcessHeap(), 0, context->current_fb.render_targets);
+#endif /* STAGING_CSMT */
     HeapFree(GetProcessHeap(), 0, context->draw_buffers);
     HeapFree(GetProcessHeap(), 0, context->blit_targets);
     device_context_remove(device, context);
@@ -2605,7 +2618,11 @@ static BOOL context_validate_rt_config(UINT rt_count, struct wined3d_rendertarge
 }
 
 /* Context activation is done by the caller. */
+#if !defined(STAGING_CSMT)
 BOOL context_apply_clear_state(struct wined3d_context *context, const struct wined3d_state *state,
+#else  /* STAGING_CSMT */
+BOOL context_apply_clear_state(struct wined3d_context *context,
+#endif /* STAGING_CSMT */
         UINT rt_count, const struct wined3d_fb_state *fb)
 {
     struct wined3d_rendertarget_view **rts = fb->render_targets;
@@ -2614,7 +2631,11 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
     DWORD rt_mask = 0, *cur_mask;
     UINT i;
 
+#if !defined(STAGING_CSMT)
     if (isStateDirty(context, STATE_FRAMEBUFFER) || fb != state->fb
+#else  /* STAGING_CSMT */
+    if (isStateDirty(context, STATE_FRAMEBUFFER) || wined3d_fb_equal(fb, &context->current_fb)
+#endif /* STAGING_CSMT */
             || rt_count != gl_info->limits.buffers)
     {
         if (!context_validate_rt_config(rt_count, rts, dsv))
@@ -2659,6 +2680,10 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
             rt_mask = context_generate_rt_mask_no_fbo(context,
                     rt_count ? wined3d_rendertarget_view_get_surface(rts[0])->container : NULL);
         }
+#if defined(STAGING_CSMT)
+
+        wined3d_fb_copy(&context->current_fb, fb);
+#endif /* STAGING_CSMT */
     }
     else if (wined3d_settings.offscreen_rendering_mode == ORM_FBO
             && (!rt_count || wined3d_resource_is_offscreen(rts[0]->resource)))
@@ -2699,7 +2724,12 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
     gl_info->gl_ops.gl.p_glEnable(GL_SCISSOR_TEST);
     if (rt_count && gl_info->supported[ARB_FRAMEBUFFER_SRGB])
     {
+#if !defined(STAGING_CSMT)
         if (needs_srgb_write(context, state, fb))
+#else  /* STAGING_CSMT */
+        /* FIXME: The way to access the state is ugly. */
+        if (needs_srgb_write(context, &rts[0]->resource->device->cs->state, fb))
+#endif /* STAGING_CSMT */
             gl_info->gl_ops.gl.p_glEnable(GL_FRAMEBUFFER_SRGB);
         else
             gl_info->gl_ops.gl.p_glDisable(GL_FRAMEBUFFER_SRGB);
@@ -2716,7 +2746,11 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
 
 static DWORD find_draw_buffers_mask(const struct wined3d_context *context, const struct wined3d_state *state)
 {
+#if !defined(STAGING_CSMT)
     struct wined3d_rendertarget_view **rts = state->fb->render_targets;
+#else  /* STAGING_CSMT */
+    struct wined3d_rendertarget_view **rts = state->fb.render_targets;
+#endif /* STAGING_CSMT */
     struct wined3d_shader *ps = state->shader[WINED3D_SHADER_TYPE_PIXEL];
     DWORD rt_mask, rt_mask_bits;
     unsigned int i;
@@ -2746,7 +2780,11 @@ static DWORD find_draw_buffers_mask(const struct wined3d_context *context, const
 void context_state_fb(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
 {
     DWORD rt_mask = find_draw_buffers_mask(context, state);
+#if !defined(STAGING_CSMT)
     const struct wined3d_fb_state *fb = state->fb;
+#else  /* STAGING_CSMT */
+    const struct wined3d_fb_state *fb = &state->fb;
+#endif /* STAGING_CSMT */
     DWORD *cur_mask;
 
     if (wined3d_settings.offscreen_rendering_mode == ORM_FBO)
@@ -3035,6 +3073,10 @@ void context_state_drawbuf(struct wined3d_context *context, const struct wined3d
         context_apply_draw_buffers(context, rt_mask);
         *cur_mask = rt_mask;
     }
+#if defined(STAGING_CSMT)
+
+    wined3d_fb_copy(&context->current_fb, &state->fb);
+#endif /* STAGING_CSMT */
 }
 
 static BOOL fixed_get_input(BYTE usage, BYTE usage_idx, unsigned int *regnum)
@@ -3409,7 +3451,11 @@ BOOL context_apply_draw_state(struct wined3d_context *context,
         const struct wined3d_device *device, const struct wined3d_state *state)
 {
     const struct StateEntry *state_table = context->state_table;
+#if !defined(STAGING_CSMT)
     const struct wined3d_fb_state *fb = state->fb;
+#else  /* STAGING_CSMT */
+    const struct wined3d_fb_state *fb = &state->fb;
+#endif /* STAGING_CSMT */
     unsigned int i;
     WORD map;
 
@@ -3442,8 +3488,17 @@ BOOL context_apply_draw_state(struct wined3d_context *context,
         for (i = 0, map = context->stream_info.use_map; map; map >>= 1, ++i)
         {
             if (map & 1)
+#if !defined(STAGING_CSMT)
                 buffer_mark_used(state->streams[context->stream_info.elements[i].stream_idx].buffer);
         }
+#else  /* STAGING_CSMT */
+                buffer_internal_preload(state->streams[context->stream_info.elements[i].stream_idx].buffer,
+                        context, state);
+        }
+        /* PreLoad may kick buffers out of vram. */
+        if (isStateDirty(context, STATE_STREAMSRC))
+            context_update_stream_info(context, state);
+#endif /* STAGING_CSMT */
     }
     if (state->index_buffer)
     {
@@ -3563,6 +3618,11 @@ struct wined3d_context *context_acquire(const struct wined3d_device *device, str
 
     TRACE("device %p, target %p.\n", device, target);
 
+#if defined(STAGING_CSMT)
+    if (wined3d_settings.cs_multithreaded && device->cs->thread_id != GetCurrentThreadId())
+        FIXME("Acquiring a GL context from outside the CS thread.\n");
+
+#endif /* STAGING_CSMT */
     if (current_context && current_context->destroyed)
         current_context = NULL;
 
