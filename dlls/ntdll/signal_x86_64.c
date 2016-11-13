@@ -2788,7 +2788,6 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *sigcontext )
             WORD err = ERROR_sig(ucontext);
             if ((err & 7) == 2 && handle_interrupt( err >> 3, rec, win_context )) break;
             rec->ExceptionCode = err ? EXCEPTION_ACCESS_VIOLATION : EXCEPTION_PRIV_INSTRUCTION;
-            rec->ExceptionCode = EXCEPTION_ACCESS_VIOLATION;
         }
         break;
     case TRAP_x86_PAGEFLT:  /* Page fault */
