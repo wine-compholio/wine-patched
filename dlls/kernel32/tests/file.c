@@ -703,9 +703,6 @@ static void test_CopyFileA(void)
     ret = GetTempFileNameA(temp_path, prefix, 0, source);
     ok(ret != 0, "GetTempFileNameA error %d\n", GetLastError());
 
-    ret = MoveFileA(source, source);
-    todo_wine ok(ret, "MoveFileA: failed, error %d\n", GetLastError());
-
     /* copying a file to itself must fail */
     retok = CopyFileA(source, source, FALSE);
     ok( !retok && (GetLastError() == ERROR_SHARING_VIOLATION || broken(GetLastError() == ERROR_FILE_EXISTS) /* Win 9x */),
@@ -1886,6 +1883,9 @@ static void test_MoveFileA(void)
 
     ret = GetTempFileNameA(tempdir, prefix, 0, dest);
     ok(ret != 0, "GetTempFileNameA error %d\n", GetLastError());
+
+    ret = MoveFileA(source, source);
+    todo_wine ok(ret, "MoveFileA: failed, error %d\n", GetLastError());
 
     ret = MoveFileA(source, dest);
     ok(!ret && GetLastError() == ERROR_ALREADY_EXISTS,
