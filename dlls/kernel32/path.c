@@ -1354,7 +1354,7 @@ BOOL WINAPI MoveFileWithProgressW( LPCWSTR source, LPCWSTR dest,
     OBJECT_ATTRIBUTES attr;
     IO_STATUS_BLOCK io;
     NTSTATUS status;
-    HANDLE source_handle = 0, dest_handle;
+    HANDLE source_handle = 0, dest_handle = 0;
     ANSI_STRING source_unix, dest_unix;
 
     TRACE("(%s,%s,%p,%p,%04x)\n",
@@ -1413,18 +1413,22 @@ BOOL WINAPI MoveFileWithProgressW( LPCWSTR source, LPCWSTR dest,
                          FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT );
     if (status == STATUS_SUCCESS)  /* destination exists */
     {
-        NtClose( dest_handle );
         if (!(flag & MOVEFILE_REPLACE_EXISTING))
         {
-            SetLastError( ERROR_ALREADY_EXISTS );
-            RtlFreeUnicodeString( &nt_name );
-            goto error;
+            if (!is_same_file( source_handle, dest_handle ))
+            {
+                SetLastError( ERROR_ALREADY_EXISTS );
+                RtlFreeUnicodeString( &nt_name );
+                goto error;
+            }
         }
         else if (info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) /* cannot replace directory */
         {
             SetLastError( ERROR_ACCESS_DENIED );
             goto error;
         }
+
+        NtClose( dest_handle );
     }
     else if (status != STATUS_OBJECT_NAME_NOT_FOUND)
     {
@@ -1484,6 +1488,7 @@ BOOL WINAPI MoveFileWithProgressW( LPCWSTR source, LPCWSTR dest,
 
 error:
     if (source_handle) NtClose( source_handle );
+    if (dest_handle) NtClose( dest_handle );
     RtlFreeAnsiString( &source_unix );
     RtlFreeAnsiString( &dest_unix );
     return FALSE;
