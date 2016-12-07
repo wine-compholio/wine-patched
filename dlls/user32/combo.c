@@ -1551,7 +1551,7 @@ static void COMBO_Size( LPHEADCOMBO lphc )
 		  &lphc->buttonRect,
 		  &lphc->droppedRect);
 
-  CBResetPos( lphc, &lphc->textRect, &lphc->droppedRect, TRUE );
+  CBResetPos( lphc, &lphc->textRect, &lphc->droppedRect, FALSE );
 }
 
 
