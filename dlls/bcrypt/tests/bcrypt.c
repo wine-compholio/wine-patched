@@ -704,7 +704,7 @@ static void test_aes(void)
     ULONG size, len;
     UCHAR mode[64];
     NTSTATUS ret;
-todo_wine {
+
     alg = NULL;
     ret = pBCryptOpenAlgorithmProvider(&alg, BCRYPT_AES_ALGORITHM, MS_PRIMITIVE_PROVIDER, 0);
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
@@ -738,7 +738,6 @@ todo_wine {
     ret = pBCryptCloseAlgorithmProvider(alg, 0);
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
 }
-}
 
 static void test_BCryptGenerateSymmetricKey(void)
 {
@@ -757,11 +756,6 @@ static void test_BCryptGenerateSymmetricKey(void)
     NTSTATUS ret;
 
     ret = pBCryptOpenAlgorithmProvider(&aes, BCRYPT_AES_ALGORITHM, NULL, 0);
-    if (ret != STATUS_SUCCESS) /* remove whole IF when Wine is fixed */
-    {
-        todo_wine ok(0, "AES provider not available\n");
-        return;
-    }
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
 
     len = size = 0xdeadbeef;
@@ -846,11 +840,6 @@ static void test_BCryptEncrypt(void)
     NTSTATUS ret;
 
     ret = pBCryptOpenAlgorithmProvider(&aes, BCRYPT_AES_ALGORITHM, NULL, 0);
-    if (ret != STATUS_SUCCESS) /* remove whole IF when Wine is fixed */
-    {
-        todo_wine ok(0, "AES provider not available\n");
-        return;
-    }
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
 
     len = 0xdeadbeef;
@@ -937,11 +926,6 @@ static void test_BCryptDecrypt(void)
     NTSTATUS ret;
 
     ret = pBCryptOpenAlgorithmProvider(&aes, BCRYPT_AES_ALGORITHM, NULL, 0);
-    if (ret != STATUS_SUCCESS) /* remove whole IF when Wine is fixed */
-    {
-        todo_wine ok(0, "AES provider not available\n");
-        return;
-    }
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
 
     len = 0xdeadbeef;
