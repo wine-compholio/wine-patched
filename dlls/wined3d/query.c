@@ -317,6 +317,10 @@ static void wined3d_query_destroy_object(void *object)
     {
         HeapFree(GetProcessHeap(), 0, query);
     }
+    else if (query->type == WINED3D_QUERY_TYPE_PIPELINE_STATISTICS)
+    {
+        HeapFree(GetProcessHeap(), 0, query);
+    }
     else
     {
         ERR("Query %p has invalid type %#x.\n", query, query->type);
@@ -809,6 +813,20 @@ static BOOL wined3d_overflow_query_ops_issue(struct wined3d_query *query, DWORD 
     return FALSE;
 }
 
+static BOOL wined3d_pipeline_query_ops_poll(struct wined3d_query *query, DWORD flags)
+{
+    TRACE("query %p, flags %#x.\n", query, flags);
+
+    return TRUE;
+}
+
+static BOOL wined3d_pipeline_query_ops_issue(struct wined3d_query *query, DWORD flags)
+{
+    FIXME("query %p, flags %#x.\n", query, flags);
+
+    return FALSE;
+}
+
 static const struct wined3d_query_ops event_query_ops =
 {
     wined3d_event_query_ops_poll,
@@ -1069,6 +1087,33 @@ static HRESULT wined3d_overflow_query_create(struct wined3d_device *device,
     return WINED3D_OK;
 }
 
+static const struct wined3d_query_ops pipeline_query_ops =
+{
+    wined3d_pipeline_query_ops_poll,
+    wined3d_pipeline_query_ops_issue,
+};
+
+static HRESULT wined3d_pipeline_query_create(struct wined3d_device *device,
+        enum wined3d_query_type type, void *parent, const struct wined3d_parent_ops *parent_ops,
+        struct wined3d_query **query)
+{
+    static const struct wined3d_query_data_pipeline_statistics data;
+    struct wined3d_query *object;
+
+    FIXME("device %p, type %#x, parent %p, query %p.\n", device, type, parent, query);
+
+    if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+        return E_OUTOFMEMORY;
+
+    wined3d_query_init(object, device, type, &data,
+            sizeof(data), &pipeline_query_ops, parent, parent_ops);
+
+    TRACE("Created query %p.\n", object);
+    *query = object;
+
+    return WINED3D_OK;
+}
+
 HRESULT CDECL wined3d_query_create(struct wined3d_device *device, enum wined3d_query_type type,
         void *parent, const struct wined3d_parent_ops *parent_ops, struct wined3d_query **query)
 {
@@ -1101,6 +1146,9 @@ HRESULT CDECL wined3d_query_create(struct wined3d_device *device, enum wined3d_q
 
         case WINED3D_QUERY_TYPE_SO_OVERFLOW:
             return wined3d_overflow_query_create(device, type, parent, parent_ops, query);
+
+        case WINED3D_QUERY_TYPE_PIPELINE_STATISTICS:
+            return wined3d_pipeline_query_create(device, type, parent, parent_ops, query);
 
         default:
             FIXME("Unhandled query type %#x.\n", type);
