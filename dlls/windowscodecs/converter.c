@@ -868,7 +868,9 @@ static HRESULT copypixels_to_32bppRGBA(struct FormatConverter *This, const WICRe
 
     switch (source_format)
     {
+    case format_32bppRGB:
     case format_32bppRGBA:
+    case format_32bppPRGBA:
         if (prc)
             return IWICBitmapSource_CopyPixels(This->source, prc, cbStride, cbBufferSize, pbBuffer);
         return S_OK;
