@@ -2289,40 +2289,16 @@ static int get_free_mem_state_callback( void *start, size_t size, void *arg )
     return 1;
 }
 
-#define UNIMPLEMENTED_INFO_CLASS(c) \
-    case c: \
-        FIXME("(process=%p,addr=%p) Unimplemented information class: " #c "\n", process, addr); \
-        return STATUS_INVALID_INFO_CLASS
-
-/***********************************************************************
- *             NtQueryVirtualMemory   (NTDLL.@)
- *             ZwQueryVirtualMemory   (NTDLL.@)
- */
-NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
-                                      MEMORY_INFORMATION_CLASS info_class, PVOID buffer,
-                                      SIZE_T len, SIZE_T *res_len )
+/* get basic information about a memory block */
+static NTSTATUS get_basic_memory_info( HANDLE process, LPCVOID addr,
+                                       MEMORY_BASIC_INFORMATION *info,
+                                       SIZE_T len, SIZE_T *res_len )
 {
     struct file_view *view;
     char *base, *alloc_base = 0;
     struct list *ptr;
     SIZE_T size = 0;
-    MEMORY_BASIC_INFORMATION *info = buffer;
     sigset_t sigset;
-
-    if (info_class != MemoryBasicInformation)
-    {
-        switch(info_class)
-        {
-            UNIMPLEMENTED_INFO_CLASS(MemoryWorkingSetList);
-            UNIMPLEMENTED_INFO_CLASS(MemorySectionName);
-            UNIMPLEMENTED_INFO_CLASS(MemoryBasicVlmInformation);
-
-            default:
-                FIXME("(%p,%p,info_class=%d,%p,%ld,%p) Unknown information class\n", 
-                      process, addr, info_class, buffer, len, res_len);
-                return STATUS_INVALID_INFO_CLASS;
-        }
-    }
 
     if (process != NtCurrentProcess())
     {
@@ -2436,6 +2412,130 @@ NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
 
     if (res_len) *res_len = sizeof(*info);
     return STATUS_SUCCESS;
+}
+
+/* get file name for mapped section */
+static NTSTATUS get_section_name( HANDLE process, LPCVOID addr,
+                                  MEMORY_SECTION_NAME *info,
+                                  SIZE_T len, SIZE_T *res_len )
+{
+    NTSTATUS status;
+    char *base;
+    struct file_view *view;
+    sigset_t sigset;
+
+    if (!addr || !info || !res_len) return STATUS_INVALID_PARAMETER;
+
+    if (process != NtCurrentProcess())
+    {
+        FIXME("(%p,%p,%p,%ld,%p): semi-stub\n", process, addr, info, len, res_len);
+        goto query_dll_name;
+    }
+
+    status = STATUS_INVALID_ADDRESS;
+
+    base = ROUND_ADDR( addr, page_mask );
+
+    server_enter_uninterrupted_section( &csVirtual, &sigset );
+    if ((view = VIRTUAL_FindView( base, 0 )))
+    {
+        if (view->mapping)
+        {
+            ANSI_STRING unix_filename;
+            UNICODE_STRING nt_name;
+
+            status = server_get_unix_name( view->mapping, &unix_filename );
+            if (status)
+            {
+                status = STATUS_FILE_INVALID;
+            }
+            else
+            {
+                status = wine_unix_to_nt_file_name( &unix_filename, &nt_name );
+                RtlFreeAnsiString( &unix_filename );
+                if (status == STATUS_SUCCESS)
+                {
+                    *res_len = sizeof(MEMORY_SECTION_NAME) + nt_name.MaximumLength;
+                    if (len >= *res_len)
+                    {
+                        info->SectionFileName.Length = nt_name.Length;
+                        info->SectionFileName.MaximumLength = nt_name.MaximumLength;
+                        info->SectionFileName.Buffer = (WCHAR *)(info + 1);
+                        memcpy(info->SectionFileName.Buffer, nt_name.Buffer, nt_name.MaximumLength);
+                    }
+                    else
+                        status = (len < sizeof(MEMORY_SECTION_NAME)) ? STATUS_INFO_LENGTH_MISMATCH : STATUS_BUFFER_OVERFLOW;
+
+                    RtlFreeUnicodeString( &nt_name );
+                }
+            }
+        }
+    }
+    server_leave_uninterrupted_section( &csVirtual, &sigset );
+    if (status != STATUS_INVALID_ADDRESS) return status;
+
+query_dll_name:
+    /* FIXME: this will return a DOS path. Windows returns an NT path. */
+    SERVER_START_REQ(get_dll_info)
+    {
+        req->handle = wine_server_obj_handle( process );
+        req->base_address = (ULONG_PTR)addr;
+        wine_server_set_reply( req, info + 1,
+                               len > sizeof(MEMORY_SECTION_NAME) ? len - sizeof(MEMORY_SECTION_NAME) : 0 );
+        status = wine_server_call( req );
+
+        if (status != STATUS_DLL_NOT_FOUND)
+        {
+            *res_len = sizeof(MEMORY_SECTION_NAME) + reply->filename_len + sizeof(WCHAR);
+            if (status == STATUS_SUCCESS && len >= *res_len)
+            {
+                info->SectionFileName.Length = reply->filename_len;
+                info->SectionFileName.MaximumLength = reply->filename_len + sizeof(WCHAR);
+                info->SectionFileName.Buffer = (WCHAR *)(info + 1);
+                *(WCHAR *)((char *)(info + 1) + reply->filename_len) = 0;
+            }
+            else if (status == STATUS_BUFFER_TOO_SMALL)
+                status = (len < sizeof(MEMORY_SECTION_NAME)) ? STATUS_INFO_LENGTH_MISMATCH : STATUS_BUFFER_OVERFLOW;
+        }
+        else
+            status = STATUS_INVALID_ADDRESS;
+    }
+    SERVER_END_REQ;
+    return status;
+}
+
+#define UNIMPLEMENTED_INFO_CLASS(c) \
+    case c: \
+        FIXME("(process=%p,addr=%p) Unimplemented information class: " #c "\n", process, addr); \
+        return STATUS_INVALID_INFO_CLASS
+
+/***********************************************************************
+ *             NtQueryVirtualMemory   (NTDLL.@)
+ *             ZwQueryVirtualMemory   (NTDLL.@)
+ */
+NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
+                                      MEMORY_INFORMATION_CLASS info_class,
+                                      PVOID buffer, SIZE_T len, SIZE_T *res_len )
+{
+    TRACE("(%p, %p, info_class=%d, %p, %ld, %p)\n",
+          process, addr, info_class, buffer, len, res_len);
+
+    switch(info_class)
+    {
+        case MemoryBasicInformation:
+            return get_basic_memory_info( process, addr, buffer, len, res_len );
+
+        case MemorySectionName:
+            return get_section_name( process, addr, buffer, len, res_len );
+
+        UNIMPLEMENTED_INFO_CLASS(MemoryWorkingSetList);
+        UNIMPLEMENTED_INFO_CLASS(MemoryBasicVlmInformation);
+
+        default:
+            FIXME("(%p,%p,info_class=%d,%p,%ld,%p) Unknown information class\n",
+                  process, addr, info_class, buffer, len, res_len);
+            return STATUS_INVALID_INFO_CLASS;
+    }
 }
 
 
