@@ -63,7 +63,7 @@
 # @ stub LdrDestroyOutOfProcessImage
 @ stdcall LdrDisableThreadCalloutsForDll(long)
 @ stub LdrEnumResources
-# @ stub LdrEnumerateLoadedModules
+@ stdcall LdrEnumerateLoadedModules(ptr ptr ptr)
 # @ stub LdrFindCreateProcessManifest
 @ stdcall LdrFindEntryForAddress(ptr ptr)
 @ stdcall LdrFindResourceDirectory_U(long ptr long ptr)
