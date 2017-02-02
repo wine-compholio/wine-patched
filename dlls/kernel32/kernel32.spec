@@ -772,7 +772,7 @@
 @ stub GetPackageApplicationIds
 @ stub GetPackageFamilyName
 @ stub GetPackageFamilyNameFromToken
-@ stub GetPackageFullName
+@ stdcall GetPackageFullName(long ptr ptr)
 @ stub GetPackageFullNameFromToken
 @ stub GetPackageId
 @ stub GetPackageInfo
