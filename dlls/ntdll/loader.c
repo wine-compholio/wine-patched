@@ -1532,6 +1532,37 @@ NTSTATUS WINAPI LdrFindEntryForAddress(const void* addr, PLDR_MODULE* pmod)
     return STATUS_NO_MORE_ENTRIES;
 }
 
+typedef void (WINAPI LDR_ENUM_CALLBACK)(LDR_MODULE*, void*, BOOLEAN*);
+
+/******************************************************************
+ *      LdrEnumerateLoadedModules (NTDLL.@)
+ */
+NTSTATUS WINAPI LdrEnumerateLoadedModules(void *unknown, LDR_ENUM_CALLBACK *callback, void *context)
+{
+    PLIST_ENTRY mark, entry;
+    PLDR_MODULE mod;
+    BOOLEAN stop = FALSE;
+
+    TRACE("(%p, %p, %p)\n", unknown, callback, context);
+
+    if (unknown || !callback)
+        return STATUS_INVALID_PARAMETER;
+
+    RtlEnterCriticalSection( &loader_section );
+
+    mark = &NtCurrentTeb()->Peb->LdrData->InMemoryOrderModuleList;
+    for (entry = mark->Flink; entry != mark; entry = entry->Flink)
+    {
+        mod = CONTAINING_RECORD(entry, LDR_MODULE, InMemoryOrderModuleList);
+        callback(mod, context, &stop);
+        if (stop) break;
+    }
+
+    RtlLeaveCriticalSection( &loader_section );
+
+    return STATUS_SUCCESS;
+}
+
 /******************************************************************
  *		LdrLockLoaderLock  (NTDLL.@)
  *
