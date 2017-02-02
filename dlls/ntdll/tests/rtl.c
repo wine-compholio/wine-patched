@@ -102,6 +102,7 @@ static BOOL      (WINAPI *pRtlIsCriticalSectionLocked)(CRITICAL_SECTION *);
 static BOOL      (WINAPI *pRtlIsCriticalSectionLockedByThread)(CRITICAL_SECTION *);
 static NTSTATUS  (WINAPI *pRtlInitializeCriticalSectionEx)(CRITICAL_SECTION *, ULONG, ULONG);
 static NTSTATUS  (WINAPI *pRtlQueryPackageIdentity)(HANDLE, WCHAR*, SIZE_T*, WCHAR*, SIZE_T*, BOOLEAN*);
+static NTSTATUS  (WINAPI *pLdrEnumerateLoadedModules)(void*, void*, void*);
 
 static HMODULE hkernel32 = 0;
 static BOOL      (WINAPI *pIsWow64Process)(HANDLE, PBOOL);
@@ -156,6 +157,7 @@ static void InitFunctionPtrs(void)
         pRtlIsCriticalSectionLockedByThread = (void *)GetProcAddress(hntdll, "RtlIsCriticalSectionLockedByThread");
         pRtlInitializeCriticalSectionEx = (void *)GetProcAddress(hntdll, "RtlInitializeCriticalSectionEx");
         pRtlQueryPackageIdentity = (void *)GetProcAddress(hntdll, "RtlQueryPackageIdentity");
+        pLdrEnumerateLoadedModules = (void *)GetProcAddress(hntdll, "LdrEnumerateLoadedModules");
     }
     hkernel32 = LoadLibraryA("kernel32.dll");
     ok(hkernel32 != 0, "LoadLibrary failed\n");
@@ -2169,6 +2171,57 @@ done:
     CoUninitialize();
 }
 
+static BOOL enum_abort = FALSE;
+static BOOL ntdll_found = FALSE;
+static int module_count = 0;
+
+void WINAPI ldr_enum_callback(LDR_MODULE *module, void *context, BOOLEAN *stop)
+{
+    static const WCHAR ntdllW[] = {'n','t','d','l','l','.','d','l','l',0};
+    ok(context == (void *)0xdeadbeef, "Expected 0xdeadbeef, got %p\n", context);
+
+    module_count++;
+
+    if (!lstrcmpiW(module->BaseDllName.Buffer, ntdllW))
+        ntdll_found = TRUE;
+
+    *stop = enum_abort;
+}
+
+static void test_LdrEnumerateLoadedModules(void)
+{
+    NTSTATUS status;
+
+    if (!pLdrEnumerateLoadedModules)
+    {
+        win_skip("LdrEnumerateLoadedModules not available\n");
+        return;
+    }
+
+    enum_abort = FALSE;
+    ntdll_found = FALSE;
+    module_count = 0;
+    status = pLdrEnumerateLoadedModules(NULL, ldr_enum_callback, (void *)0xdeadbeef);
+    ok(status == STATUS_SUCCESS, "got wrong status 0x%08x\n", status);
+    ok(ntdll_found, "Could not find ntdll!\n");
+    ok(module_count > 1, "Expected more than one module, got %d\n", module_count);
+
+    enum_abort = TRUE;
+    module_count = 0;
+    status = pLdrEnumerateLoadedModules(NULL, ldr_enum_callback, (void *)0xdeadbeef);
+    ok(status == STATUS_SUCCESS, "got wrong status 0x%08x\n", status);
+    ok(module_count == 1, "Expected exactly one module, got %d\n", module_count);
+
+    status = pLdrEnumerateLoadedModules((void *)0x1, ldr_enum_callback, (void *)0xdeadbeef);
+    ok(status == STATUS_INVALID_PARAMETER, "got wrong status 0x%08x\n", status);
+
+    status = pLdrEnumerateLoadedModules((void *)0xdeadbeef, ldr_enum_callback, (void *)0xdeadbeef);
+    ok(status == STATUS_INVALID_PARAMETER, "got wrong status 0x%08x\n", status);
+
+    status = pLdrEnumerateLoadedModules(NULL, NULL, (void *)0xdeadbeef);
+    ok(status == STATUS_INVALID_PARAMETER, "got wrong status 0x%08x\n", status);
+}
+
 START_TEST(rtl)
 {
     InitFunctionPtrs();
@@ -2201,4 +2254,5 @@ START_TEST(rtl)
     test_RtlIsCriticalSectionLocked();
     test_RtlInitializeCriticalSectionEx();
     test_RtlQueryPackageIdentity();
+    test_LdrEnumerateLoadedModules();
 }
