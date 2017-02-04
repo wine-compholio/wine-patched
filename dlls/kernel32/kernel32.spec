@@ -543,8 +543,8 @@
 @ stdcall GenerateConsoleCtrlEvent(long long)
 @ stdcall -i386 -private Get16DLLAddress(long str) krnl386.exe16.Get16DLLAddress
 @ stdcall GetACP()
-# @ stub GetActiveProcessorCount
-# @ stub GetActiveProcessorGroupCount
+@ stdcall GetActiveProcessorCount(long)
+@ stdcall GetActiveProcessorGroupCount()
 # @ stub GetApplicationRecoveryCallback
 # @ stub GetApplicationRestartSettings
 @ stub GetApplicationUserModelId
@@ -724,8 +724,8 @@
 # @ stub GetLongPathNameTransactedW
 @ stdcall GetLongPathNameW (wstr long long)
 @ stdcall GetMailslotInfo(long ptr ptr ptr ptr)
-# @ stub GetMaximumProcessorCount
-# @ stub GetMaximumProcessorGroupCount
+@ stdcall GetMaximumProcessorCount(long)
+@ stdcall GetMaximumProcessorGroupCount()
 @ stdcall GetModuleFileNameA(long ptr long)
 @ stdcall GetModuleFileNameW(long ptr long)
 @ stdcall GetModuleHandleA(str)
