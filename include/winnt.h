@@ -5925,6 +5925,8 @@ typedef struct _GROUP_AFFINITY
     WORD Reserved[3];
 } GROUP_AFFINITY, *PGROUP_AFFINITY;
 
+#define ALL_PROCESSOR_GROUPS 0xffff
+
 typedef struct _PROCESSOR_NUMBER
 {
     WORD Group;
