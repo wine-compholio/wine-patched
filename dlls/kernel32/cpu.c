@@ -285,3 +285,58 @@ SIZE_T WINAPI GetLargePageMinimum(void)
     FIXME("Not implemented on your platform/architecture.\n");
     return 0;
 }
+
+/***********************************************************************
+ *           GetActiveProcessorGroupCount (KERNEL32.@)
+ */
+WORD WINAPI GetActiveProcessorGroupCount(void)
+{
+    TRACE("()\n");
+
+    /* systems with less than 64 logical processors only have group 0 */
+    return 1;
+}
+
+/***********************************************************************
+ *           GetMaximumProcessorGroupCount (KERNEL32.@)
+ */
+WORD WINAPI GetMaximumProcessorGroupCount(void)
+{
+    TRACE("()\n");
+
+    /* systems with less than 64 logical processors only have group 0 */
+    return 1;
+}
+
+/***********************************************************************
+ *           GetActiveProcessorCount (KERNEL32.@)
+ */
+DWORD WINAPI GetActiveProcessorCount(WORD group)
+{
+    TRACE("(%u)\n", group);
+
+    if (group && group != ALL_PROCESSOR_GROUPS)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return 0;
+    }
+
+    return system_info.NumberOfProcessors;
+}
+
+/***********************************************************************
+ *           GetMaximumProcessorCount (KERNEL32.@)
+ */
+DWORD WINAPI GetMaximumProcessorCount(WORD group)
+{
+    TRACE("(%u)\n", group);
+
+    if (group && group != ALL_PROCESSOR_GROUPS)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return 0;
+    }
+
+    /* Wine only counts active processors so far */
+    return system_info.NumberOfProcessors;
+}
