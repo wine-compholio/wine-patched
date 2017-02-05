@@ -2447,7 +2447,7 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
         0,                                             /* FileIdFullDirectoryInformation */
         0,                                             /* FileValidDataLengthInformation */
         0,                                             /* FileShortNameInformation */
-        0,                                             /* FileIoCompletionNotificationInformation, */
+        sizeof(FILE_IO_COMPLETION_NOTIFICATION_INFORMATION), /* FileIoCompletionNotificationInformation, */
         0,                                             /* FileIoStatusBlockRangeInformation */
         0,                                             /* FileIoPriorityHintInformation */
         0,                                             /* FileSfioReserveInformation */
@@ -2752,6 +2752,22 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
                 }
                 RtlFreeAnsiString( &unix_name );
             }
+        }
+        break;
+    case FileIoCompletionNotificationInformation:
+        {
+            FILE_IO_COMPLETION_NOTIFICATION_INFORMATION *info = ptr;
+
+            SERVER_START_REQ( get_fd_compl_info )
+            {
+                req->handle = wine_server_obj_handle( hFile );
+                if (!(io->u.Status = wine_server_call( req )))
+                {
+                    info->Flags = (reply->flags & COMPLETION_SKIP_ON_SUCCESS) ?
+                                  FILE_SKIP_COMPLETION_PORT_ON_SUCCESS : 0;
+                }
+            }
+            SERVER_END_REQ;
         }
         break;
     case FileIdInformation:
