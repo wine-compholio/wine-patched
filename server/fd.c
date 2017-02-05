@@ -2636,6 +2636,17 @@ DECL_HANDLER(set_fd_compl_info)
     }
 }
 
+/* get fd completion information */
+DECL_HANDLER(get_fd_compl_info)
+{
+    struct fd *fd = get_handle_fd_obj( current->process, req->handle, 0 );
+    if (fd)
+    {
+        reply->flags = fd->comp_flags;
+        release_object( fd );
+    }
+}
+
 /* set fd disposition information */
 DECL_HANDLER(set_fd_disp_info)
 {
