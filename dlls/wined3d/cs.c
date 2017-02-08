@@ -2154,18 +2154,11 @@ static void wined3d_cs_exec_update_sub_resource(struct wined3d_cs *cs, const voi
     if (op->resource->type == WINED3D_RTYPE_BUFFER)
     {
         struct wined3d_buffer *buffer = buffer_from_resource(op->resource);
+        HRESULT hr;
 
-        context = context_acquire(op->resource->device, NULL, 0);
-        if (!wined3d_buffer_load_location(buffer, context, WINED3D_LOCATION_BUFFER))
-        {
-            ERR("Failed to load buffer location.\n");
-            context_release(context);
-            goto done;
-        }
+        if (FAILED(hr = wined3d_buffer_upload_data(buffer, box, op->data.data)))
+            WARN("Failed to update buffer data, hr %#x.\n", hr);
 
-        wined3d_buffer_upload_data(buffer, context, box, op->data.data);
-        wined3d_buffer_invalidate_location(buffer, ~WINED3D_LOCATION_BUFFER);
-        context_release(context);
         goto done;
     }
 
