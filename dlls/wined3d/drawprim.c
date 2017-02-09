@@ -411,7 +411,11 @@ void draw_primitive(struct wined3d_device *device, const struct wined3d_state *s
         int base_vertex_idx, unsigned int start_idx, unsigned int index_count,
         unsigned int start_instance, unsigned int instance_count, BOOL indexed)
 {
+#if !defined(STAGING_CSMT)
     const struct wined3d_fb_state *fb = state->fb;
+#else  /* STAGING_CSMT */
+    const struct wined3d_fb_state *fb = &state->fb;
+#endif /* STAGING_CSMT */
     const struct wined3d_stream_info *stream_info;
     struct wined3d_event_query *ib_query = NULL;
     struct wined3d_rendertarget_view *dsv, *rtv;

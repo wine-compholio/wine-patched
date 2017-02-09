@@ -64,7 +64,11 @@ static GLenum get_texture_view_target(const struct wined3d_view_desc *desc,
     return texture->target;
 }
 
+#if !defined(STAGING_CSMT)
 static void create_texture_view(struct wined3d_gl_view *view, GLenum view_target,
+#else  /* STAGING_CSMT */
+void create_texture_view(struct wined3d_gl_view *view, GLenum view_target,
+#endif /* STAGING_CSMT */
         const struct wined3d_view_desc *desc, struct wined3d_texture *texture,
         const struct wined3d_format *view_format)
 {
@@ -125,7 +129,11 @@ static void create_texture_view(struct wined3d_gl_view *view, GLenum view_target
     context_release(context);
 }
 
+#if !defined(STAGING_CSMT)
 static void create_buffer_texture(struct wined3d_gl_view *view,
+#else  /* STAGING_CSMT */
+void create_buffer_texture(struct wined3d_gl_view *view,
+#endif /* STAGING_CSMT */
         struct wined3d_buffer *buffer, const struct wined3d_format *view_format)
 {
     const struct wined3d_gl_info *gl_info;
@@ -467,7 +475,11 @@ static HRESULT wined3d_shader_resource_view_init(struct wined3d_shader_resource_
                 FIXME("Ignoring buffer range %u-%u.\n", desc->u.buffer.start_idx, desc->u.buffer.count);
             }
 
+#if !defined(STAGING_CSMT)
             create_buffer_texture(&view->gl_view, buffer, view_format);
+#else  /* STAGING_CSMT */
+            wined3d_cs_emit_create_buffer_texture(resource->device->cs, &view->gl_view, buffer, view_format);
+#endif /* STAGING_CSMT */
         }
     }
     else
@@ -498,7 +510,12 @@ static HRESULT wined3d_shader_resource_view_init(struct wined3d_shader_resource_
         else if (resource->format->typeless_id == view_format->typeless_id
                 && resource->format->gl_view_class == view_format->gl_view_class)
         {
+#if !defined(STAGING_CSMT)
             create_texture_view(&view->gl_view, view_target, desc, texture, view_format);
+#else  /* STAGING_CSMT */
+            wined3d_cs_emit_create_texture_view(resource->device->cs, &view->gl_view, view_target,
+                    desc, texture, view_format);
+#endif /* STAGING_CSMT */
         }
         else
         {
@@ -663,8 +680,13 @@ static HRESULT wined3d_unordered_access_view_init(struct wined3d_unordered_acces
 
         if (desc->u.texture.layer_idx || desc->u.texture.layer_count != depth_or_layer_count)
         {
+#if !defined(STAGING_CSMT)
             create_texture_view(&view->gl_view, get_texture_view_target(desc, texture),
                     desc, texture, view->format);
+#else  /* STAGING_CSMT */
+            wined3d_cs_emit_create_texture_view(resource->device->cs, &view->gl_view,
+                    get_texture_view_target(desc, texture), desc, texture, view->format);
+#endif /* STAGING_CSMT */
         }
 
         view->layer_idx = desc->u.texture.layer_idx;
