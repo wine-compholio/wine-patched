@@ -3013,6 +3013,9 @@ HPROPSHEETPAGE WINAPI CreatePropertySheetPageA(
     else
         ppsp->pszHeaderSubTitle = NULL;
 
+    if ((ppsp->dwFlags & PSH_USECALLBACK) && ppsp->pfnCallback)
+        ppsp->pfnCallback(0, PSPCB_ADDREF, ppsp);
+
     return (HPROPSHEETPAGE)ppsp;
 }
 
@@ -3059,6 +3062,9 @@ HPROPSHEETPAGE WINAPI CreatePropertySheetPageW(LPCPROPSHEETPAGEW lpPropSheetPage
     else
         ppsp->pszHeaderSubTitle = NULL;
 
+    if ((ppsp->dwFlags & PSH_USECALLBACK) && ppsp->pfnCallback)
+        ppsp->pfnCallback(0, PSPCB_ADDREF, ppsp);
+
     return (HPROPSHEETPAGE)ppsp;
 }
 
@@ -3079,6 +3085,9 @@ BOOL WINAPI DestroyPropertySheetPage(HPROPSHEETPAGE hPropPage)
 
   if (!psp)
      return FALSE;
+
+  if ((psp->dwFlags & PSH_USECALLBACK) && psp->pfnCallback)
+     psp->pfnCallback(0, PSPCB_RELEASE, psp);
 
   if (!(psp->dwFlags & PSP_DLGINDIRECT) && !IS_INTRESOURCE( psp->u.pszTemplate ))
      Free ((LPVOID)psp->u.pszTemplate);
