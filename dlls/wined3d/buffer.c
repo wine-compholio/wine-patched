@@ -1499,7 +1499,7 @@ HRESULT CDECL wined3d_buffer_create(struct wined3d_device *device, const struct 
     FIXME("Ignoring access flags (pool).\n");
 
     hr = buffer_init(object, device, desc->byte_width, desc->usage, WINED3DFMT_UNKNOWN,
-            WINED3D_POOL_MANAGED, desc->bind_flags, data, parent, parent_ops);
+            WINED3D_POOL_DEFAULT, desc->bind_flags, data, parent, parent_ops);
     if (FAILED(hr))
     {
         WARN("Failed to initialize buffer, hr %#x.\n", hr);
