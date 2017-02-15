@@ -2552,6 +2552,11 @@ static NTSTATUS find_dll_file( const WCHAR *load_path, const WCHAR *libname,
             RtlFreeHeap( GetProcessHeap(), 0, dllname );
             return status;
         }
+        else if (!handle)
+        {
+            /* Do not resolve full name if basename cannot be found */
+            return STATUS_DLL_NOT_FOUND;
+        }
     }
 
     if (RtlDetermineDosPathNameType_U( libname ) == RELATIVE_PATH)
