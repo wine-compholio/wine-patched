@@ -7821,6 +7821,7 @@ float4 main(const ps_in v) : SV_TARGET
         ID3D10Device_Draw(device, 4, 0);
 
         color = get_texture_color(test_context.backbuffer, 319, 239);
+        todo_wine_if(test_data[i].index == 1)
         ok(compare_color(color, test_data[i].expected, 1),
                 "Got unexpected color 0x%08x for index %d.\n", color, test_data[i].index);
     }
@@ -9989,6 +9990,7 @@ static void test_line_antialiasing_blending(void)
 
     ID3D10Device_ClearRenderTargetView(device, test_context.backbuffer_rtv, &green.x);
     draw_color_quad(&test_context, &red);
+    todo_wine
     check_texture_color(test_context.backbuffer, 0xe2007fcc, 1);
 
     ID3D10Device_OMSetBlendState(device, NULL, NULL, D3D10_DEFAULT_SAMPLE_MASK);

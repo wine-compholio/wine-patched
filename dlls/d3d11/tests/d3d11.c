@@ -9776,6 +9776,7 @@ float4 main(const ps_in v) : SV_TARGET
         ID3D11DeviceContext_UpdateSubresource(context, (ID3D11Resource *)index_cb, 0, NULL, &index, 0, 0);
 
         draw_quad(&test_context);
+        todo_wine_if(test_data[i].index == 1)
         check_texture_color(test_context.backbuffer, test_data[i].expected, 1);
     }
 
@@ -12027,6 +12028,7 @@ static void test_line_antialiasing_blending(void)
 
     ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, &green.x);
     draw_color_quad(&test_context, &red);
+    todo_wine
     check_texture_color(test_context.backbuffer, 0xe2007fcc, 1);
 
     ID3D11DeviceContext_OMSetBlendState(context, NULL, NULL, D3D11_DEFAULT_SAMPLE_MASK);
@@ -15236,8 +15238,10 @@ static void test_unaligned_raw_buffer_access(void)
     ID3D11DeviceContext_Dispatch(context, 1, 1, 1);
     get_buffer_readback(raw_buffer, &rb);
     data = get_readback_color(&rb, 0, 0);
+    todo_wine
     ok(data == 0xffff, "Got unexpected result %#x.\n", data);
     data = get_readback_color(&rb, 1, 0);
+    todo_wine
     ok(data == 0xa, "Got unexpected result %#x.\n", data);
     release_resource_readback(&rb);
 
