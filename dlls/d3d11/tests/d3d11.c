@@ -18791,8 +18791,10 @@ static void test_unaligned_raw_buffer_access(const D3D_FEATURE_LEVEL feature_lev
     ID3D11DeviceContext_Dispatch(context, 1, 1, 1);
     get_buffer_readback(raw_buffer, &rb);
     data = get_readback_color(&rb, 0, 0);
+    todo_wine
     ok(data == 0xffff, "Got unexpected result %#x.\n", data);
     data = get_readback_color(&rb, 1, 0);
+    todo_wine
     ok(data == 0xa, "Got unexpected result %#x.\n", data);
     release_resource_readback(&rb);
 
