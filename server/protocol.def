@@ -3851,3 +3851,12 @@ struct handle_info
     obj_handle_t handle;          /* handle to the job */
     int          status;          /* process exit code */
 @END
+
+
+/* Return system information values */
+@REQ(get_system_info)
+@REPLY
+    unsigned int processes;   /* number of processes */
+    unsigned int threads;     /* number of threads */
+    unsigned int handles;     /* number of handles */
+@END
