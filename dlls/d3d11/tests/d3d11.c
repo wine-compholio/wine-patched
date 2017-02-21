@@ -9776,7 +9776,9 @@ float4 main(const ps_in v) : SV_TARGET
         ID3D11DeviceContext_UpdateSubresource(context, (ID3D11Resource *)index_cb, 0, NULL, &index, 0, 0);
 
         draw_quad(&test_context);
+#if !defined(STAGING_CSMT)
         todo_wine_if(test_data[i].index == 1)
+#endif /* STAGING_CSMT */
         check_texture_color(test_context.backbuffer, test_data[i].expected, 1);
     }
 
@@ -12028,7 +12030,9 @@ static void test_line_antialiasing_blending(void)
 
     ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, &green.x);
     draw_color_quad(&test_context, &red);
+#if !defined(STAGING_CSMT)
     todo_wine
+#endif /* STAGING_CSMT */
     check_texture_color(test_context.backbuffer, 0xe2007fcc, 1);
 
     ID3D11DeviceContext_OMSetBlendState(context, NULL, NULL, D3D11_DEFAULT_SAMPLE_MASK);

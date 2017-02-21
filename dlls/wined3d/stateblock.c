@@ -431,6 +431,9 @@ void state_unbind_resources(struct wined3d_state *state)
     struct wined3d_texture *texture;
     struct wined3d_buffer *buffer;
     struct wined3d_shader *shader;
+#if defined(STAGING_CSMT)
+    struct wined3d_rendertarget_view *view;
+#endif /* STAGING_CSMT */
     unsigned int i, j;
 
     if ((decl = state->vertex_declaration))
@@ -519,6 +522,33 @@ void state_unbind_resources(struct wined3d_state *state)
             }
         }
     }
+#if defined(STAGING_CSMT)
+
+    if (state->fb.depth_stencil)
+    {
+        view = state->fb.depth_stencil;
+
+        TRACE("Releasing depth/stencil buffer %p.\n", view);
+
+        state->fb.depth_stencil = NULL;
+        wined3d_rendertarget_view_decref(view);
+    }
+
+    if (state->fb.render_targets)
+    {
+        for (i = 0; i < state->fb.rt_size; i++)
+        {
+            view = state->fb.render_targets[i];
+            TRACE("Setting rendertarget %u to NULL\n", i);
+            state->fb.render_targets[i] = NULL;
+            if (view)
+            {
+                TRACE("Releasing the rendertarget view at %p\n", view);
+                wined3d_rendertarget_view_decref(view);
+            }
+        }
+    }
+#endif /* STAGING_CSMT */
 }
 
 void state_cleanup(struct wined3d_state *state)
@@ -543,6 +573,10 @@ void state_cleanup(struct wined3d_state *state)
             HeapFree(GetProcessHeap(), 0, light);
         }
     }
+#if defined(STAGING_CSMT)
+
+    HeapFree(GetProcessHeap(), 0, state->fb.render_targets);
+#endif /* STAGING_CSMT */
 }
 
 ULONG CDECL wined3d_stateblock_decref(struct wined3d_stateblock *stateblock)
@@ -1054,8 +1088,13 @@ void CDECL wined3d_stateblock_apply(const struct wined3d_stateblock *stateblock)
         gl_primitive_type = stateblock->state.gl_primitive_type;
         prev = device->update_state->gl_primitive_type;
         device->update_state->gl_primitive_type = gl_primitive_type;
+#if !defined(STAGING_CSMT)
         if (gl_primitive_type != prev && (gl_primitive_type == GL_POINTS || prev == GL_POINTS))
             device_invalidate_state(device, STATE_POINT_ENABLE);
+#else  /* STAGING_CSMT */
+        if (gl_primitive_type != prev)
+            wined3d_cs_emit_set_primitive_type(device->cs, gl_primitive_type);
+#endif /* STAGING_CSMT */
     }
 
     if (stateblock->changed.indices)
@@ -1317,32 +1356,68 @@ static void state_init_default(struct wined3d_state *state, const struct wined3d
     }
 }
 
+#if !defined(STAGING_CSMT)
 void state_init(struct wined3d_state *state, struct wined3d_fb_state *fb,
         const struct wined3d_gl_info *gl_info, const struct wined3d_d3d_info *d3d_info,
         DWORD flags)
+#else  /* STAGING_CSMT */
+HRESULT state_init(struct wined3d_state *state, const struct wined3d_gl_info *gl_info,
+        const struct wined3d_d3d_info *d3d_info, DWORD flags)
+#endif /* STAGING_CSMT */
 {
     unsigned int i;
 
+#if !defined(STAGING_CSMT)
     state->flags = flags;
     state->fb = fb;
+#else  /* STAGING_CSMT */
+    if (flags & WINED3D_STATE_INIT_DEFAULT)
+        memset(state, 0, sizeof(*state));
+
+    state->flags = flags;
+#endif /* STAGING_CSMT */
 
     for (i = 0; i < LIGHTMAP_SIZE; i++)
     {
         list_init(&state->light_map[i]);
     }
 
+#if !defined(STAGING_CSMT)
     if (flags & WINED3D_STATE_INIT_DEFAULT)
         state_init_default(state, gl_info);
+#else  /* STAGING_CSMT */
+    state->fb.rt_size = gl_info->limits.buffers;
+    if (!(state->fb.render_targets = wined3d_calloc(state->fb.rt_size,
+            sizeof(*state->fb.render_targets))))
+        return E_OUTOFMEMORY;
+
+    if (flags & WINED3D_STATE_INIT_DEFAULT)
+        state_init_default(state, gl_info);
+
+    return WINED3D_OK;
+#endif /* STAGING_CSMT */
 }
 
 static HRESULT stateblock_init(struct wined3d_stateblock *stateblock,
         struct wined3d_device *device, enum wined3d_stateblock_type type)
 {
+#if !defined(STAGING_CSMT)
     const struct wined3d_d3d_info *d3d_info = &device->adapter->d3d_info;
+#else  /* STAGING_CSMT */
+    const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
+    const struct wined3d_d3d_info *d3d_info = &device->adapter->d3d_info;
+    HRESULT hr;
+#endif /* STAGING_CSMT */
 
     stateblock->ref = 1;
     stateblock->device = device;
+#if !defined(STAGING_CSMT)
     state_init(&stateblock->state, NULL, &device->adapter->gl_info, d3d_info, 0);
+#else  /* STAGING_CSMT */
+
+    if (FAILED(hr = state_init(&stateblock->state, gl_info, d3d_info, 0)))
+        return hr;
+#endif /* STAGING_CSMT */
 
     if (type == WINED3D_SBT_RECORDED)
         return WINED3D_OK;
