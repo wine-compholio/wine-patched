@@ -6521,10 +6521,22 @@ static void STDMETHODCALLTYPE d3d10_device_ResolveSubresource(ID3D10Device1 *ifa
         ID3D10Resource *dst_resource, UINT dst_subresource_idx,
         ID3D10Resource *src_resource, UINT src_subresource_idx, DXGI_FORMAT format)
 {
-    FIXME("iface %p, dst_resource %p, dst_subresource_idx %u, "
-            "src_resource %p, src_subresource_idx %u, format %s stub!\n",
-            iface, dst_resource, dst_subresource_idx,
-            src_resource, src_subresource_idx, debug_dxgi_format(format));
+    struct d3d_device *device = impl_from_ID3D10Device(iface);
+    struct wined3d_resource *wined3d_dst_resource, *wined3d_src_resource;
+
+    TRACE("iface %p, dst_resource %p, dst_subresource_idx %u, src_resource %p, src_subresource_idx %u, "
+            "format %s stub!\n",
+            iface, dst_resource, dst_subresource_idx, src_resource, src_subresource_idx,
+            debug_dxgi_format(format));
+
+    wined3d_dst_resource = wined3d_resource_from_d3d10_resource(dst_resource);
+    wined3d_src_resource = wined3d_resource_from_d3d10_resource(src_resource);
+
+    /* Multisampled textures are not supported yet, so simply copy the sub resource */
+    wined3d_mutex_lock();
+    wined3d_device_copy_sub_resource_region(device->wined3d_device, wined3d_dst_resource, dst_subresource_idx,
+            0, 0, 0, wined3d_src_resource, src_subresource_idx, NULL);
+    wined3d_mutex_unlock();
 }
 
 static void STDMETHODCALLTYPE d3d10_device_VSGetConstantBuffers(ID3D10Device1 *iface,
