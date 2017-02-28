@@ -7763,10 +7763,24 @@ static HRESULT STDMETHODCALLTYPE d3d10_device_CreateCounter(ID3D10Device1 *iface
 static HRESULT STDMETHODCALLTYPE d3d10_device_CheckFormatSupport(ID3D10Device1 *iface,
         DXGI_FORMAT format, UINT *format_support)
 {
-    FIXME("iface %p, format %s, format_support %p stub!\n",
-            iface, debug_dxgi_format(format), format_support);
+    struct d3d_device *device = impl_from_ID3D10Device(iface);
+    enum wined3d_format_id d3d_format;
 
-    return E_NOTIMPL;
+    FIXME("iface %p, format %s, format_support %p semi-stub!\n",
+          iface, debug_dxgi_format(format), format_support);
+
+    if (!format_support)
+        return E_INVALIDARG;
+
+    d3d_format = wined3dformat_from_dxgi_format(format);
+    if (d3d_format == WINED3DFMT_UNKNOWN)
+        return E_FAIL;
+
+    wined3d_mutex_lock();
+    wined3d_check_device_format_support(device->wined3d_device, d3d_format, format_support);
+    wined3d_mutex_unlock();
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE d3d10_device_CheckMultisampleQualityLevels(ID3D10Device1 *iface,
