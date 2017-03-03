@@ -633,6 +633,7 @@ HEADER_SRCS = \
 	verrsrc.h \
 	vfw.h \
 	vfwmsgs.h \
+	virtdisk.h \
 	vsstyle.h \
 	vssym32.h \
 	vswriter.h \
