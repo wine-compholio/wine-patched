@@ -635,7 +635,7 @@
 @ stdcall GetCurrentDirectoryA(long ptr)
 @ stdcall GetCurrentDirectoryW(long ptr)
 @ stdcall GetCurrentPackageFamilyName(ptr ptr)
-@ stub GetCurrentPackageFullName
+@ stdcall GetCurrentPackageFullName(ptr ptr)
 @ stdcall GetCurrentPackageId(ptr ptr)
 @ stub GetCurrentPackageInfo
 @ stub GetCurrentPackagePath
