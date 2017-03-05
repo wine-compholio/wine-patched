@@ -3131,9 +3131,9 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
                 y_dx = dst_to_src_points[2].X - dst_to_src_points[0].X;
                 y_dy = dst_to_src_points[2].Y - dst_to_src_points[0].Y;
 
-                for (x=dst_area.left; x<dst_area.right; x++)
+                for (y=dst_area.top; y<dst_area.bottom; y++)
                 {
-                    for (y=dst_area.top; y<dst_area.bottom; y++)
+                    for (x=dst_area.left; x<dst_area.right; x++)
                     {
                         GpPointF src_pointf;
                         ARGB *dst_color;
