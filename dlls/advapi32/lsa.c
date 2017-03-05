@@ -983,6 +983,32 @@ NTSTATUS WINAPI LsaLookupPrivilegeName(
     LUID *luid,
     UNICODE_STRING **name)
 {
-    FIXME("(%p,%p,%p) stub\n", handle, luid, name);
-    return STATUS_NO_SUCH_PRIVILEGE;
+    UNICODE_STRING *priv_unicode;
+    size_t priv_size;
+    WCHAR *strW;
+
+    TRACE("(%p, %p, %p)\n", handle, luid, name);
+
+    if (!handle)
+        return STATUS_INVALID_HANDLE;
+
+    if (!name)
+        return STATUS_INVALID_PARAMETER;
+
+    if (luid->HighPart ||
+        (luid->LowPart < SE_MIN_WELL_KNOWN_PRIVILEGE ||
+         luid->LowPart > SE_MAX_WELL_KNOWN_PRIVILEGE ||
+         !WellKnownPrivNames[luid->LowPart]))
+        return STATUS_NO_SUCH_PRIVILEGE;
+
+    priv_size = (strlenW(WellKnownPrivNames[luid->LowPart]) + 1) * sizeof(WCHAR);
+    priv_unicode = heap_alloc(sizeof(*priv_unicode) + priv_size);
+    if (!priv_unicode) return STATUS_NO_MEMORY;
+
+    strW = (WCHAR *)(priv_unicode + 1);
+    strcpyW(strW, WellKnownPrivNames[luid->LowPart]);
+    RtlInitUnicodeString(priv_unicode, strW);
+
+    *name = priv_unicode;
+    return STATUS_SUCCESS;
 }
