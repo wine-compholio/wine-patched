@@ -3080,6 +3080,8 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
 
             if (do_resampling)
             {
+                REAL delta_xx, delta_xy, delta_yx, delta_yy;
+
                 /* Transform the bits as needed to the destination. */
                 dst_data = dst_dyn_data = heap_alloc_zero(sizeof(ARGB) * (dst_area.right - dst_area.left) * (dst_area.bottom - dst_area.top));
                 if (!dst_data)
@@ -3097,15 +3099,21 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
                 y_dx = dst_to_src_points[2].X - dst_to_src_points[0].X;
                 y_dy = dst_to_src_points[2].Y - dst_to_src_points[0].Y;
 
+                delta_yy = dst_area.top * y_dy;
+                delta_yx = dst_area.top * y_dx;
+
                 for (y=dst_area.top; y<dst_area.bottom; y++)
                 {
+                    delta_xx = dst_area.left * x_dx;
+                    delta_xy = dst_area.left * x_dy;
+
                     for (x=dst_area.left; x<dst_area.right; x++)
                     {
                         GpPointF src_pointf;
                         ARGB *dst_color;
 
-                        src_pointf.X = dst_to_src_points[0].X + x * x_dx + y * y_dx;
-                        src_pointf.Y = dst_to_src_points[0].Y + x * x_dy + y * y_dy;
+                        src_pointf.X = dst_to_src_points[0].X + delta_xx + delta_yx;
+                        src_pointf.Y = dst_to_src_points[0].Y + delta_xy + delta_yy;
 
                         dst_color = (ARGB*)(dst_data + dst_stride * (y - dst_area.top) + sizeof(ARGB) * (x - dst_area.left));
 
@@ -3114,7 +3122,13 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
                                                                imageAttributes, interpolation, offset_mode);
                         else
                             *dst_color = 0;
+
+                        delta_xx += x_dx;
+                        delta_yx += y_dx;
                     }
+
+                    delta_xy += x_dy;
+                    delta_yy += y_dy;
                 }
             }
             else
