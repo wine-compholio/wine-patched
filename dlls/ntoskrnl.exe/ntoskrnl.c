@@ -3201,3 +3201,16 @@ void WINAPI KeAcquireInStackQueuedSpinLock(KSPIN_LOCK *spinlock, KLOCK_QUEUE_HAN
 {
     FIXME( "stub: %p %p\n", spinlock, handle);
 }
+
+/***********************************************************************
+ *           KeReleaseInStackQueuedSpinLock (NTOSKRNL.EXE.@)
+ */
+#ifdef DEFINE_FASTCALL2_ENTRYPOINT
+DEFINE_FASTCALL2_ENTRYPOINT( KeReleaseInStackQueuedSpinLock )
+void WINAPI __regs_KeReleaseInStackQueuedSpinLock(KLOCK_QUEUE_HANDLE *handle)
+#else
+void WINAPI KeReleaseInStackQueuedSpinLock(KLOCK_QUEUE_HANDLE *handle)
+#endif
+{
+    FIXME( "stub: %p\n", handle);
+}
