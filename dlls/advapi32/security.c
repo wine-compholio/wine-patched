@@ -1840,7 +1840,7 @@ static const WCHAR SE_IMPERSONATE_NAME_W[] =
 static const WCHAR SE_CREATE_GLOBAL_NAME_W[] =
  { 'S','e','C','r','e','a','t','e','G','l','o','b','a','l','P','r','i','v','i','l','e','g','e',0 };
 
-static const WCHAR * const WellKnownPrivNames[SE_MAX_WELL_KNOWN_PRIVILEGE + 1] =
+const WCHAR * const WellKnownPrivNames[SE_MAX_WELL_KNOWN_PRIVILEGE + 1] =
 {
     NULL,
     NULL,
@@ -2043,33 +2043,42 @@ BOOL WINAPI
 LookupPrivilegeNameW( LPCWSTR lpSystemName, PLUID lpLuid, LPWSTR lpName,
  LPDWORD cchName)
 {
+    UNICODE_STRING system_name, *priv;
+    LSA_HANDLE lsa;
+    NTSTATUS status;
     size_t privNameLen;
 
     TRACE("%s,%p,%p,%p\n",debugstr_w(lpSystemName), lpLuid, lpName, cchName);
 
-    if (!ADVAPI_IsLocalComputer(lpSystemName))
+    RtlInitUnicodeString(&system_name, lpSystemName);
+    status = LsaOpenPolicy(&system_name, NULL, POLICY_LOOKUP_NAMES, &lsa);
+    if (status)
     {
-        SetLastError(RPC_S_SERVER_UNAVAILABLE);
+        SetLastError(LsaNtStatusToWinError(status));
         return FALSE;
     }
-    if (lpLuid->HighPart || (lpLuid->LowPart < SE_MIN_WELL_KNOWN_PRIVILEGE ||
-     lpLuid->LowPart > SE_MAX_WELL_KNOWN_PRIVILEGE))
+
+    status = LsaLookupPrivilegeName(&lsa, lpLuid, &priv);
+    LsaClose(lsa);
+    if (status)
     {
-        SetLastError(ERROR_NO_SUCH_PRIVILEGE);
+        SetLastError(LsaNtStatusToWinError(status));
         return FALSE;
     }
-    privNameLen = strlenW(WellKnownPrivNames[lpLuid->LowPart]);
-    /* Windows crashes if cchName is NULL, so will I */
+
+    privNameLen = priv->Length / sizeof(WCHAR);
     if (*cchName <= privNameLen)
     {
         *cchName = privNameLen + 1;
+        LsaFreeMemory(priv);
         SetLastError(ERROR_INSUFFICIENT_BUFFER);
         return FALSE;
     }
     else
     {
-        strcpyW(lpName, WellKnownPrivNames[lpLuid->LowPart]);
+        strcpyW(lpName, priv->Buffer);
         *cchName = privNameLen;
+        LsaFreeMemory(priv);
         return TRUE;
     }
 }
