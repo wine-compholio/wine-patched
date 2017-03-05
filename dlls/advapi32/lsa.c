@@ -44,6 +44,12 @@ WINE_DEFAULT_DEBUG_CHANNEL(advapi);
         return FailureCode; \
 }
 
+static LPCSTR debugstr_us( const UNICODE_STRING *us )
+{
+    if (!us) return "(null)";
+    return debugstr_wn(us->Buffer, us->Length / sizeof(WCHAR));
+}
+
 static void dumpLsaAttributes(const LSA_OBJECT_ATTRIBUTES *oa)
 {
     if (oa)
@@ -1010,4 +1016,19 @@ NTSTATUS WINAPI LsaLookupPrivilegeName(
 
     *name = priv_unicode;
     return STATUS_SUCCESS;
+}
+
+/******************************************************************************
+ * LsaLookupPrivilegeDisplayName [ADVAPI32.@]
+ *
+ */
+NTSTATUS WINAPI LsaLookupPrivilegeDisplayName(
+    LSA_HANDLE handle,
+    PLSA_UNICODE_STRING name,
+    PLSA_UNICODE_STRING *dispname,
+    SHORT *language)
+{
+    FIXME("(%p, %s, %p, %p)\n", handle, debugstr_us(name), dispname, language);
+
+    return STATUS_NO_SUCH_PRIVILEGE;
 }
