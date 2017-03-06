@@ -1445,6 +1445,7 @@ HRESULT CDECL wined3d_buffer_create(struct wined3d_device *device, const struct 
         struct wined3d_buffer **buffer)
 {
     struct wined3d_buffer *object;
+    enum wined3d_pool pool;
     HRESULT hr;
 
     TRACE("device %p, desc %p, data %p, parent %p, parent_ops %p, buffer %p.\n",
@@ -1455,8 +1456,21 @@ HRESULT CDECL wined3d_buffer_create(struct wined3d_device *device, const struct 
 
     FIXME("Ignoring access flags (pool).\n");
 
+    /* Some applications map the whole buffer even if they
+     * only update a small portion of it. If we pin such a
+     * buffer into system memory things get very slow as
+     * we upload the whole buffer even though just parts of
+     * it changed. Most drivers can handle this case more
+     * efficient using the OpenGL map functions. Applications
+     * affected by this problem are Banished and Witcher 3.
+     */
+    if (desc->byte_width > 0x10000)
+        pool = WINED3D_POOL_DEFAULT;
+    else
+        pool = WINED3D_POOL_MANAGED;
+
     if (FAILED(hr = buffer_init(object, device, desc->byte_width, desc->usage, WINED3DFMT_UNKNOWN,
-            WINED3D_POOL_MANAGED, desc->bind_flags, data, parent, parent_ops)))
+            pool, desc->bind_flags, data, parent, parent_ops)))
     {
         WARN("Failed to initialize buffer, hr %#x.\n", hr);
         HeapFree(GetProcessHeap(), 0, object);
