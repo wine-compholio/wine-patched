@@ -3725,6 +3725,11 @@ struct wined3d_context *context_acquire(const struct wined3d_device *device,
 
     TRACE("device %p, texture %p, sub_resource_idx %u.\n", device, texture, sub_resource_idx);
 
+#if defined(STAGING_CSMT)
+    if (wined3d_settings.cs_multithreaded && device->cs->thread_id != GetCurrentThreadId())
+        FIXME("Acquiring a GL context from outside the CS thread.\n");
+
+#endif /* STAGING_CSMT */
     if (current_context && current_context->destroyed)
         current_context = NULL;
 
