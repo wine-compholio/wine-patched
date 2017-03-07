@@ -536,6 +536,7 @@ NTSTATUS WINAPI NtQueryInformationProcess(
     case ProcessImageFileName:
         /* FIXME: this will return a DOS path. Windows returns an NT path. Changing this would require also changing kernel32.QueryFullProcessImageName.
          * The latter may be harder because of the lack of RtlNtPathNameToDosPathName. */
+    case ProcessImageFileNameWin32:
         SERVER_START_REQ(get_dll_info)
         {
             UNICODE_STRING *image_file_name_str = ProcessInformation;
