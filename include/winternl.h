@@ -2110,6 +2110,13 @@ typedef struct _LDR_MODULE
     ULONG               CheckSum;
     ULONG               TimeDateStamp;
     HANDLE              ActivationContext;
+    PVOID               PatchInformation;
+    LIST_ENTRY          ForwarderLinks;
+    LIST_ENTRY          ServiceTagLinks;
+    LIST_ENTRY          StaticLinks;
+    PVOID               ContextInformation;
+    ULONG_PTR           OriginalBase;
+    LARGE_INTEGER       LoadTime;
 } LDR_MODULE, *PLDR_MODULE;
 
 /* those defines are (some of the) regular LDR_MODULE.Flags values */
