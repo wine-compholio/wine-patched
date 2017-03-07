@@ -563,6 +563,62 @@ done:
     HeapFree( GetProcessHeap(), 0, shi);
 }
 
+static void test_query_handle_ex(void)
+{
+    NTSTATUS status;
+    ULONG ExpectedLength, ReturnLength;
+    ULONG SystemInformationLength = sizeof(SYSTEM_HANDLE_INFORMATION_EX);
+    SYSTEM_HANDLE_INFORMATION_EX* shi = HeapAlloc(GetProcessHeap(), 0, SystemInformationLength);
+    HANDLE EventHandle;
+    BOOL found;
+    INT i;
+
+    EventHandle = CreateEventA(NULL, FALSE, FALSE, NULL);
+    ok( EventHandle != NULL, "CreateEventA failed %u\n", GetLastError() );
+
+    ReturnLength = 0xdeadbeef;
+    status = pNtQuerySystemInformation(SystemExtendedHandleInformation, shi, SystemInformationLength, &ReturnLength);
+    ok( status == STATUS_INFO_LENGTH_MISMATCH, "Expected STATUS_INFO_LENGTH_MISMATCH, got %08x\n", status);
+    ok( ReturnLength != 0xdeadbeef, "Expected valid ReturnLength\n" );
+
+    SystemInformationLength = ReturnLength;
+    shi = HeapReAlloc(GetProcessHeap(), 0, shi , SystemInformationLength);
+    memset(shi, 0x55, SystemInformationLength);
+
+    ReturnLength = 0xdeadbeef;
+    status = pNtQuerySystemInformation(SystemExtendedHandleInformation, shi, SystemInformationLength, &ReturnLength);
+    ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08x\n", status );
+    ExpectedLength = FIELD_OFFSET(SYSTEM_HANDLE_INFORMATION_EX, Handle[shi->Count]);
+    ok( ReturnLength == ExpectedLength, "Expected length %u, got %u\n", ExpectedLength, ReturnLength );
+    ok( shi->Count > 1, "Expected more than 1 handle, got %u\n", (DWORD)shi->Count );
+
+    for (i = 0, found = FALSE; i < shi->Count && !found; i++)
+        found = (shi->Handle[i].UniqueProcessId == GetCurrentProcessId()) &&
+                ((HANDLE)(ULONG_PTR)shi->Handle[i].HandleValue == EventHandle);
+    ok( found, "Expected to find event handle %p (pid %x) in handle list\n", EventHandle, GetCurrentProcessId() );
+
+    if (!found)
+    {
+        for (i = 0; i < shi->Count; i++)
+            trace( "%d: handle %x pid %x\n", i, (DWORD)shi->Handle[i].HandleValue, (DWORD)shi->Handle[i].UniqueProcessId );
+    }
+
+    CloseHandle(EventHandle);
+
+    ReturnLength = 0xdeadbeef;
+    status = pNtQuerySystemInformation(SystemExtendedHandleInformation, shi, SystemInformationLength, &ReturnLength);
+    ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08x\n", status );
+    for (i = 0, found = FALSE; i < shi->Count && !found; i++)
+        found = (shi->Handle[i].UniqueProcessId == GetCurrentProcessId()) &&
+                ((HANDLE)(ULONG_PTR)shi->Handle[i].HandleValue == EventHandle);
+    ok( !found, "Unexpectedly found event handle in handle list\n" );
+
+    status = pNtQuerySystemInformation(SystemExtendedHandleInformation, NULL, SystemInformationLength, &ReturnLength);
+    ok( status == STATUS_ACCESS_VIOLATION, "Expected STATUS_ACCESS_VIOLATION, got %08x\n", status );
+
+    HeapFree( GetProcessHeap(), 0, shi);
+}
+
 static void test_query_cache(void)
 {
     NTSTATUS status;
@@ -2192,6 +2248,10 @@ START_TEST(info)
     /* 0x10 SystemHandleInformation */
     trace("Starting test_query_handle()\n");
     test_query_handle();
+
+    /* 0x40 SystemHandleInformation */
+    trace("Starting test_query_handle_ex()\n");
+    test_query_handle_ex();
 
     /* 0x15 SystemCacheInformation */
     trace("Starting test_query_cache()\n");
