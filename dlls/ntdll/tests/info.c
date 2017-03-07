@@ -2094,6 +2094,26 @@ static void test_query_data_alignment(void)
     ok(value == 64, "Expected 64, got %u\n", value);
 }
 
+static void test_working_set_limit(void)
+{
+    DWORD_PTR lower = 0, upper = ~(DWORD_PTR)0;
+    MEMORY_BASIC_INFORMATION mbi;
+    SIZE_T readcount;
+    NTSTATUS status;
+
+    while (lower != upper)
+    {
+        DWORD_PTR check = (lower >> 1) + (upper >> 1) + (lower & upper & 1);
+        status = pNtQueryVirtualMemory(NtCurrentProcess(), (void *)check, MemoryBasicInformation,
+                                       &mbi, sizeof(MEMORY_BASIC_INFORMATION), &readcount);
+        if (status == STATUS_INVALID_PARAMETER) upper = check;
+        else lower = check + 1;
+    }
+
+    trace("working set limit is %p\n", (void *)upper);
+    ok(upper != ~(DWORD_PTR)0, "expected != ~(DWORD_PTR)0\n");
+}
+
 START_TEST(info)
 {
     char **argv;
@@ -2229,4 +2249,7 @@ START_TEST(info)
 
     trace("Starting test_query_data_alignment()\n");
     test_query_data_alignment();
+
+    trace("Starting test_working_set_limit()\n");
+    test_working_set_limit();
 }
