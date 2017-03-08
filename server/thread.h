@@ -145,5 +145,6 @@ static inline void clear_error(void)             { set_error(0); }
 static inline void set_win32_error( unsigned int err ) { set_error( 0xc0010000 | err ); }
 
 static inline thread_id_t get_thread_id( struct thread *thread ) { return thread->id; }
+static inline timeout_t get_thread_creation_time( struct thread *thread ) { return thread->creation_time; }
 
 #endif  /* __WINE_SERVER_THREAD_H */
