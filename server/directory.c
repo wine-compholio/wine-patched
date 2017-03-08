@@ -249,6 +249,12 @@ struct object_type *get_object_type( const struct unicode_str *name )
     return type;
 }
 
+/* retrieve the object type index */
+unsigned int type_get_index( struct object_type *type )
+{
+    return type->index;
+}
+
 /* Global initialization */
 
 static void create_session( unsigned int id )
