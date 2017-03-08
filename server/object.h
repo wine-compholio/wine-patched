@@ -255,6 +255,7 @@ static const WCHAR type_Process[] =       {'P','r','o','c','e','s','s'};
 static const WCHAR type_Section[] =       {'S','e','c','t','i','o','n'};
 static const WCHAR type_Semaphore[] =     {'S','e','m','a','p','h','o','r','e'};
 static const WCHAR type_SymbolicLink[] =  {'S','y','m','b','o','l','i','c','L','i','n','k'};
+static const WCHAR type_Thread[] =        {'T','h','r','e','a','d'};
 static const WCHAR type_Timer[] =         {'T','i','m','e','r'};
 static const WCHAR type_Token[] =         {'T','o','k','e','n'};
 static const WCHAR type_Type[] =          {'T','y','p','e'};
