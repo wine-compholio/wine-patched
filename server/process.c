@@ -62,6 +62,7 @@ static int shutdown_stage;  /* current stage in the shutdown process */
 /* process operations */
 
 static void process_dump( struct object *obj, int verbose );
+static struct object_type *process_get_type( struct object *obj );
 static int process_signaled( struct object *obj, struct wait_queue_entry *entry );
 static unsigned int process_map_access( struct object *obj, unsigned int access );
 static struct security_descriptor *process_get_sd( struct object *obj );
@@ -73,7 +74,7 @@ static const struct object_ops process_ops =
 {
     sizeof(struct process),      /* size */
     process_dump,                /* dump */
-    no_get_type,                 /* get_type */
+    process_get_type,            /* get_type */
     add_queue,                   /* add_queue */
     remove_queue,                /* remove_queue */
     process_signaled,            /* signaled */
@@ -655,6 +656,12 @@ static void process_dump( struct object *obj, int verbose )
     assert( obj->ops == &process_ops );
 
     fprintf( stderr, "Process id=%04x handles=%p\n", process->id, process->handles );
+}
+
+static struct object_type *process_get_type( struct object *obj )
+{
+    static const struct unicode_str str = { type_Process, sizeof(type_Process) };
+    return get_object_type( &str );
 }
 
 static int process_signaled( struct object *obj, struct wait_queue_entry *entry )
