@@ -146,6 +146,7 @@ int main( int argc, char *argv[] )
     init_directories();
     init_registry();
     init_shared_memory();
+    init_types();
     main_loop();
     return 0;
 }
