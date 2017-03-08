@@ -704,3 +704,39 @@ int no_close_handle( struct object *obj, struct process *process, obj_handle_t h
 void no_destroy( struct object *obj )
 {
 }
+
+static const struct unicode_str type_array[] =
+{
+    {type_ObjectType,    sizeof(type_ObjectType)},
+    {type_Directory,     sizeof(type_Directory)},
+    {type_SymbolicLink,  sizeof(type_SymbolicLink)},
+    /* Token */
+    {type_Job,           sizeof(type_Job)},
+    /* Process */
+    /* Thread */
+    {type_Event,         sizeof(type_Event)},
+    {type_Mutant,        sizeof(type_Mutant)},
+    {type_Semaphore,     sizeof(type_Semaphore)},
+    {type_Timer,         sizeof(type_Timer)},
+    {type_KeyedEvent,    sizeof(type_KeyedEvent)},
+    {type_WindowStation, sizeof(type_WindowStation)},
+    {type_Desktop,       sizeof(type_Desktop)},
+    {type_Device,        sizeof(type_Device)},
+    /* Driver */
+    {type_IoCompletion,  sizeof(type_IoCompletion)},
+    {type_File,          sizeof(type_File)},
+    {type_Section,       sizeof(type_Section)},
+    {type_Key,           sizeof(type_Key)},
+};
+
+void init_types(void)
+{
+    struct object_type *type;
+    unsigned int i;
+
+    for (i = 0; i < sizeof(type_array) / sizeof(type_array[0]); i++)
+    {
+        type = get_object_type(&type_array[i]);
+        if (type) release_object(type);
+    }
+}
