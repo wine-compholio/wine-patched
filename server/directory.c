@@ -121,7 +121,7 @@ static void object_type_dump( struct object *obj, int verbose )
 
 static struct object_type *object_type_get_type( struct object *obj )
 {
-    static const struct unicode_str str = { type_ObjectType, sizeof(type_ObjectType) };
+    static const struct unicode_str str = { type_Type, sizeof(type_Type) };
     return get_object_type( &str );
 }
 
