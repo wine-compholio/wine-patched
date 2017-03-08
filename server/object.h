@@ -239,6 +239,27 @@ extern struct object_type *get_object_type( const struct unicode_str *name );
 extern int directory_link_name( struct object *obj, struct object_name *name, struct object *parent );
 extern void init_directories(void);
 
+/* type functions */
+
+static const WCHAR type_Desktop[] =       {'D','e','s','k','t','o','p'};
+static const WCHAR type_Device[] =        {'D','e','v','i','c','e'};
+static const WCHAR type_Directory[] =     {'D','i','r','e','c','t','o','r','y'};
+static const WCHAR type_Event[] =         {'E','v','e','n','t'};
+static const WCHAR type_File[] =          {'F','i','l','e'};
+static const WCHAR type_IoCompletion[] =  {'I','o','C','o','m','p','l','e','t','i','o','n'};
+static const WCHAR type_Job[] =           {'J','o','b'};
+static const WCHAR type_Key[] =           {'K','e','y'};
+static const WCHAR type_KeyedEvent[] =    {'K','e','y','e','d','E','v','e','n','t'};
+static const WCHAR type_Mutant[] =        {'M','u','t','a','n','t'};
+static const WCHAR type_ObjectType[] =    {'O','b','j','e','c','t','T','y','p','e'};
+static const WCHAR type_Section[] =       {'S','e','c','t','i','o','n'};
+static const WCHAR type_Semaphore[] =     {'S','e','m','a','p','h','o','r','e'};
+static const WCHAR type_SymbolicLink[] =  {'S','y','m','b','o','l','i','c','L','i','n','k'};
+static const WCHAR type_Timer[] =         {'T','i','m','e','r'};
+static const WCHAR type_WindowStation[] = {'W','i','n','d','o','w','S','t','a','t','i','o','n'};
+
+extern void init_types(void);
+
 /* symbolic link functions */
 
 extern struct object *create_obj_symlink( struct object *root, const struct unicode_str *name,
