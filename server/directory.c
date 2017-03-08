@@ -72,6 +72,8 @@ static const struct object_ops object_type_ops =
     no_destroy                    /* destroy */
 };
 
+static struct object_type *object_type_list[64];
+static unsigned int object_type_count;
 
 struct directory
 {
@@ -238,7 +240,8 @@ struct object_type *get_object_type( const struct unicode_str *name )
     {
         if (get_error() != STATUS_OBJECT_NAME_EXISTS)
         {
-            grab_object( type );
+            assert( object_type_count < sizeof(object_type_list)/sizeof(object_type_list[0]) );
+            object_type_list[ object_type_count++ ] = (struct object_type *)grab_object( type );
             make_object_static( &type->obj );
         }
         clear_error();
@@ -530,4 +533,18 @@ DECL_HANDLER(get_object_type)
         release_object( type );
     }
     release_object( obj );
+}
+
+/* query object type name information by index */
+DECL_HANDLER(get_object_type_by_index)
+{
+    struct object_type *type;
+    const WCHAR *name;
+
+    if (req->index < object_type_count && (type = object_type_list[ req->index ]))
+    {
+        if ((name = get_object_name( &type->obj, &reply->total )))
+            set_reply_data( name, min( reply->total, get_reply_max_size() ) );
+    }
+    else set_error( STATUS_NO_MORE_ENTRIES );
 }
