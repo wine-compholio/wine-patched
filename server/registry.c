@@ -306,8 +306,7 @@ static void key_dump( struct object *obj, int verbose )
 
 static struct object_type *key_get_type( struct object *obj )
 {
-    static const WCHAR name[] = {'K','e','y'};
-    static const struct unicode_str str = { name, sizeof(name) };
+    static const struct unicode_str str = { type_Key, sizeof(type_Key) };
     return get_object_type( &str );
 }
 
