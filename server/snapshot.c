@@ -145,11 +145,12 @@ static int snapshot_next_thread( struct snapshot *snapshot, struct next_thread_r
         return 0;
     }
     ptr = &snapshot->threads[snapshot->thread_pos++];
-    reply->count     = ptr->count;
-    reply->pid       = get_process_id( ptr->thread->process );
-    reply->tid       = get_thread_id( ptr->thread );
-    reply->base_pri  = ptr->priority;
-    reply->delta_pri = 0;  /* FIXME */
+    reply->count         = ptr->count;
+    reply->pid           = get_process_id( ptr->thread->process );
+    reply->tid           = get_thread_id( ptr->thread );
+    reply->creation_time = get_thread_creation_time( ptr->thread );
+    reply->base_pri      = ptr->priority;
+    reply->delta_pri     = 0;  /* FIXME */
     return 1;
 }
 
