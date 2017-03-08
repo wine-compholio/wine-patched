@@ -1566,7 +1566,7 @@ static LRESULT LISTBOX_InsertItem( LB_DESCR *descr, INT index,
         mis.CtlType    = ODT_LISTBOX;
         mis.CtlID      = id;
         mis.itemID     = index;
-        mis.itemData   = (ULONG_PTR)str;
+        mis.itemData   = str ? (ULONG_PTR)str : data;
         mis.itemHeight = descr->item_height;
         TRACE("owner=%p CtlID=%08x, itemID=%08x, itemData=%08lx\n",
               descr->owner, mis.CtlID, mis.itemID, mis.itemData);
