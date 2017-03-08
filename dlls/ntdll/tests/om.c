@@ -69,6 +69,7 @@ static NTSTATUS (WINAPI *pNtWaitForKeyedEvent)( HANDLE, const void *, BOOLEAN, c
 static NTSTATUS (WINAPI *pNtReleaseKeyedEvent)( HANDLE, const void *, BOOLEAN, const LARGE_INTEGER * );
 static NTSTATUS (WINAPI *pNtCreateIoCompletion)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, ULONG);
 static NTSTATUS (WINAPI *pNtOpenIoCompletion)( PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES );
+static NTSTATUS (WINAPI *pNtQuerySystemInformation)(SYSTEM_INFORMATION_CLASS, PVOID, ULONG, PULONG);
 
 #define KEYEDEVENT_WAIT       0x0001
 #define KEYEDEVENT_WAKE       0x0002
@@ -1542,13 +1543,31 @@ static void test_query_object(void)
     pRtlFreeUnicodeString( &session );
 }
 
+static BOOL winver_equal_or_newer(WORD major, WORD minor)
+{
+    OSVERSIONINFOEXW info = {sizeof(info)};
+    ULONGLONG mask = 0;
+
+    info.dwMajorVersion = major;
+    info.dwMinorVersion = minor;
+
+    VER_SET_CONDITION(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+    VER_SET_CONDITION(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
+
+    return VerifyVersionInfoW(&info, VER_MAJORVERSION | VER_MINORVERSION, mask);
+}
+
 static void test_query_object_types(void)
 {
     static const WCHAR typeW[] = {'T','y','p','e'};
+    static const WCHAR eventW[] = {'E','v','e','n','t'};
+    SYSTEM_HANDLE_INFORMATION_EX *shi;
     OBJECT_TYPES_INFORMATION *buffer;
     OBJECT_TYPE_INFORMATION *type;
     NTSTATUS status;
-    ULONG len, i;
+    HANDLE handle;
+    BOOL found;
+    ULONG len, i, event_type_index = 0;
 
     buffer = HeapAlloc( GetProcessHeap(), 0, sizeof(OBJECT_TYPES_INFORMATION) );
     ok( buffer != NULL, "Failed to allocate memory\n" );
@@ -1576,11 +1595,54 @@ static void test_query_object_types(void)
             ok( type->TypeName.Length == sizeof(typeW) && !strncmpW(typeW, type->TypeName.Buffer, 4),
                 "Expected 'Type' as first type, got %s\n", wine_dbgstr_us(&type->TypeName) );
         }
+        if (type->TypeName.Length == sizeof(eventW) && !strncmpW(eventW, type->TypeName.Buffer, 5))
+        {
+            if (winver_equal_or_newer( 6, 2 ))
+                event_type_index = type->TypeIndex;
+            else
+                event_type_index = winver_equal_or_newer( 6, 1 ) ? i + 2 : i + 1;
+        }
 
         type = (OBJECT_TYPE_INFORMATION *)ROUND_UP( (DWORD_PTR)(type + 1) + length, sizeof(DWORD_PTR) );
     }
 
     HeapFree( GetProcessHeap(), 0, buffer );
+
+    ok( event_type_index, "Could not find object type for events\n" );
+
+    handle = CreateEventA( NULL, FALSE, FALSE, NULL );
+    ok( handle != NULL, "Failed to create event\n" );
+
+    shi = HeapAlloc( GetProcessHeap(), 0, sizeof(*shi) );
+    ok( shi != NULL, "Failed to allocate memory\n" );
+
+    status = pNtQuerySystemInformation( SystemExtendedHandleInformation, shi, sizeof(*shi), &len );
+    ok( status == STATUS_INFO_LENGTH_MISMATCH, "Expected STATUS_INFO_LENGTH_MISMATCH, got %08x\n", status );
+
+    shi = HeapReAlloc( GetProcessHeap(), 0, shi, len );
+    ok( shi != NULL, "Failed to allocate memory\n" );
+
+    status = pNtQuerySystemInformation( SystemExtendedHandleInformation, shi, len, &len );
+    ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08x\n", status );
+
+    found = FALSE;
+    for (i = 0; i < shi->Count; i++)
+    {
+        if (shi->Handle[i].UniqueProcessId != GetCurrentProcessId())
+            continue;
+        if ((HANDLE)(ULONG_PTR)shi->Handle[i].HandleValue != handle)
+            continue;
+
+        ok( shi->Handle[i].ObjectTypeIndex == event_type_index, "Event type does not match: %u vs %u\n",
+            shi->Handle[i].ObjectTypeIndex, event_type_index );
+
+        found = TRUE;
+        break;
+    }
+    ok( found, "Expected to find event handle %p (pid %x) in handle list\n", handle, GetCurrentProcessId() );
+
+    HeapFree( GetProcessHeap(), 0, shi );
+    CloseHandle( handle );
 }
 
 static void test_type_mismatch(void)
@@ -2087,6 +2149,7 @@ START_TEST(om)
     pNtReleaseKeyedEvent    =  (void *)GetProcAddress(hntdll, "NtReleaseKeyedEvent");
     pNtCreateIoCompletion   =  (void *)GetProcAddress(hntdll, "NtCreateIoCompletion");
     pNtOpenIoCompletion     =  (void *)GetProcAddress(hntdll, "NtOpenIoCompletion");
+    pNtQuerySystemInformation = (void *)GetProcAddress(hntdll, "NtQuerySystemInformation");
 
     test_case_sensitive();
     test_namespace_pipe();
