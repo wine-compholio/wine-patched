@@ -150,6 +150,7 @@ struct group
 };
 
 static void token_dump( struct object *obj, int verbose );
+static struct object_type *token_get_type( struct object *obj );
 static unsigned int token_map_access( struct object *obj, unsigned int access );
 static void token_destroy( struct object *obj );
 
@@ -157,7 +158,7 @@ static const struct object_ops token_ops =
 {
     sizeof(struct token),      /* size */
     token_dump,                /* dump */
-    no_get_type,               /* get_type */
+    token_get_type,            /* get_type */
     no_add_queue,              /* add_queue */
     NULL,                      /* remove_queue */
     NULL,                      /* signaled */
@@ -181,6 +182,12 @@ static void token_dump( struct object *obj, int verbose )
 {
     fprintf( stderr, "Security token\n" );
     /* FIXME: dump token members */
+}
+
+static struct object_type *token_get_type( struct object *obj )
+{
+    static const struct unicode_str str = { type_Token, sizeof(type_Token) };
+    return get_object_type( &str );
 }
 
 static unsigned int token_map_access( struct object *obj, unsigned int access )
