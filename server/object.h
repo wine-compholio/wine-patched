@@ -251,6 +251,7 @@ static const WCHAR type_Job[] =           {'J','o','b'};
 static const WCHAR type_Key[] =           {'K','e','y'};
 static const WCHAR type_KeyedEvent[] =    {'K','e','y','e','d','E','v','e','n','t'};
 static const WCHAR type_Mutant[] =        {'M','u','t','a','n','t'};
+static const WCHAR type_Process[] =       {'P','r','o','c','e','s','s'};
 static const WCHAR type_Section[] =       {'S','e','c','t','i','o','n'};
 static const WCHAR type_Semaphore[] =     {'S','e','m','a','p','h','o','r','e'};
 static const WCHAR type_SymbolicLink[] =  {'S','y','m','b','o','l','i','c','L','i','n','k'};
