@@ -3566,6 +3566,7 @@ struct handle_info
 @REQ(get_object_type)
     obj_handle_t   handle;        /* handle to the object */
 @REPLY
+    unsigned int   index;         /* type index */
     data_size_t    total;         /* needed size for type name */
     VARARG(type,unicode_str);     /* type name */
 @END
