@@ -1784,6 +1784,7 @@ enum char_info_mode
     int          count;         /* thread usage count */
     process_id_t pid;           /* process id */
     thread_id_t  tid;           /* thread id */
+    timeout_t    creation_time; /* thread creation time */
     int          base_pri;      /* base priority */
     int          delta_pri;     /* delta priority */
 @END
