@@ -477,8 +477,7 @@ static void named_pipe_device_dump( struct object *obj, int verbose )
 
 static struct object_type *named_pipe_device_get_type( struct object *obj )
 {
-    static const WCHAR name[] = {'D','e','v','i','c','e'};
-    static const struct unicode_str str = { name, sizeof(name) };
+    const struct unicode_str str = { type_Device, sizeof(type_Device) };
     return get_object_type( &str );
 }
 
