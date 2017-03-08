@@ -2084,6 +2084,34 @@ NTSTATUS WINAPI NtQuerySystemInformation(
             }
         #endif
 
+            if ((fp = fopen("/proc/diskstats", "r")))
+            {
+                unsigned long long reads, reads_merged, sectors_read, read_time;
+                unsigned long long writes, writes_merged, sectors_written, write_time;
+                unsigned long long io_time, weighted_io_time, current_io;
+                unsigned int major, minor;
+                char dev[30], buffer[256];
+
+                /* the exact size (32 or 64 bits) depends on the kernel */
+                while (fscanf(fp, "%u %u %s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                    &major, &minor, dev, &reads, &reads_merged, &sectors_read, &read_time,
+                    &writes, &writes_merged, &sectors_written, &write_time,
+                    &current_io, &io_time, &weighted_io_time) == 14)
+                {
+                    /* we have to ignore partitions as their I/O is also included in the block device */
+                    sprintf(buffer, "/sys/dev/block/%u:%u/device", major, minor);
+                    if (access(buffer, F_OK) != 0)
+                        continue;
+
+                    spi.ReadTransferCount.QuadPart += sectors_read * 512;
+                    spi.WriteTransferCount.QuadPart += sectors_written * 512;
+                    spi.ReadOperationCount += reads;
+                    spi.WriteOperationCount += writes;
+                }
+
+                fclose(fp);
+            }
+
             if (Length >= len)
             {
                 if (!SystemInformation) ret = STATUS_ACCESS_VIOLATION;
