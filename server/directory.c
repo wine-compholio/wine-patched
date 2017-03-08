@@ -44,6 +44,7 @@
 struct object_type
 {
     struct object     obj;        /* object header */
+    unsigned int      index;      /* type index */
 };
 
 static void object_type_dump( struct object *obj, int verbose );
@@ -239,7 +240,8 @@ struct object_type *get_object_type( const struct unicode_str *name )
         if (get_error() != STATUS_OBJECT_NAME_EXISTS)
         {
             assert( object_type_count < sizeof(object_type_list)/sizeof(object_type_list[0]) );
-            object_type_list[ object_type_count++ ] = (struct object_type *)grab_object( type );
+            type->index = object_type_count++;
+            object_type_list[ type->index ] = (struct object_type *)grab_object( type );
             make_object_static( &type->obj );
         }
         clear_error();
@@ -528,6 +530,7 @@ DECL_HANDLER(get_object_type)
     {
         if ((name = get_object_name( &type->obj, &reply->total )))
             set_reply_data( name, min( reply->total, get_reply_max_size() ) );
+        reply->index = type->index;
         release_object( type );
     }
     release_object( obj );
