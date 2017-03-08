@@ -713,7 +713,7 @@ static const struct unicode_str type_array[] =
     {type_Token,         sizeof(type_Token)},
     {type_Job,           sizeof(type_Job)},
     {type_Process,       sizeof(type_Process)},
-    /* Thread */
+    {type_Thread,        sizeof(type_Thread)},
     {type_Event,         sizeof(type_Event)},
     {type_Mutant,        sizeof(type_Mutant)},
     {type_Semaphore,     sizeof(type_Semaphore)},
