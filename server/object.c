@@ -725,7 +725,7 @@ static const struct unicode_str type_array[] =
     {type_Type,          sizeof(type_Type)},
     {type_Directory,     sizeof(type_Directory)},
     {type_SymbolicLink,  sizeof(type_SymbolicLink)},
-    /* Token */
+    {type_Token,         sizeof(type_Token)},
     {type_Job,           sizeof(type_Job)},
     /* Process */
     /* Thread */
