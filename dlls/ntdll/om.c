@@ -43,6 +43,7 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
 
+#define ROUND_UP(value, alignment) (((value) + ((alignment) - 1)) & ~((alignment)-1))
 
 /*
  *	Generic object functions
@@ -186,6 +187,56 @@ NTSTATUS WINAPI NtQueryObject(IN HANDLE handle,
                 }
             }
             SERVER_END_REQ;
+        }
+        break;
+    case ObjectTypesInformation:
+        {
+            OBJECT_TYPES_INFORMATION *p = ptr;
+            OBJECT_TYPE_INFORMATION *type = (OBJECT_TYPE_INFORMATION *)(p + 1);
+            ULONG count, type_len, req_len = sizeof(OBJECT_TYPES_INFORMATION);
+
+            for (count = 0, status = STATUS_SUCCESS; !status; count++)
+            {
+                SERVER_START_REQ( get_object_type_by_index )
+                {
+                    req->index = count;
+                    if (len > sizeof(*type))
+                        wine_server_set_reply( req, type + 1, len - sizeof(*type) );
+                    status = wine_server_call( req );
+                    if (status == STATUS_SUCCESS)
+                    {
+                        type_len = sizeof(*type);
+                        if (reply->total)
+                            type_len += ROUND_UP( reply->total + sizeof(WCHAR), sizeof(DWORD_PTR) );
+                        req_len += type_len;
+                    }
+                    if (status == STATUS_SUCCESS && len >= req_len)
+                    {
+                        ULONG res = wine_server_reply_size( reply );
+                        memset( type, 0, sizeof(*type) );
+                        if (reply->total)
+                        {
+                            type->TypeName.Buffer = (WCHAR *)(type + 1);
+                            type->TypeName.Length = res;
+                            type->TypeName.MaximumLength = res + sizeof(WCHAR);
+                            type->TypeName.Buffer[res / sizeof(WCHAR)] = 0;
+                        }
+                        type->TypeIndex = count;
+                        type = (OBJECT_TYPE_INFORMATION *)((char *)type + type_len);
+                    }
+                }
+                SERVER_END_REQ;
+            }
+
+            if (status != STATUS_NO_MORE_ENTRIES)
+                return status;
+
+            if (used_len) *used_len = req_len;
+            if (len < req_len)
+                return STATUS_INFO_LENGTH_MISMATCH;
+
+            p->NumberOfTypes = count - 1;
+            status = STATUS_SUCCESS;
         }
         break;
     case ObjectDataInformation:
