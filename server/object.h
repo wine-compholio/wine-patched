@@ -262,6 +262,7 @@ static const WCHAR type_Type[] =          {'T','y','p','e'};
 static const WCHAR type_WindowStation[] = {'W','i','n','d','o','w','S','t','a','t','i','o','n'};
 
 extern void init_types(void);
+extern unsigned int type_get_index( struct object_type *type );
 
 /* symbolic link functions */
 
