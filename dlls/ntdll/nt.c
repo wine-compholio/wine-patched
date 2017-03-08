@@ -2017,7 +2017,7 @@ NTSTATUS WINAPI NtQuerySystemInformation(
 
                                     memset(&spi->ti[i], 0, sizeof(spi->ti));
 
-                                    spi->ti[i].CreateTime.QuadPart = 0xdeadbeef;
+                                    spi->ti[i].CreateTime.QuadPart = reply->creation_time;
                                     spi->ti[i].ClientId.UniqueProcess = UlongToHandle(reply->pid);
                                     spi->ti[i].ClientId.UniqueThread  = UlongToHandle(reply->tid);
                                     spi->ti[i].dwCurrentPriority = reply->base_pri + reply->delta_pri;
