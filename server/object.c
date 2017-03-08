@@ -712,7 +712,7 @@ static const struct unicode_str type_array[] =
     {type_SymbolicLink,  sizeof(type_SymbolicLink)},
     {type_Token,         sizeof(type_Token)},
     {type_Job,           sizeof(type_Job)},
-    /* Process */
+    {type_Process,       sizeof(type_Process)},
     /* Thread */
     {type_Event,         sizeof(type_Event)},
     {type_Mutant,        sizeof(type_Mutant)},
