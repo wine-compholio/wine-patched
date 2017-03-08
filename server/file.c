@@ -451,8 +451,7 @@ static void file_dump( struct object *obj, int verbose )
 
 static struct object_type *file_get_type( struct object *obj )
 {
-    static const WCHAR name[] = {'F','i','l','e'};
-    static const struct unicode_str str = { name, sizeof(name) };
+    static const struct unicode_str str = { type_File, sizeof(type_File) };
     return get_object_type( &str );
 }
 
