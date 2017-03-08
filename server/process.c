@@ -216,8 +216,7 @@ static struct job *get_job_obj( struct process *process, obj_handle_t handle, un
 
 static struct object_type *job_get_type( struct object *obj )
 {
-    static const WCHAR name[] = {'J','o','b'};
-    static const struct unicode_str str = { name, sizeof(name) };
+    static const struct unicode_str str = { type_Job, sizeof(type_Job) };
     return get_object_type( &str );
 };
 

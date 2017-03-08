@@ -121,8 +121,7 @@ static void object_type_dump( struct object *obj, int verbose )
 
 static struct object_type *object_type_get_type( struct object *obj )
 {
-    static const WCHAR name[] = {'O','b','j','e','c','t','T','y','p','e'};
-    static const struct unicode_str str = { name, sizeof(name) };
+    static const struct unicode_str str = { type_ObjectType, sizeof(type_ObjectType) };
     return get_object_type( &str );
 }
 
@@ -133,8 +132,7 @@ static void directory_dump( struct object *obj, int verbose )
 
 static struct object_type *directory_get_type( struct object *obj )
 {
-    static const WCHAR name[] = {'D','i','r','e','c','t','o','r','y'};
-    static const struct unicode_str str = { name, sizeof(name) };
+    static const struct unicode_str str = { type_Directory, sizeof(type_Directory) };
     return get_object_type( &str );
 }
 
