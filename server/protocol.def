@@ -1793,6 +1793,7 @@ enum char_info_mode
     int          priority;      /* process priority */
     int          handles;       /* number of handles */
     int          unix_pid;      /* Unix pid */
+    timeout_t    start_time;    /* start time */
     VARARG(filename,unicode_str); /* file name of main exe */
 @END
 
