@@ -2057,6 +2057,7 @@ NTSTATUS WINAPI NtQuerySystemInformation(
             WCHAR* exename;
             DWORD wlen = 0;
             DWORD procstructlen = 0;
+            int unix_pid = -1;
 
             SERVER_START_REQ( create_snapshot )
             {
@@ -2111,6 +2112,7 @@ NTSTATUS WINAPI NtQuerySystemInformation(
                             if (reply->unix_pid != -1)
                                 read_process_time(reply->unix_pid, -1, clk_tck,
                                                   &spi->KernelTime, &spi->UserTime);
+                            unix_pid = reply->unix_pid;
                         }
                         len += procstructlen;
                     }
@@ -2151,6 +2153,10 @@ NTSTATUS WINAPI NtQuerySystemInformation(
                                     spi->ti[i].ClientId.UniqueThread  = UlongToHandle(reply->tid);
                                     spi->ti[i].dwCurrentPriority = reply->base_pri + reply->delta_pri;
                                     spi->ti[i].dwBasePriority = reply->base_pri;
+
+                                    if (unix_pid != -1 && reply->unix_tid != -1)
+                                        read_process_time(unix_pid, reply->unix_tid, clk_tck,
+                                                          &spi->ti[i].KernelTime, &spi->ti[i].UserTime);
                                     i++;
                                 }
                             }
