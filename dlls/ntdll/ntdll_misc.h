@@ -256,4 +256,5 @@ NTSTATUS WINAPI RtlHashUnicodeString(PCUNICODE_STRING,BOOLEAN,ULONG,ULONG*);
 /* process / thread time */
 extern BOOL read_process_time(int unix_pid, int unix_tid, unsigned long clk_tck,
                               LARGE_INTEGER *kernel, LARGE_INTEGER *user) DECLSPEC_HIDDEN;
+extern BOOL read_process_memory_stats(int unix_pid, VM_COUNTERS *pvmi) DECLSPEC_HIDDEN;
 #endif
