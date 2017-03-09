@@ -152,6 +152,7 @@ static int snapshot_next_thread( struct snapshot *snapshot, struct next_thread_r
     reply->creation_time = get_thread_creation_time( ptr->thread );
     reply->base_pri      = ptr->priority;
     reply->delta_pri     = 0;  /* FIXME */
+    reply->unix_tid      = get_thread_unix_tid( ptr->thread );
     return 1;
 }
 
