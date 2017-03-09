@@ -166,7 +166,7 @@ static void fill_VM_COUNTERS(VM_COUNTERS* pvmi)
 
 static void fill_VM_COUNTERS(VM_COUNTERS* pvmi)
 {
-    /* FIXME : real data */
+    read_process_memory_stats(getpid(), pvmi);
 }
 
 #endif
