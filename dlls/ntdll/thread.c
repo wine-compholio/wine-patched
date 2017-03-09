@@ -81,6 +81,53 @@ static RTL_CRITICAL_SECTION_DEBUG critsect_debug =
 };
 static RTL_CRITICAL_SECTION peb_lock = { &critsect_debug, -1, 0, 0, 0, 0 };
 
+
+BOOL read_process_time(int unix_pid, int unix_tid, unsigned long clk_tck,
+                       LARGE_INTEGER *kernel, LARGE_INTEGER *user)
+{
+#ifdef __linux__
+    unsigned long usr, sys;
+    char buf[512], *pos;
+    FILE *fp;
+    int i;
+
+    /* based on https://github.com/torvalds/linux/blob/master/fs/proc/array.c */
+    if (unix_tid != -1)
+        sprintf( buf, "/proc/%u/task/%u/stat", unix_pid, unix_tid );
+    else
+        sprintf( buf, "/proc/%u/stat", unix_pid );
+    if ((fp = fopen( buf, "r" )))
+    {
+        pos = fgets( buf, sizeof(buf), fp );
+        fclose( fp );
+
+        /* format of first chunk is "%d (%s) %c" - we have to skip to the last ')'
+         * to avoid misinterpreting the string. */
+        if (pos) pos = strrchr( pos, ')' );
+        if (pos) pos = strchr( pos + 1, ' ' );
+        if (pos) pos++;
+
+        /* skip over the following fields: state, ppid, pgid, sid, tty_nr, tty_pgrp,
+         * task->flags, min_flt, cmin_flt, maj_flt, cmaj_flt */
+        for (i = 0; (i < 11) && pos; i++)
+        {
+            pos = strchr( pos + 1, ' ' );
+            if (pos) pos++;
+        }
+
+        /* the next two values are user and system time */
+        if (pos && (sscanf( pos, "%lu %lu", &usr, &sys ) == 2))
+        {
+            kernel->QuadPart = (ULONGLONG)sys * 10000000 / clk_tck;
+            user->QuadPart   = (ULONGLONG)usr * 10000000 / clk_tck;
+            return TRUE;
+        }
+    }
+#endif
+    return FALSE;
+}
+
+
 /***********************************************************************
  *           get_unicode_string
  *
@@ -990,42 +1037,7 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
 #ifdef __linux__
                 /* only /proc provides exact values for a specific thread */
                 if (unix_pid != -1 && unix_tid != -1)
-                {
-                    unsigned long usr, sys;
-                    char buf[512], *pos;
-                    FILE *fp;
-                    int i;
-
-                    /* based on https://github.com/torvalds/linux/blob/master/fs/proc/array.c */
-                    sprintf( buf, "/proc/%u/task/%u/stat", unix_pid, unix_tid );
-                    if ((fp = fopen( buf, "r" )))
-                    {
-                        pos = fgets( buf, sizeof(buf), fp );
-                        fclose( fp );
-
-                        /* format of first chunk is "%d (%s) %c" - we have to skip to the last ')'
-                         * to avoid misinterpreting the string. */
-                        if (pos) pos = strrchr( pos, ')' );
-                        if (pos) pos = strchr( pos + 1, ' ' );
-                        if (pos) pos++;
-
-                        /* skip over the following fields: state, ppid, pgid, sid, tty_nr, tty_pgrp,
-                         * task->flags, min_flt, cmin_flt, maj_flt, cmaj_flt */
-                        for (i = 0; (i < 11) && pos; i++)
-                        {
-                            pos = strchr( pos + 1, ' ' );
-                            if (pos) pos++;
-                        }
-
-                        /* the next two values are user and system time */
-                        if (pos && (sscanf( pos, "%lu %lu", &usr, &sys ) == 2))
-                        {
-                            kusrt.KernelTime.QuadPart = (ULONGLONG)sys * 10000000 / clk_tck;
-                            kusrt.UserTime.QuadPart   = (ULONGLONG)usr * 10000000 / clk_tck;
-                            filled_times = TRUE;
-                        }
-                    }
-                }
+                    filled_times = read_process_time(unix_pid, unix_tid, clk_tck, &kusrt.KernelTime, &kusrt.UserTime);
 #endif
 
                 /* get values for current process instead */
