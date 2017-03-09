@@ -114,13 +114,14 @@ static int snapshot_next_process( struct snapshot *snapshot, struct next_process
         return 0;
     }
     ptr = &snapshot->processes[snapshot->process_pos++];
-    reply->count    = ptr->count;
-    reply->pid      = get_process_id( ptr->process );
-    reply->ppid     = ptr->process->parent_id;
-    reply->threads  = ptr->threads;
-    reply->priority = ptr->priority;
-    reply->handles  = ptr->handles;
-    reply->unix_pid = ptr->process->unix_pid;
+    reply->count      = ptr->count;
+    reply->pid        = get_process_id( ptr->process );
+    reply->ppid       = ptr->process->parent_id;
+    reply->threads    = ptr->threads;
+    reply->priority   = ptr->priority;
+    reply->handles    = ptr->handles;
+    reply->unix_pid   = ptr->process->unix_pid;
+    reply->start_time = ptr->process->start_time;
     if ((exe_module = get_process_exe_module( ptr->process )) && exe_module->filename)
     {
         data_size_t len = min( exe_module->namelen, get_reply_max_size() );
