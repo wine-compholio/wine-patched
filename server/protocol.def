@@ -1816,6 +1816,7 @@ enum char_info_mode
     timeout_t    creation_time; /* thread creation time */
     int          base_pri;      /* base priority */
     int          delta_pri;     /* delta priority */
+    int          unix_tid;      /* Unix tid */
 @END
 
 
