@@ -1986,8 +1986,11 @@ NTSTATUS WINAPI NtQuerySystemInformation(
                             /* spi->ti will be set later on */
 
                             if (reply->unix_pid != -1)
+                            {
                                 read_process_time(reply->unix_pid, -1, clk_tck,
                                                   &spi->KernelTime, &spi->UserTime);
+                                read_process_memory_stats(reply->unix_pid, &spi->vmCounters);
+                            }
                             unix_pid = reply->unix_pid;
                         }
                         len += procstructlen;
