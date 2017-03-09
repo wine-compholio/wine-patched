@@ -117,6 +117,42 @@ BOOL read_process_time(int unix_pid, int unix_tid, unsigned long clk_tck,
     return FALSE;
 }
 
+BOOL read_process_memory_stats(int unix_pid, VM_COUNTERS *pvmi)
+{
+    BOOL ret = FALSE;
+#ifdef __linux__
+    unsigned long size, resident, shared, trs, drs, lrs, dt;
+    char buf[512];
+    FILE *fp;
+
+    sprintf( buf, "/proc/%u/statm", unix_pid );
+    if ((fp = fopen( buf, "r" )))
+    {
+        if (fscanf( fp, "%lu %lu %lu %lu %lu %lu %lu",
+            &size, &resident, &shared, &trs, &drs, &lrs, &dt ) == 7)
+        {
+            pvmi->VirtualSize = size * page_size;
+            pvmi->WorkingSetSize = resident * page_size;
+            pvmi->PrivatePageCount = size - shared;
+
+            /* these values are not available through /proc/pid/statm */
+            pvmi->PeakVirtualSize = pvmi->VirtualSize;
+            pvmi->PageFaultCount = 0;
+            pvmi->PeakWorkingSetSize = pvmi->WorkingSetSize;
+            pvmi->QuotaPagedPoolUsage = pvmi->VirtualSize;
+            pvmi->QuotaPeakPagedPoolUsage = pvmi->QuotaPagedPoolUsage;
+            pvmi->QuotaPeakNonPagedPoolUsage = 0;
+            pvmi->QuotaNonPagedPoolUsage = 0;
+            pvmi->PagefileUsage = 0;
+            pvmi->PeakPagefileUsage = 0;
+
+            ret = TRUE;
+        }
+        fclose( fp );
+    }
+#endif
+    return ret;
+}
 
 /***********************************************************************
  *           get_unicode_string
