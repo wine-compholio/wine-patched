@@ -391,6 +391,8 @@ static const WCHAR prop_varianttypeW[] =
     {'V','a','r','i','a','n','t','T','y','p','e',0};
 static const WCHAR prop_versionW[] =
     {'V','e','r','s','i','o','n',0};
+static const WCHAR prop_vendorW[] =
+    {'V','e','n','d','o','r',0};
 static const WCHAR prop_videoarchitectureW[] =
     {'V','i','d','e','o','A','r','c','h','i','t','e','c','t','u','r','e',0};
 static const WCHAR prop_videomemorytypeW[] =
@@ -452,7 +454,8 @@ static const struct column col_compsys[] =
 static const struct column col_compsysproduct[] =
 {
     { prop_identifyingnumberW,  CIM_STRING|COL_FLAG_KEY },
-    { prop_uuidW,               CIM_STRING|COL_FLAG_DYNAMIC }
+    { prop_uuidW,               CIM_STRING|COL_FLAG_DYNAMIC },
+    { prop_vendorW,             CIM_STRING },
 };
 static const struct column col_datafile[] =
 {
@@ -760,6 +763,8 @@ static const WCHAR compsysproduct_identifyingnumberW[] =
 static const WCHAR compsysproduct_uuidW[] =
     {'d','e','a','d','d','e','a','d','-','d','e','a','d','-','d','e','a','d','-','d','e','a','d','-',
      'd','e','a','d','d','e','a','d','d','e','a','d',0};
+static const WCHAR compsysproduct_vendorW[] =
+    {'W','i','n','e',0};
 static const WCHAR diskdrive_interfacetypeW[] =
     {'I','D','E',0};
 static const WCHAR diskdrive_manufacturerW[] =
@@ -854,6 +859,7 @@ struct record_computersystemproduct
 {
     const WCHAR *identifyingnumber;
     const WCHAR *uuid;
+    const WCHAR *vendor;
 };
 struct record_datafile
 {
@@ -1448,6 +1454,7 @@ static enum fill_status fill_compsysproduct( struct table *table, const struct e
     rec = (struct record_computersystemproduct *)table->data;
     rec->identifyingnumber = compsysproduct_identifyingnumberW;
     rec->uuid              = get_compsysproduct_uuid();
+    rec->vendor            = compsysproduct_vendorW;
     if (!match_row( table, row, cond, &status )) free_row_values( table, row );
     else row++;
 
