@@ -1572,6 +1572,14 @@ static inline BOOL handle_interrupt( unsigned int interrupt, EXCEPTION_RECORD *r
         rec->ExceptionInformation[1] = context->Ecx;
         rec->ExceptionInformation[2] = context->Edx;
         return TRUE;
+    case 0x2e:
+        context->Eip += 2;
+        rec->ExceptionCode = EXCEPTION_WINE_SYSCALL;
+        rec->ExceptionAddress = (void *)context->Eip;
+        rec->NumberParameters = 2;
+        rec->ExceptionInformation[0] = context->Eax;
+        rec->ExceptionInformation[1] = context->Edx;
+        return TRUE;
     default:
         return FALSE;
     }
@@ -1955,6 +1963,11 @@ static void WINAPI raise_segv_exception( EXCEPTION_RECORD *rec, CONTEXT *context
             }
         }
         break;
+    case EXCEPTION_WINE_SYSCALL:
+        FIXME("unimplemented syscall handler for 0x%lx, stack 0x%lx\n",
+              rec->ExceptionInformation[0], rec->ExceptionInformation[1]);
+        context->Eax = STATUS_INVALID_SYSTEM_SERVICE;
+        goto done;
     }
     status = NtRaiseException( rec, context, TRUE );
     raise_status( status, rec );
