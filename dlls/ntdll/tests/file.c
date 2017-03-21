@@ -1938,6 +1938,7 @@ static void test_file_rename_information(void)
 
 static void test_file_link_information(void)
 {
+    static const WCHAR pipeW[] = {'\\','\\','.','\\','p','i','p','e','\\','w','i','n','e','_','t','e','s','t',0};
     static const WCHAR foo_txtW[] = {'\\','f','o','o','.','t','x','t',0};
     static const WCHAR fooW[] = {'f','o','o',0};
     WCHAR tmp_path[MAX_PATH], oldpath[MAX_PATH + 16], newpath[MAX_PATH + 16], *filename, *p;
@@ -2560,6 +2561,30 @@ static void test_file_link_information(void)
 
     CloseHandle( handle );
     CloseHandle( handle2 );
+
+    handle = CreateEventA( NULL, FALSE, FALSE, "wine_test_event" );
+    ok( !!handle, "Failed to create event: %u\n", GetLastError());
+
+    fni = HeapAlloc( GetProcessHeap(), 0, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR) );
+    res = pNtQueryInformationFile( handle, &io, fni, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR), FileNameInformation );
+    ok( res == STATUS_OBJECT_TYPE_MISMATCH, "res expected STATUS_OBJECT_TYPE_MISMATCH, got %x\n", res );
+    HeapFree( GetProcessHeap(), 0, fni );
+
+    CloseHandle( handle );
+
+    handle = CreateNamedPipeW( pipeW, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE|PIPE_READMODE_BYTE, 10, 512, 512, 0, NULL);
+    ok( handle != INVALID_HANDLE_VALUE, "Failed to create named pipe: %u\n", GetLastError());
+
+    fni = HeapAlloc( GetProcessHeap(), 0, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR) );
+    res = pNtQueryInformationFile( handle, &io, fni, sizeof(FILE_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR), FileNameInformation );
+    ok( res == STATUS_SUCCESS, "res expected STATUS_SUCCESS, got %x\n", res );
+    fni->FileName[ fni->FileNameLength / sizeof(WCHAR) ] = 0;
+    ok( !lstrcmpiW(fni->FileName, pipeW + 8), "FileName expected %s, got %s\n",
+        wine_dbgstr_w(pipeW + 8), wine_dbgstr_w(fni->FileName) );
+    HeapFree( GetProcessHeap(), 0, fni );
+
+    CloseHandle( handle );
+
     HeapFree( GetProcessHeap(), 0, fli );
     delete_object( oldpath );
     delete_object( newpath );

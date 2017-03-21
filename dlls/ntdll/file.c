@@ -2175,6 +2175,41 @@ NTSTATUS server_get_unix_name( HANDLE handle, ANSI_STRING *unix_name )
     return ret;
 }
 
+static NTSTATUS server_get_object_name( HANDLE handle, UNICODE_STRING *object_name )
+{
+    data_size_t total, size = 1024;
+    NTSTATUS ret;
+    WCHAR *name;
+
+    for (;;)
+    {
+        name = RtlAllocateHeap( GetProcessHeap(), 0, size + 2 );
+        if (!name) return STATUS_NO_MEMORY;
+        object_name->MaximumLength = size + 2;
+
+        SERVER_START_REQ( get_object_info )
+        {
+            req->handle = wine_server_obj_handle( handle );
+            wine_server_set_reply( req, name, size );
+            ret = wine_server_call( req );
+            total = reply->total;
+        }
+        SERVER_END_REQ;
+        if (ret) break;
+
+        if (total <= size)
+        {
+            name[total / sizeof(WCHAR)] = 0;
+            object_name->Buffer = name;
+            object_name->Length = total;
+            break;
+        }
+        RtlFreeHeap( GetProcessHeap(), 0, name );
+        size = total;
+    }
+    return ret;
+}
+
 static NTSTATUS fill_name_info( const ANSI_STRING *unix_name, FILE_NAME_INFORMATION *info, LONG *name_len )
 {
     UNICODE_STRING nt_name;
@@ -2311,7 +2346,14 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
     if (class != FilePipeInformation && class != FilePipeLocalInformation)
     {
         if ((io->u.Status = server_get_unix_fd( hFile, 0, &fd, &needs_close, NULL, NULL )))
-            return io->u.Status;
+        {
+            if (io->u.Status != STATUS_PIPE_LISTENING || class != FileNameInformation)
+                return io->u.Status;
+
+            io->u.Status = STATUS_SUCCESS;
+            needs_close = FALSE;
+            fd = -1;
+        }
     }
 
     switch (class)
@@ -2492,14 +2534,41 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE hFile, PIO_STATUS_BLOCK io,
         break;
     case FileNameInformation:
         {
+            LONG name_len = len - FIELD_OFFSET(FILE_NAME_INFORMATION, FileName);
             FILE_NAME_INFORMATION *info = ptr;
             ANSI_STRING unix_name;
 
             if (!(io->u.Status = server_get_unix_name( hFile, &unix_name )))
             {
-                LONG name_len = len - FIELD_OFFSET(FILE_NAME_INFORMATION, FileName);
                 io->u.Status = fill_name_info( &unix_name, info, &name_len );
                 RtlFreeAnsiString( &unix_name );
+                io->Information = FIELD_OFFSET(FILE_NAME_INFORMATION, FileName) + name_len;
+            }
+            else if (io->u.Status == STATUS_OBJECT_TYPE_MISMATCH)
+            {
+                static const WCHAR pipe_prefixW[] = {'\\','D','e','v','i','c','e','\\','N','a','m','e','d','P','i','p','e'};
+                UNICODE_STRING object_name;
+
+                if ((io->u.Status = server_get_object_name( hFile, &object_name )))
+                    break;
+
+                if (strncmpW(object_name.Buffer, pipe_prefixW, sizeof(pipe_prefixW) / sizeof(WCHAR)) ||
+                    object_name.Buffer[ sizeof(pipe_prefixW) / sizeof(WCHAR) ] != '\\')
+                {
+                    io->u.Status = STATUS_OBJECT_TYPE_MISMATCH;
+                    RtlFreeUnicodeString( &object_name );
+                    break;
+                }
+
+                if (name_len < object_name.Length - sizeof(pipe_prefixW))
+                    io->u.Status = STATUS_BUFFER_OVERFLOW;
+                else
+                    name_len = object_name.Length - sizeof(pipe_prefixW);
+
+                info->FileNameLength = name_len;
+                memcpy(info->FileName, object_name.Buffer + sizeof(pipe_prefixW) / sizeof(WCHAR), name_len);
+
+                RtlFreeUnicodeString( &object_name );
                 io->Information = FIELD_OFFSET(FILE_NAME_INFORMATION, FileName) + name_len;
             }
         }
