@@ -16,6 +16,7 @@ C_SRCS = \
 	path.c \
 	pipe.c \
 	port.c \
+	process.c \
 	reg.c \
 	rtl.c \
 	rtlbitmap.c \
