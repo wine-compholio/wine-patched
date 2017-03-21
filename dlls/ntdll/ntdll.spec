@@ -672,6 +672,7 @@
 # @ stub RtlGetSetBootStatusData
 @ stdcall RtlGetThreadErrorMode()
 # @ stub RtlGetUnloadEventTrace
+@ stdcall RtlGetUnloadEventTraceEx(ptr ptr ptr)
 @ stub RtlGetUserInfoHeap
 @ stdcall RtlGetVersion(ptr)
 @ stub RtlGuidToPropertySetName
