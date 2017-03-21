@@ -1663,3 +1663,17 @@ NTSTATUS WINAPI RtlQueryPackageIdentity(HANDLE token, WCHAR *fullname, SIZE_T *f
     FIXME("(%p, %p, %p, %p, %p, %p): stub\n", token, fullname, fullname_size, appid, appid_size, packaged);
     return STATUS_NOT_FOUND;
 }
+
+/*********************************************************************
+ *           RtlGetUnloadEventTraceEx [NTDLL.@]
+ */
+void WINAPI RtlGetUnloadEventTraceEx(ULONG **size, ULONG **count, VOID **trace)
+{
+    static ULONG dummy_size, dummy_count;
+
+    FIXME("(%p, %p, %p): stub!\n", size, count, trace);
+
+    if (size)  *size  = &dummy_size;
+    if (count) *count = &dummy_count;
+    if (trace) *trace = NULL;
+}
