@@ -37,6 +37,9 @@ static void wined3d_query_init(struct wined3d_query *query, struct wined3d_devic
     query->data = data;
     query->data_size = data_size;
     query->query_ops = query_ops;
+#if defined(STAGING_CSMT)
+    query->pending = 0;
+#endif /* STAGING_CSMT */
 }
 
 static struct wined3d_event_query *wined3d_event_query_from_query(struct wined3d_query *query)
@@ -350,7 +353,17 @@ HRESULT CDECL wined3d_query_get_data(struct wined3d_query *query,
         return WINED3DERR_INVALIDCALL;
     }
 
+#if !defined(STAGING_CSMT)
     if (!query->query_ops->query_poll(query, flags))
+#else  /* STAGING_CSMT */
+    if (flags & WINED3DGETDATA_FLUSH)
+        query->flush = TRUE;
+    if (InterlockedCompareExchange(&query->pending, 0, 0))
+        return S_FALSE;
+
+    query->flush = FALSE;
+    if (!wined3d_cs_emit_query_poll(query->device->cs, query, flags))
+#endif /* STAGING_CSMT */
         return S_FALSE;
 
     if (data)
@@ -504,7 +517,11 @@ static void wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DWORD
      * restart. */
     if (flags & WINED3DISSUE_BEGIN)
     {
+#if !defined(STAGING_CSMT)
         if (query->state == QUERY_BUILDING)
+#else  /* STAGING_CSMT */
+        if (oq->started)
+#endif /* STAGING_CSMT */
         {
             if (oq->context->tid != GetCurrentThreadId())
             {
@@ -535,13 +552,20 @@ static void wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DWORD
         checkGLcall("glBeginQuery()");
 
         context_release(context);
+#if defined(STAGING_CSMT)
+        oq->started = TRUE;
+#endif /* STAGING_CSMT */
     }
     if (flags & WINED3DISSUE_END)
     {
         /* MSDN says END on a non-building occlusion query returns an error,
          * but our tests show that it returns OK. But OpenGL doesn't like it,
          * so avoid generating an error. */
+#if !defined(STAGING_CSMT)
         if (query->state == QUERY_BUILDING)
+#else  /* STAGING_CSMT */
+        if (oq->started)
+#endif /* STAGING_CSMT */
         {
             if (oq->context->tid != GetCurrentThreadId())
             {
@@ -558,6 +582,9 @@ static void wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DWORD
                 context_release(context);
             }
         }
+#if defined(STAGING_CSMT)
+        oq->started = FALSE;
+#endif /* STAGING_CSMT */
     }
 }
 
