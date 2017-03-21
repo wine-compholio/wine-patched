@@ -3897,3 +3897,15 @@ struct handle_info
     unsigned int threads;     /* number of threads */
     unsigned int handles;     /* number of handles */
 @END
+
+
+/* Suspend a process */
+@REQ(suspend_process)
+    obj_handle_t handle;       /* process handle */
+@END
+
+
+/* Resume a process */
+@REQ(resume_process)
+    obj_handle_t handle;       /* process handle */
+@END
