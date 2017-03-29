@@ -2062,6 +2062,12 @@ static const char ok_with_length2[] =
 "Content-Length: 19\r\n\r\n"
 "HTTP/1.1 211 OK\r\n\r\n";
 
+static const char redir_no_host[] =
+"HTTP/1.1 302 Found\r\n"
+"Location: http:///test1\r\n"
+"Server: winetest\r\n"
+"\r\n";
+
 struct server_info {
     HANDLE hEvent;
     int port;
@@ -2471,6 +2477,10 @@ static DWORD CALLBACK server_thread(LPVOID param)
                 send(c, okmsg, sizeof okmsg-1, 0);
             else
                 send(c, noauthmsg, sizeof noauthmsg-1, 0);
+        }
+        if (strstr(buffer, "GET /test_redirect_no_host"))
+        {
+            send(c, redir_no_host, sizeof redir_no_host-1, 0);
         }
         shutdown(c, 2);
         closesocket(c);
@@ -5492,6 +5502,27 @@ static void test_remove_dot_segments(int port)
     close_request(&req);
 }
 
+static void test_redirect(int port)
+{
+    test_request_t req;
+    BOOL ret;
+
+    open_simple_request(&req, "localhost", port, NULL, "/test_redirect_no_host");
+    ret = HttpSendRequestA(req.request, NULL, 0, NULL, 0);
+    if (ret)
+    {
+        trace("Succeeded with status code 302\n");
+        test_status_code(req.request, 302);
+    }
+    else
+    {
+        trace("Failed with error ERROR_INTERNET_INVALID_URL\n");
+        ok(GetLastError() == ERROR_INTERNET_INVALID_URL,
+           "Expected error ERROR_INTERNET_INVALID_URL, got %u\n", GetLastError());
+    }
+    close_request(&req);
+}
+
 static void test_http_connection(void)
 {
     struct server_info si;
@@ -5545,6 +5576,7 @@ static void test_http_connection(void)
     test_connection_break(si.port);
     test_long_url(si.port);
     test_remove_dot_segments(si.port);
+    test_redirect(si.port);
 
     /* send the basic request again to shutdown the server thread */
     test_basic_request(si.port, "GET", "/quit");
