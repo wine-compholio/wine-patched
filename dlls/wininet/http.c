@@ -4057,6 +4057,9 @@ static DWORD HTTP_HandleRedirect(http_request_t *request, LPCWSTR lpszUrl)
         if(!InternetCrackUrlW(lpszUrl, strlenW(lpszUrl), 0, &urlComponents))
             return INTERNET_GetLastError();
 
+        if (!urlComponents.dwHostNameLength)
+            return ERROR_INTERNET_INVALID_URL;
+
         if(urlComponents.nScheme == INTERNET_SCHEME_HTTP) {
             if(request->hdr.dwFlags & INTERNET_FLAG_SECURE) {
                 TRACE("redirect from secure page to non-secure page\n");
