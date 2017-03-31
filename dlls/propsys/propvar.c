@@ -18,8 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include "config.h"
+#include "wine/port.h"
+
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define NONAMELESSUNION
 
@@ -111,6 +115,15 @@ static HRESULT PROPVAR_ConvertNumber(REFPROPVARIANT pv, int dest_bits,
     case VT_EMPTY:
         src_signed = FALSE;
         *res = 0;
+        break;
+    case VT_LPSTR:
+        *res = strtoll(pv->u.pszVal, NULL, 0);
+        src_signed = *res < 0;
+        break;
+    case VT_LPWSTR:
+    case VT_BSTR:
+        *res = strtolW(pv->u.pwszVal, NULL, 0);
+        src_signed = *res < 0;
         break;
     default:
         FIXME("unhandled vt %d\n", pv->vt);
@@ -698,8 +711,19 @@ INT WINAPI PropVariantCompareEx(REFPROPVARIANT propvar1, REFPROPVARIANT propvar2
         CMP_INT_VALUE(uhVal.QuadPart);
         break;
     case VT_BSTR:
-        /* FIXME: Use string flags. */
-        res = lstrcmpW(propvar1->u.bstrVal, propvar2->u.bstrVal);
+    case VT_LPWSTR:
+        /* FIXME: Use other string flags. */
+        if (flags & (PVCF_USESTRCMPI | PVCF_USESTRCMPIC))
+            res = lstrcmpiW(propvar1->u.bstrVal, propvar2_converted->u.bstrVal);
+        else
+            res = lstrcmpW(propvar1->u.bstrVal, propvar2_converted->u.bstrVal);
+        break;
+    case VT_LPSTR:
+        /* FIXME: Use other string flags. */
+        if (flags & (PVCF_USESTRCMPI | PVCF_USESTRCMPIC))
+            res = lstrcmpiA(propvar1->u.pszVal, propvar2_converted->u.pszVal);
+        else
+            res = lstrcmpA(propvar1->u.pszVal, propvar2_converted->u.pszVal);
         break;
     default:
         FIXME("vartype %d not handled\n", propvar1->vt);
