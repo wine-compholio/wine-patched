@@ -210,6 +210,7 @@ HEADER_SRCS = \
 	advpub.h \
 	af_irda.h \
 	amaudio.h \
+	apiset.h \
 	appcompatapi.h \
 	appmgmt.h \
 	atlbase.h \
