@@ -69,6 +69,7 @@ static WCHAR current_dir[MAX_NT_PATH_LENGTH];
 static RTL_BITMAP tls_bitmap;
 static RTL_BITMAP tls_expansion_bitmap;
 static RTL_BITMAP fls_bitmap;
+static API_SET_NAMESPACE_ARRAY apiset_map;
 static int nb_threads = 1;
 
 static RTL_CRITICAL_SECTION peb_lock;
@@ -388,6 +389,7 @@ HANDLE thread_init(void)
 
     peb->FastPebLock        = &peb_lock;
     peb->ProcessParameters  = &params;
+    peb->ApiSetMap          = &apiset_map;
     peb->TlsBitmap          = &tls_bitmap;
     peb->TlsExpansionBitmap = &tls_expansion_bitmap;
     peb->FlsBitmap          = &fls_bitmap;
