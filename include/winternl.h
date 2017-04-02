@@ -23,6 +23,7 @@
 
 #include <ntdef.h>
 #include <windef.h>
+#include <apiset.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -251,7 +252,7 @@ typedef struct _PEB
     ULONG                        EnvironmentUpdateCount;            /* 028/050 */
     PVOID                        KernelCallbackTable;               /* 02c/058 */
     ULONG                        Reserved[2];                       /* 030/060 */
-    PVOID /*PPEB_FREE_BLOCK*/    FreeList;                          /* 038/068 */
+    PAPI_SET_NAMESPACE_ARRAY     ApiSetMap;                         /* 038/068 */
     ULONG                        TlsExpansionCounter;               /* 03c/070 */
     PRTL_BITMAP                  TlsBitmap;                         /* 040/078 */
     ULONG                        TlsBitmapBits[2];                  /* 044/080 */
