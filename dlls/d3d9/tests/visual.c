@@ -1337,7 +1337,11 @@ static void color_fill_test(void)
          * result on Wine.
          * {D3DFMT_YUY2,     "D3DFMT_YUY2",     BLOCKS,                              0},
          * {D3DFMT_UYVY,     "D3DFMT_UYVY",     BLOCKS,                              0}, */
+#if !defined(STAGING_CSMT)
         {D3DFMT_DXT1,     "D3DFMT_DXT1",     BLOCKS | TODO_FILL_RETURN,           0},
+#else  /* STAGING_CSMT */
+        {D3DFMT_DXT1,     "D3DFMT_DXT1",     BLOCKS,                              0},
+#endif /* STAGING_CSMT */
         /* Vendor-specific formats like ATI2N are a non-issue here since they're not
          * supported as offscreen plain surfaces and do not support D3DUSAGE_RENDERTARGET
          * when created as texture. */
@@ -1458,7 +1462,11 @@ static void color_fill_test(void)
         {
             hr = IDirect3DDevice9_ColorFill(device, surface, &rect2, 0xdeadbeef);
             if (formats[i].flags & BLOCKS)
+#if !defined(STAGING_CSMT)
                 todo_wine ok(hr == D3DERR_INVALIDCALL, "Got unexpected hr %#x, fmt=%s.\n", hr, formats[i].name);
+#else  /* STAGING_CSMT */
+                ok(hr == D3DERR_INVALIDCALL, "Got unexpected hr %#x, fmt=%s.\n", hr, formats[i].name);
+#endif /* STAGING_CSMT */
             else
                 ok(SUCCEEDED(hr), "Failed to color fill, hr %#x, fmt=%s.\n", hr, formats[i].name);
         }
