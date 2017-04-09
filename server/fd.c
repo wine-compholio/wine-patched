@@ -2429,6 +2429,7 @@ DECL_HANDLER(flush)
     if (async)
     {
         reply->event = fd->fd_ops->flush( fd, async );
+        async_skip_completion( async, fd->comp_flags );
         release_object( async );
     }
     release_object( fd );
@@ -2509,6 +2510,7 @@ DECL_HANDLER(read)
         {
             reply->wait    = fd->fd_ops->read( fd, async, req->pos );
             reply->options = fd->options;
+            async_skip_completion( async, fd->comp_flags );
             release_object( async );
         }
         release_object( iosb );
@@ -2532,6 +2534,7 @@ DECL_HANDLER(write)
         {
             reply->wait    = fd->fd_ops->write( fd, async, req->pos );
             reply->options = fd->options;
+            async_skip_completion( async, fd->comp_flags );
             release_object( async );
         }
         release_object( iosb );
@@ -2555,6 +2558,7 @@ DECL_HANDLER(ioctl)
         {
             reply->wait    = fd->fd_ops->ioctl( fd, req->code, async );
             reply->options = fd->options;
+            async_skip_completion( async, fd->comp_flags );
             release_object( async );
         }
         release_object( iosb );
