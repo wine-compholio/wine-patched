@@ -385,9 +385,7 @@ static void test_completion(void)
 
     info.Flags = 0;
     status = pNtQueryInformationFile(client, &io, &info, sizeof(info), FileIoCompletionNotificationInformation);
-    todo_wine
     ok(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %08x\n", status);
-    todo_wine
     ok((info.Flags & FILE_SKIP_COMPLETION_PORT_ON_SUCCESS) != 0, "got %08x\n", info.Flags);
 
     ret = WriteFile(client, buf, sizeof(buf), &num_bytes, &ov);
