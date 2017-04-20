@@ -336,7 +336,6 @@ static UINT CALLBACK simple_callbackA(PVOID Context, UINT Notification,
             ok(!strcmp(expected_files[index], info->NameInCabinet),
                "[%d] Expected file \"%s\", got \"%s\"\n",
                index, expected_files[index], info->NameInCabinet);
-todo_wine
             ok(!strcmp(ctx->cabinet, cabinet_file),
                "[%d] Expected cabinet \"%s\", got \"%s\"\n",
                index, ctx->cabinet, cabinet_file);
@@ -354,7 +353,6 @@ todo_wine
     {
         FILEPATHS_A *info = (FILEPATHS_A *)Param1;
 
-todo_wine
         ok(!strcmp(ctx->cabinet, info->Source),
            "[%d] Expected cabinet \"%s\", got \"%s\"\n",
            index, ctx->cabinet, info->Source);
@@ -441,7 +439,6 @@ static UINT CALLBACK simple_callbackW(PVOID Context, UINT Notification,
             ok(!lstrcmpW(expected_filesW[index], info->NameInCabinet),
                "[%d] Expected file %s, got %s\n",
                index, wine_dbgstr_w(expected_filesW[index]), wine_dbgstr_w(info->NameInCabinet));
-todo_wine
             ok(!lstrcmpW(ctx->cabinet, cabinet_file),
                "[%d] Expected cabinet %s, got %s\n",
                index, wine_dbgstr_w(ctx->cabinet), wine_dbgstr_w(cabinet_file));
@@ -459,7 +456,6 @@ todo_wine
     {
         FILEPATHS_W *info = (FILEPATHS_W *)Param1;
 
-todo_wine
         ok(!lstrcmpW(ctx->cabinet, info->Source),
            "[%d] Expected cabinet %s, got %s\n",
            index, wine_dbgstr_w(ctx->cabinet), wine_dbgstr_w(info->Source));
