@@ -18937,6 +18937,62 @@ static void test_fractional_viewports(void)
     release_test_context(&test_context);
 }
 
+static void test_destroyed_context_query_poll(void)
+{
+    struct d3d11_test_context test_context;
+    ID3D11Asynchronous *timestamp_query;
+    ID3D11DeviceContext *context;
+    D3D11_QUERY_DESC query_desc;
+    ID3D11Device *device;
+    UINT64 timestamp;
+    unsigned int i;
+    HRESULT hr;
+
+    static const struct vec4 white = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    if (!init_test_context(&test_context, NULL))
+        return;
+
+    device = test_context.device;
+    context = test_context.immediate_context;
+
+    query_desc.Query = D3D11_QUERY_TIMESTAMP;
+    query_desc.MiscFlags = 0;
+    hr = ID3D11Device_CreateQuery(device, &query_desc, (ID3D11Query **)&timestamp_query);
+    ok(hr == S_OK, "Got unexpected hr %#x.\n", hr);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, &white.x);
+    ID3D11DeviceContext_End(context, timestamp_query);
+
+    ID3D11RenderTargetView_Release(test_context.backbuffer_rtv);
+    test_context.backbuffer_rtv = NULL;
+    ID3D11Texture2D_Release(test_context.backbuffer);
+    test_context.backbuffer = NULL;
+    IDXGISwapChain_Release(test_context.swapchain);
+    test_context.swapchain = create_swapchain(device, test_context.window, NULL);
+    hr = IDXGISwapChain_GetBuffer(test_context.swapchain, 0, &IID_ID3D11Texture2D,
+            (void **)&test_context.backbuffer);
+    ok(SUCCEEDED(hr), "Failed to get backbuffer, hr %#x.\n", hr);
+    hr = ID3D11Device_CreateRenderTargetView(device, (ID3D11Resource *)test_context.backbuffer,
+            NULL, &test_context.backbuffer_rtv);
+    ok(SUCCEEDED(hr), "Failed to create rendertarget view, hr %#x.\n", hr);
+    ID3D11DeviceContext_OMSetRenderTargets(context, 1, &test_context.backbuffer_rtv, NULL);
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, &white.x);
+
+    for (i = 0; i < 500; ++i)
+    {
+        if ((hr = ID3D11DeviceContext_GetData(context, timestamp_query, NULL, 0, 0)) != S_FALSE)
+            break;
+        Sleep(10);
+    }
+    ok(hr == S_OK, "Got unexpected hr %#x.\n", hr);
+    hr = ID3D11DeviceContext_GetData(context, timestamp_query, &timestamp, sizeof(timestamp), 0);
+    ok(hr == S_OK, "Got unexpected hr %#x.\n", hr);
+
+    ID3D11Asynchronous_Release(timestamp_query);
+    release_test_context(&test_context);
+}
+
 START_TEST(d3d11)
 {
     test_create_device();
@@ -19030,4 +19086,5 @@ START_TEST(d3d11)
     test_stream_output_resume();
     test_gather();
     test_fractional_viewports();
+    test_destroyed_context_query_poll();
 }
