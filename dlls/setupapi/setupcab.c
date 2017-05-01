@@ -297,7 +297,7 @@ static INT_PTR CDECL sc_FNNOTIFY_A(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION p
     TRACE("  Cabinet Set#: %d\n", pfdin->setID);
     TRACE("  Cabinet Cab#: %d\n", pfdin->iCabinet); */
     WARN("SPFILENOTIFY_CABINETINFO undocumented: guess implementation.\n");
-    ci.CabinetFile = phsc->most_recent_cabinet_name;
+    ci.CabinetFile = "";
     ci.CabinetPath = pfdin->psz3;
     ci.DiskName = pfdin->psz2;
     ci.SetId = pfdin->setID;
@@ -389,6 +389,7 @@ static INT_PTR CDECL sc_FNNOTIFY_A(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION p
 
 static INT_PTR CDECL sc_FNNOTIFY_W(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION pfdin)
 {
+  static const WCHAR emptyW[] = {0};
   FILE_IN_CABINET_INFO_W fici;
   PSC_HSC_W phsc;
   CABINET_INFO_W ci;
@@ -423,7 +424,7 @@ static INT_PTR CDECL sc_FNNOTIFY_W(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION p
     TRACE("  Cabinet Set#: %d\n", pfdin->setID);
     TRACE("  Cabinet Cab#: %d\n", pfdin->iCabinet); */
     WARN("SPFILENOTIFY_CABINETINFO undocumented: guess implementation.\n");
-    ci.CabinetFile = phsc->most_recent_cabinet_name;
+    ci.CabinetFile = emptyW;
     len = 1 + MultiByteToWideChar(CP_ACP, 0, pfdin->psz3, -1, buf, MAX_PATH);
     if ((len > MAX_PATH) || (len <= 1))
       buf[0] = '\0';

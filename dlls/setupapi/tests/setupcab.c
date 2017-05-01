@@ -314,8 +314,15 @@ static UINT CALLBACK simple_callbackA(PVOID Context, UINT Notification,
     switch (Notification)
     {
     case SPFILENOTIFY_CABINETINFO:
+    {
+        CABINET_INFO_A *info = (CABINET_INFO_A *)Param1;
+
+        ok(!strcmp(info->CabinetFile, ""),
+           "Expected empty CabinetFile, got \"%s\"\n", info->CabinetFile);
+
         index = 0;
         return NO_ERROR;
+    }
     case SPFILENOTIFY_FILEINCABINET:
     {
         FILE_IN_CABINET_INFO_A *info = (FILE_IN_CABINET_INFO_A *)Param1;
@@ -381,14 +388,22 @@ struct contextW
 static UINT CALLBACK simple_callbackW(PVOID Context, UINT Notification,
                                       UINT_PTR Param1, UINT_PTR Param2)
 {
+    static const WCHAR emptyW[] = {0};
     static int index;
     struct contextW *ctx = Context;
 
     switch (Notification)
     {
     case SPFILENOTIFY_CABINETINFO:
+    {
+        CABINET_INFO_W *info = (CABINET_INFO_W *)Param1;
+
+        ok(!lstrcmpW(info->CabinetFile, emptyW),
+           "Expected empty CabinetFile, got %s\n", wine_dbgstr_w(info->CabinetFile));
+
         index = 0;
         return NO_ERROR;
+    }
     case SPFILENOTIFY_FILEINCABINET:
     {
         FILE_IN_CABINET_INFO_W *info = (FILE_IN_CABINET_INFO_W *)Param1;
