@@ -303,6 +303,7 @@ struct contextA
 {
     int count;
     const char *cabinet;
+    const char *target;
 };
 
 static UINT CALLBACK simple_callbackA(PVOID Context, UINT Notification,
@@ -339,14 +340,33 @@ todo_wine
             ok(!strcmp(ctx->cabinet, cabinet_file),
                "[%d] Expected cabinet \"%s\", got \"%s\"\n",
                index, ctx->cabinet, cabinet_file);
-            index++;
-            return FILEOP_SKIP;
+
+            strcpy(info->FullTargetName, ctx->target);
+            return FILEOP_DOIT;
         }
         else
         {
             ok(0, "Unexpectedly enumerated more than number of files in cabinet, index = %d\n", index);
             return FILEOP_ABORT;
         }
+    }
+    case SPFILENOTIFY_FILEEXTRACTED:
+    {
+        FILEPATHS_A *info = (FILEPATHS_A *)Param1;
+
+todo_wine
+        ok(!strcmp(ctx->cabinet, info->Source),
+           "[%d] Expected cabinet \"%s\", got \"%s\"\n",
+           index, ctx->cabinet, info->Source);
+        ok(!strcmp(ctx->target, info->Target),
+           "[%d] Expected target \"%s\", got \"%s\"\n",
+           index, ctx->target, info->Target);
+        ok(info->Win32Error == 0,
+           "[%d] Expected Win32Error 0, got %u\n",
+           index, info->Win32Error);
+
+        index++;
+        return NO_ERROR;
     }
     default:
         return NO_ERROR;
@@ -357,21 +377,25 @@ static void test_simple_enumerationA(void)
 {
     BOOL ret;
     char source[MAX_PATH], temp[MAX_PATH];
+    char target[MAX_PATH];
     struct contextA ctx;
 
     GetTempPathA(sizeof(temp), temp);
     GetTempFileNameA(temp, "doc", 0, source);
+    GetTempFileNameA(temp, "doc", 0, target);
 
     create_source_fileA(source, comp_cab_zip_multi, sizeof(comp_cab_zip_multi));
 
     ctx.count = 0;
     ctx.cabinet = source;
+    ctx.target = target;
     ret = SetupIterateCabinetA(source, 0, simple_callbackA, &ctx);
     ok(ret == 1, "Expected SetupIterateCabinetA to return 1, got %d\n", ret);
     ok(ctx.count == sizeof(expected_files)/sizeof(char *),
        "Unexpectedly enumerated %d files\n", ctx.count);
 
     DeleteFileA(source);
+    DeleteFileA(target);
 }
 
 static const WCHAR tristramW[] = {'t','r','i','s','t','r','a','m',0};
@@ -383,6 +407,7 @@ struct contextW
 {
     int count;
     const WCHAR *cabinet;
+    const WCHAR *target;
 };
 
 static UINT CALLBACK simple_callbackW(PVOID Context, UINT Notification,
@@ -420,14 +445,33 @@ todo_wine
             ok(!lstrcmpW(ctx->cabinet, cabinet_file),
                "[%d] Expected cabinet %s, got %s\n",
                index, wine_dbgstr_w(ctx->cabinet), wine_dbgstr_w(cabinet_file));
-            index++;
-            return FILEOP_SKIP;
+
+            lstrcpyW(info->FullTargetName, ctx->target);
+            return FILEOP_DOIT;
         }
         else
         {
             ok(0, "Unexpectedly enumerated more than number of files in cabinet, index = %d\n", index);
             return FILEOP_ABORT;
         }
+    }
+    case SPFILENOTIFY_FILEEXTRACTED:
+    {
+        FILEPATHS_W *info = (FILEPATHS_W *)Param1;
+
+todo_wine
+        ok(!lstrcmpW(ctx->cabinet, info->Source),
+           "[%d] Expected cabinet %s, got %s\n",
+           index, wine_dbgstr_w(ctx->cabinet), wine_dbgstr_w(info->Source));
+        ok(!lstrcmpW(ctx->target, info->Target),
+           "[%d] Expected target %s, got %s\n",
+           index, wine_dbgstr_w(ctx->target), wine_dbgstr_w(info->Target));
+        ok(info->Win32Error == 0,
+           "[%d] Expected Win32Error 0, got %u\n",
+           index, info->Win32Error);
+
+        index++;
+        return NO_ERROR;
     }
     default:
         return NO_ERROR;
@@ -438,6 +482,7 @@ static void test_simple_enumerationW(void)
 {
     BOOL ret;
     WCHAR source[MAX_PATH], temp[MAX_PATH];
+    WCHAR target[MAX_PATH];
     struct contextW ctx;
 
     ret = SetupIterateCabinetW(NULL, 0, NULL, NULL);
@@ -449,17 +494,20 @@ static void test_simple_enumerationW(void)
 
     GetTempPathW(sizeof(temp)/sizeof(WCHAR), temp);
     GetTempFileNameW(temp, docW, 0, source);
+    GetTempFileNameW(temp, docW, 0, target);
 
     create_source_fileW(source, comp_cab_zip_multi, sizeof(comp_cab_zip_multi));
 
     ctx.count = 0;
     ctx.cabinet = source;
+    ctx.target = target;
     ret = SetupIterateCabinetW(source, 0, simple_callbackW, &ctx);
     ok(ret == 1, "Expected SetupIterateCabinetW to return 1, got %d\n", ret);
     ok(ctx.count == sizeof(expected_files)/sizeof(WCHAR *),
        "Unexpectedly enumerated %d files\n", ctx.count);
 
     DeleteFileW(source);
+    DeleteFileW(target);
 }
 
 START_TEST(setupcab)
