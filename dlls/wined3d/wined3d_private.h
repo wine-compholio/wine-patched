@@ -2648,6 +2648,16 @@ struct wined3d_state
     struct wined3d_rasterizer_state *rasterizer_state;
 };
 
+#if defined(STAGING_CSMT)
+struct wined3d_gl_bo
+{
+    GLuint name;
+    GLenum usage;
+    GLenum type_hint;
+    UINT size;
+};
+
+#endif /* STAGING_CSMT */
 #define WINED3D_UNMAPPED_STAGE ~0u
 
 /* Multithreaded flag. Removed from the public header to signal that
@@ -2759,6 +2769,12 @@ LRESULT device_process_message(struct wined3d_device *device, HWND window, BOOL 
 void device_resource_add(struct wined3d_device *device, struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void device_resource_released(struct wined3d_device *device, struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void device_invalidate_state(const struct wined3d_device *device, DWORD state) DECLSPEC_HIDDEN;
+#if defined(STAGING_CSMT)
+struct wined3d_gl_bo *wined3d_device_get_bo(struct wined3d_device *device, UINT size, GLenum gl_usage,
+        GLenum type_hint, struct wined3d_context *context) DECLSPEC_HIDDEN;
+void wined3d_device_release_bo(struct wined3d_device *device, struct wined3d_gl_bo *bo,
+        const struct wined3d_context *context) DECLSPEC_HIDDEN;
+#endif /* STAGING_CSMT */
 
 static inline BOOL isStateDirty(const struct wined3d_context *context, DWORD state)
 {
@@ -2945,7 +2961,11 @@ struct wined3d_texture
 
         unsigned int map_count;
         DWORD locations;
+#if !defined(STAGING_CSMT)
         GLuint buffer_object;
+#else  /* STAGING_CSMT */
+        struct wined3d_gl_bo *buffer;
+#endif /* STAGING_CSMT */
     } sub_resources[1];
 };
 
@@ -3253,8 +3273,15 @@ struct wined3d_cs_queue
 
 struct wined3d_cs_ops
 {
+#if !defined(STAGING_CSMT)
     void *(*require_space)(struct wined3d_cs *cs, size_t size);
     void (*submit)(struct wined3d_cs *cs);
+#else  /* STAGING_CSMT */
+    BOOL (*check_space)(struct wined3d_cs *cs, size_t size, int priority);
+    void *(*require_space)(struct wined3d_cs *cs, size_t size, int priority);
+    void (*submit)(struct wined3d_cs *cs);
+    void (*submit_and_wait)(struct wined3d_cs *cs);
+#endif /* STAGING_CSMT */
     void (*push_constants)(struct wined3d_cs *cs, enum wined3d_push_constants p,
             unsigned int start_idx, unsigned int count, const void *constants);
 };
@@ -3269,13 +3296,23 @@ struct wined3d_cs
     HANDLE thread;
     DWORD thread_id;
 
+#if !defined(STAGING_CSMT)
     struct wined3d_cs_queue queue;
+#else  /* STAGING_CSMT */
+    struct wined3d_cs_queue *queue;
+    struct wined3d_cs_queue norm_queue;
+    struct wined3d_cs_queue prio_queue;
+#endif /* STAGING_CSMT */
     size_t data_size, start, end;
     void *data;
     struct list query_poll_list;
 
     HANDLE event;
     BOOL waiting_for_event;
+#if defined(STAGING_CSMT)
+
+    LONG pending_presents;
+#endif /* STAGING_CSMT */
 };
 
 struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device) DECLSPEC_HIDDEN;
@@ -3297,6 +3334,9 @@ void wined3d_cs_emit_dispatch(struct wined3d_cs *cs,
 void wined3d_cs_emit_draw(struct wined3d_cs *cs, GLenum primitive_type, int base_vertex_idx,
         unsigned int start_idx, unsigned int index_count, unsigned int start_instance,
         unsigned int instance_count, BOOL indexed) DECLSPEC_HIDDEN;
+#if defined(STAGING_CSMT)
+void wined3d_cs_emit_finish(struct wined3d_cs *cs) DECLSPEC_HIDDEN;
+#endif /* STAGING_CSMT */
 void wined3d_cs_emit_flush(struct wined3d_cs *cs) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_preload_resource(struct wined3d_cs *cs, struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *swapchain,
@@ -3349,6 +3389,9 @@ void wined3d_cs_emit_set_unordered_access_view(struct wined3d_cs *cs, enum wined
 void wined3d_cs_emit_set_vertex_declaration(struct wined3d_cs *cs,
         struct wined3d_vertex_declaration *declaration) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_set_viewport(struct wined3d_cs *cs, const struct wined3d_viewport *viewport) DECLSPEC_HIDDEN;
+#if defined(STAGING_CSMT)
+void wined3d_cs_emit_sync(struct wined3d_cs *cs);
+#endif /* STAGING_CSMT */
 void wined3d_cs_emit_unload_resource(struct wined3d_cs *cs, struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void wined3d_cs_emit_update_sub_resource(struct wined3d_cs *cs, struct wined3d_resource *resource,
         unsigned int sub_resource_idx, const struct wined3d_box *box, const void *data, unsigned int row_pitch,

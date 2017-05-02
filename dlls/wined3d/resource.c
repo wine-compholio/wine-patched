@@ -363,6 +363,11 @@ HRESULT CDECL wined3d_resource_map(struct wined3d_resource *resource, unsigned i
 
     flags = wined3d_resource_sanitise_map_flags(resource, flags);
 
+#if defined(STAGING_CSMT)
+    if (wined3d_settings.cs_multithreaded)
+        wined3d_resource_wait_idle(resource);
+
+#endif /* STAGING_CSMT */
     return wined3d_cs_map(resource->device->cs, resource, sub_resource_idx, map_desc, box, flags);
 }
 
@@ -378,6 +383,11 @@ HRESULT CDECL wined3d_resource_unmap(struct wined3d_resource *resource, unsigned
 {
     TRACE("resource %p, sub_resource_idx %u.\n", resource, sub_resource_idx);
 
+#if defined(STAGING_CSMT)
+    if (wined3d_settings.cs_multithreaded)
+        wined3d_resource_wait_idle(resource);
+
+#endif /* STAGING_CSMT */
     return wined3d_cs_unmap(resource->device->cs, resource, sub_resource_idx);
 }
 
