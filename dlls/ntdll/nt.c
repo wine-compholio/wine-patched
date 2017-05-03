@@ -255,6 +255,21 @@ NTSTATUS WINAPI NtQueryInformationToken(
 	ULONG tokeninfolength,
 	PULONG retlen )
 {
+    static const struct
+    {
+        /* same fields as struct _SID */
+        BYTE Revision;
+        BYTE SubAuthorityCount;
+        SID_IDENTIFIER_AUTHORITY IdentifierAuthority;
+        DWORD SubAuthority[SECURITY_LOGON_IDS_RID_COUNT];
+    }
+    logon_sid =
+    {
+        SID_REVISION,
+        SECURITY_LOGON_IDS_RID_COUNT,
+        {SECURITY_NT_AUTHORITY},
+        {SECURITY_LOGON_IDS_RID, 0, 0}
+    };
     static const ULONG info_len [] =
     {
         0,
@@ -285,7 +300,7 @@ NTSTATUS WINAPI NtQueryInformationToken(
         sizeof(TOKEN_MANDATORY_LABEL) + sizeof(SID), /* TokenIntegrityLevel [sizeof(SID) includes one SubAuthority] */
         0,    /* TokenUIAccess */
         0,    /* TokenMandatoryPolicy */
-        0,    /* TokenLogonSid */
+        sizeof(TOKEN_GROUPS) + sizeof(logon_sid), /* TokenLogonSid */
         sizeof(DWORD), /* TokenIsAppContainer */
         0,    /* TokenCapabilities */
         sizeof(TOKEN_APPCONTAINER_INFORMATION) + sizeof(SID), /* TokenAppContainerSid */
@@ -553,6 +568,17 @@ NTSTATUS WINAPI NtQueryInformationToken(
             *(DWORD*)tokeninfo = 0;
             break;
         }
+    case TokenLogonSid:
+        {
+            TOKEN_GROUPS *groups = tokeninfo;
+            SID *sid = (SID *)(groups + 1);
+            FIXME("QueryInformationToken( ..., TokenLogonSid, ...) semi-stub\n");
+            groups->GroupCount = 1;
+            groups->Groups[0].Sid = sid;
+            groups->Groups[0].Attributes = 0;
+            memcpy(sid, &logon_sid, sizeof(logon_sid));
+        }
+        break;
     default:
         {
             ERR("Unhandled Token Information class %d!\n", tokeninfoclass);
