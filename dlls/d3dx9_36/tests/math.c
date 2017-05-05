@@ -244,7 +244,7 @@ static void D3DXColorTest(void)
 /*_______________D3DXColorLerp________________*/
     expected.r = 0.32f; expected.g = 0.69f; expected.b = 0.356f; expected.a = 0.897f;
     D3DXColorLerp(&got,&color,&color1,scale);
-    expect_color(&expected, &got, 0);
+    expect_color(&expected, &got, 2);
     /* Test the NULL case */
     funcpointer = D3DXColorLerp(&got,NULL,&color1,scale);
     ok(funcpointer == NULL, "Expected: %p, Got: %p\n", NULL, funcpointer);
@@ -2994,7 +2994,7 @@ static void test_D3DXSHEvalDirectionalLight(void)
                         expected = j + test[l].boffset;
                     else
                         expected = test[l].blue_out[startindex + j];
-                    equal = compare_float(expected, blue_out[j], 4);
+                    equal = compare_float(expected, blue_out[j], 8);
                     ok(equal, "Blue: case %u, order %u: expected[%u] = %.8e, received %.8e.\n",
                             l, order, j, expected, blue_out[j]);
                 }
@@ -3339,7 +3339,7 @@ static void test_D3DXSHMultiply3(void)
     D3DXSHMultiply3(c, c, b);
     for (i = 0; i < ARRAY_SIZE(expected_aliased); ++i)
     {
-        equal = compare_float(c[i], expected_aliased[i], 32);
+        equal = compare_float(c[i], expected_aliased[i], 64);
         ok(equal, "Expected[%u] = %.8e, received = %.8e.\n", i, expected_aliased[i], c[i]);
     }
 }
