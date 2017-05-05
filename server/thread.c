@@ -1259,6 +1259,7 @@ DECL_HANDLER(new_thread)
 /* initialize a new thread */
 DECL_HANDLER(init_thread)
 {
+    static const context_t zero_context;
     struct process *process = current->process;
     int wait_fd, reply_fd;
 
@@ -1317,6 +1318,10 @@ DECL_HANDLER(init_thread)
         }
         if (process->unix_pid != current->unix_pid)
             process->unix_pid = -1;  /* can happen with linuxthreads */
+
+        /* Linux preserves dr6/dr7 and FreeBSD all debug registers (unlike windows) */
+        set_thread_context( current, &zero_context, SERVER_CTX_DEBUG_REGISTERS );
+
         stop_thread_if_suspended( current );
         generate_debug_event( current, CREATE_THREAD_DEBUG_EVENT, &req->entry );
         set_thread_affinity( current, current->affinity );
