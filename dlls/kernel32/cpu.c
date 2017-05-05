@@ -46,7 +46,7 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(reg);
 
-#define SHARED_DATA     ((KSHARED_USER_DATA*)0x7ffe0000)
+extern KSHARED_USER_DATA* CDECL __wine_user_shared_data(void);
 
 /****************************************************************************
  *		QueryPerformanceCounter (KERNEL32.@)
@@ -206,7 +206,7 @@ BOOL WINAPI IsProcessorFeaturePresent (
 	DWORD feature	/* [in] Feature number, (PF_ constants from "winnt.h") */) 
 {
   if (feature < PROCESSOR_FEATURE_MAX)
-    return SHARED_DATA->ProcessorFeatures[feature];
+    return __wine_user_shared_data()->ProcessorFeatures[feature];
   else
     return FALSE;
 }
