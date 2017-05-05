@@ -179,6 +179,9 @@ extern void VIRTUAL_SetForceExec( BOOL enable ) DECLSPEC_HIDDEN;
 extern void virtual_release_address_space(void) DECLSPEC_HIDDEN;
 extern void virtual_set_large_address_space(void) DECLSPEC_HIDDEN;
 extern struct _KUSER_SHARED_DATA *user_shared_data DECLSPEC_HIDDEN;
+extern struct _KUSER_SHARED_DATA *user_shared_data_external DECLSPEC_HIDDEN;
+extern void create_user_shared_data_thread(void) DECLSPEC_HIDDEN;
+extern BYTE* CDECL __wine_user_shared_data(void);
 
 /* completion */
 extern NTSTATUS NTDLL_AddCompletion( HANDLE hFile, ULONG_PTR CompletionValue,
