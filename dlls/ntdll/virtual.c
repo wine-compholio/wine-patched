@@ -1784,6 +1784,7 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
 {
     NTSTATUS ret = STATUS_ACCESS_VIOLATION;
     void *page = ROUND_ADDR( addr, page_mask );
+    BOOL update_shared_data = FALSE;
     sigset_t sigset;
     BYTE vprot;
 
@@ -1809,7 +1810,23 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
                 ret = STATUS_SUCCESS;
         }
     }
+    else if (!err && page == user_shared_data_external)
+    {
+        if (!(vprot & VPROT_READ))
+        {
+            set_page_vprot_bits( page, page_size, VPROT_READ | VPROT_WRITE, 0 );
+            mprotect_range( page, page_size, 0, 0 );
+            update_shared_data = TRUE;
+        }
+        /* ignore fault if page is readable now */
+        if (VIRTUAL_GetUnixProt( get_page_vprot( page )) & PROT_READ) ret = STATUS_SUCCESS;
+        else update_shared_data = FALSE;
+    }
     server_leave_uninterrupted_section( &csVirtual, &sigset );
+
+    if (update_shared_data)
+        create_user_shared_data_thread();
+
     return ret;
 }
 
