@@ -43,6 +43,7 @@
 #include "wine/library.h"
 #include "wine/server.h"
 #include "wine/debug.h"
+#include "winbase.h"
 #include "ntdll_misc.h"
 #include "ddk/wdm.h"
 #include "wine/exception.h"
@@ -50,7 +51,9 @@
 WINE_DEFAULT_DEBUG_CHANNEL(thread);
 WINE_DECLARE_DEBUG_CHANNEL(relay);
 
-struct _KUSER_SHARED_DATA *user_shared_data = NULL;
+static struct _KUSER_SHARED_DATA user_shared_data_internal;
+struct _KUSER_SHARED_DATA *user_shared_data_external;
+struct _KUSER_SHARED_DATA *user_shared_data = &user_shared_data_internal;
 
 PUNHANDLED_EXCEPTION_FILTER unhandled_exception_filter = NULL;
 
@@ -345,15 +348,68 @@ static ULONG_PTR get_image_addr(void)
  */
 BYTE* CDECL __wine_user_shared_data(void)
 {
+    static int spinlock;
+    ULARGE_INTEGER interrupt;
     LARGE_INTEGER now;
+
+    while (interlocked_cmpxchg( &spinlock, 1, 0 ) != 0);
+
     NtQuerySystemTime( &now );
-    user_shared_data->SystemTime.LowPart = now.u.LowPart;
-    user_shared_data->SystemTime.High1Time = user_shared_data->SystemTime.High2Time = now.u.HighPart;
-    user_shared_data->u.TickCountQuad = (now.QuadPart - server_start_time) / 10000;
-    user_shared_data->u.TickCount.High2Time = user_shared_data->u.TickCount.High1Time;
-    user_shared_data->TickCountLowDeprecated = user_shared_data->u.TickCount.LowPart;
+    user_shared_data->SystemTime.High2Time = now.u.HighPart;
+    user_shared_data->SystemTime.LowPart   = now.u.LowPart;
+    user_shared_data->SystemTime.High1Time = now.u.HighPart;
+
+    RtlQueryUnbiasedInterruptTime( &interrupt.QuadPart );
+    user_shared_data->InterruptTime.High2Time = interrupt.HighPart;
+    user_shared_data->InterruptTime.LowPart   = interrupt.LowPart;
+    user_shared_data->InterruptTime.High1Time = interrupt.HighPart;
+
+    interrupt.QuadPart /= 10000;
+    user_shared_data->u.TickCount.High2Time  = interrupt.HighPart;
+    user_shared_data->u.TickCount.LowPart    = interrupt.LowPart;
+    user_shared_data->u.TickCount.High1Time  = interrupt.HighPart;
+    user_shared_data->TickCountLowDeprecated = interrupt.LowPart;
     user_shared_data->TickCountMultiplier = 1 << 24;
+
+    spinlock = 0;
     return (BYTE *)user_shared_data;
+}
+
+
+static void *user_shared_data_thread(void *arg)
+{
+    struct timeval tv;
+
+    while (TRUE)
+    {
+        __wine_user_shared_data();
+
+        tv.tv_sec = 0;
+        tv.tv_usec = 15600;
+        select(0, NULL, NULL, NULL, &tv);
+    }
+    return NULL;
+}
+
+
+void create_user_shared_data_thread(void)
+{
+    static int thread_created;
+    pthread_attr_t attr;
+    pthread_t thread;
+
+    if (interlocked_cmpxchg(&thread_created, 1, 0) != 0)
+        return;
+
+    FIXME("Creating user shared data update thread.\n");
+
+    user_shared_data = user_shared_data_external;
+    __wine_user_shared_data();
+
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 0x10000);
+    pthread_create(&thread, &attr, user_shared_data_thread, NULL);
+    pthread_attr_destroy(&attr);
 }
 
 
@@ -387,7 +443,7 @@ HANDLE thread_init(void)
         MESSAGE( "wine: failed to map the shared user data: %08x\n", status );
         exit(1);
     }
-    user_shared_data = addr;
+    user_shared_data_external = addr;
 
     /* allocate and initialize the PEB */
 
