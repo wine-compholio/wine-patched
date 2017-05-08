@@ -204,6 +204,33 @@ the folder?"
         IDS_RUNDLG_BROWSE_FILTER_EXE "Executable files (*.exe)"
         IDS_RUNDLG_BROWSE_FILTER_ALL "All files (*.*)"
 
+        /* Security dialog - General */
+        IDS_SECURITY_ALL_ACCESS "Full Control"
+        IDS_SECURITY_MODIFY     "Modify"
+        IDS_SECURITY_READ_EXEC  "Read & Execute"
+        IDS_SECURITY_READ       "Read"
+        IDS_SECURITY_WRITE      "Write"
+        IDS_SECURITY_DIR_LIST   "List Folder Contents"
+
+        /* Security dialog - Advanced */
+        IDS_SECURITY_TRAVERSE      "Traverse Folder"
+        IDS_SECURITY_EXECUTE       "Execute File"
+        IDS_SECURITY_LIST_FOLDER   "List Folder"
+        IDS_SECURITY_READ_DATA     "Read Data"
+        IDS_SECURITY_READ_ATTR     "Read Attributes"
+        IDS_SECURITY_READ_EX_ATTR  "Read Extended Attributes"
+        IDS_SECURITY_CREATE_FILES  "Create Files"
+        IDS_SECURITY_WRITE_DATA    "Write Data"
+        IDS_SEUCRITY_CREATE_FOLDER "Create Folders"
+        IDS_SECURITY_APPEND_DATA   "Append Data"
+        IDS_SECURITY_WRITE_ATTR    "Write Attributes"
+        IDS_SECURITY_WRITE_EX_ATTR "Write Extended Attributes"
+        IDS_SECURITY_DELETE_CHILD  "Delete Subfolders and Files"
+        IDS_SECURITY_DELETE        "Delete"
+        IDS_SECURITY_READ_PERM     "Read Permissions"
+        IDS_SECURITY_CHANGE_PERM   "Change Permissions"
+        IDS_SECURITY_CHANGE_OWNER  "Take Ownership"
+
         /* shell folder path default values */
 	/* FIXME: Some will be unused until desktop.ini support is implemented */
 	IDS_PROGRAMS                "Programs"
