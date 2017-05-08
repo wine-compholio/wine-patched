@@ -1,7 +1,7 @@
 EXTRADEFS = -D_SHELL32_
 MODULE    = shell32.dll
 IMPORTLIB = shell32
-IMPORTS   = uuid shlwapi user32 gdi32 advapi32
+IMPORTS   = uuid shlwapi user32 gdi32 advapi32 aclui
 DELAYIMPORTS = ole32 oleaut32 shdocvw version comctl32 gdiplus
 EXTRALIBS = $(CORESERVICES_LIBS)
 # AUTHORS file is in the top-level directory
