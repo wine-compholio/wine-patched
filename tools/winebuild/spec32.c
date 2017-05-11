@@ -274,6 +274,50 @@ static void output_relay_debug( DLLSPEC *spec )
 }
 
 /*******************************************************************
+ *         output_syscall_thunks
+ *
+ * Output entry points for system call functions
+ */
+static void output_syscall_thunks( DLLSPEC *spec )
+{
+    int i;
+
+    if (!spec->nb_syscalls)
+        return;
+
+    output( "\n/* syscall thunks */\n\n" );
+    output( "\t.text\n" );
+
+    for (i = 0; i < spec->nb_syscalls; i++)
+    {
+        ORDDEF *odp = spec->syscalls[i];
+        const char *name = odp->link_name;
+
+        output( "\t.align %d\n", get_alignment(16) );
+        output( "\t%s\n", func_declaration(name) );
+        output( "%s\n", asm_globl(name) );
+        output_cfi( ".cfi_startproc" );
+        output( "\tmovl $%s, %%eax\n", asm_name(odp->impl_name) );
+        output( "\tmovl $__wine_syscall_dispatcher, %%edx\n" );
+        output( "\tcall *%%edx\n" );
+        output( "\tret $%d\n", get_args_size(odp) );
+        output_cfi( ".cfi_endproc" );
+        output_function_size( name );
+    }
+
+    output( "\t.align %d\n", get_alignment(16) );
+    output( "\t%s\n", func_declaration("__wine_syscall_dispatcher") );
+    output( "%s\n", asm_globl("__wine_syscall_dispatcher") );
+    output_cfi( ".cfi_startproc" );
+    output( "\tadd $4, %%esp\n" );
+    output( "\tjmp *%%eax\n" );
+    output( "\tret\n" );
+    output_cfi( ".cfi_endproc" );
+    output_function_size( "__wine_syscall_dispatcher" );
+    output( "\t.previous\n" );
+}
+
+/*******************************************************************
  *         output_exports
  *
  * Output the export table for a Win32 module.
@@ -624,6 +668,7 @@ void BuildSpec32File( DLLSPEC *spec )
     output_standard_file_header();
     output_module( spec );
     output_stubs( spec );
+    output_syscall_thunks( spec );
     output_exports( spec );
     output_imports( spec );
     if (is_undefined( "__wine_call_from_regs" )) output_asm_relays();
