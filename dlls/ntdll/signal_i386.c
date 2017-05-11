@@ -481,6 +481,7 @@ static wine_signal_handler handlers[256];
 static BOOL fpux_support;  /* whether the CPU supports extended fpu context */
 
 extern void DECLSPEC_NORETURN __wine_restore_regs( const CONTEXT *context );
+extern void DECLSPEC_NORETURN __wine_syscall_dispatcher( void );
 
 enum i386_trap_code
 {
@@ -2396,6 +2397,7 @@ NTSTATUS signal_alloc_thread( TEB **teb )
         *teb = addr;
         (*teb)->Tib.Self = &(*teb)->Tib;
         (*teb)->Tib.ExceptionList = (void *)~0UL;
+        (*teb)->WOW32Reserved = __wine_syscall_dispatcher;
         thread_data = (struct ntdll_thread_data *)(*teb)->SpareBytes1;
         if (!(thread_data->fs = wine_ldt_alloc_fs()))
         {
