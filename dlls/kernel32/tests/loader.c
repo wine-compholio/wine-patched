@@ -917,9 +917,7 @@ static void test_FakeDLL(void)
     ok(ptr != NULL, "MapViewOfFile failed with error %u\n", GetLastError());
 
     dir = RtlImageDirectoryEntryToData(ptr, TRUE, IMAGE_DIRECTORY_ENTRY_EXPORT, &size);
-todo_wine
     ok(dir != NULL, "RtlImageDirectoryEntryToData failed\n");
-    if (dir == NULL) goto done;
 
     names    = RVAToAddr(dir->AddressOfNames, ptr);
     ordinals = RVAToAddr(dir->AddressOfNameOrdinals, ptr);
@@ -948,17 +946,20 @@ todo_wine
         /* check position in memory */
         dll_rva = (DWORD_PTR)dll_func - (DWORD_PTR)module;
         map_rva = funcs[ordinals[i]];
+    todo_wine
         ok(map_rva == dll_rva, "%s: Rva of mapped function (0x%x) does not match dll (0x%x)\n",
            func_name, dll_rva, map_rva);
 
         /* check position in file */
         map_offset = (DWORD_PTR)RtlImageRvaToVa(RtlImageNtHeader(ptr),    ptr,    map_rva, NULL) - (DWORD_PTR)ptr;
         dll_offset = (DWORD_PTR)RtlImageRvaToVa(RtlImageNtHeader(module), module, dll_rva, NULL) - (DWORD_PTR)module;
+    todo_wine
         ok(map_offset == dll_offset, "%s: File offset of mapped function (0x%x) does not match dll (0x%x)\n",
            func_name, map_offset, dll_offset);
 
         /* check function content */
         map_func = RVAToAddr(map_rva, ptr);
+    todo_wine
         ok(!memcmp(map_func, dll_func, 0x20), "%s: Function content does not match!\n", func_name);
 
         if (!strcmp(func_name, "NtSetEvent"))
@@ -972,10 +973,11 @@ todo_wine
         ok(event != NULL, "CreateEvent failed with error %u\n", GetLastError());
         pNtSetEvent(event, 0);
         ok(WaitForSingleObject(event, 0) == WAIT_OBJECT_0, "Event was not signaled\n");
+        pNtSetEvent(event, 0);
+        ok(WaitForSingleObject(event, 0) == WAIT_OBJECT_0, "Event was not signaled\n");
         CloseHandle(event);
     }
 
-done:
     UnmapViewOfFile(ptr);
     CloseHandle(map);
     CloseHandle(file);
