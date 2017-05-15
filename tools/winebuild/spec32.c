@@ -719,10 +719,14 @@ static void create_stub_exports_x86( DLLSPEC *spec )
     for (i = 0; i < spec->nb_entry_points; i++)
     {
         ORDDEF *odp = &spec->entry_points[i];
-        const char *name = get_stub_name( odp, spec );
+        const char *name;
         size_t rva;
 
+        if (odp->flags & FLAG_SYSCALL)
+            continue;
+
         align_output_rva( 16, 16 );
+        name = get_stub_name( odp, spec );
         put_label( name );
 
         put_byte( 0x8b ); put_byte( 0xff );                           /* mov edi, edi */
@@ -745,6 +749,24 @@ static void create_stub_exports_x86( DLLSPEC *spec )
         put_byte( 0xcd ); put_byte( 0x2e );                           /* int 0x2e */
         put_byte( 0x5d );                                             /* pop ebp */
         put_byte( 0xc3 );                                             /* ret */
+    }
+
+    /* output syscalls */
+    for (i = 0; i < spec->nb_syscalls; i++)
+    {
+        ORDDEF *odp = spec->syscalls[i];
+
+        align_output_rva( 16, 16 );
+        put_label( odp->link_name );
+
+        put_byte( 0xb8 ); put_dword( i );                     /* mov eax, SYSCALL */
+        put_byte( 0x33 ); put_byte( 0xc9 );                   /* xor ecx, ecx */
+        put_byte( 0x8d ); put_byte( 0x54 );                   /* lea edx, [esp + 4] */
+        put_byte( 0x24 ); put_byte( 0x04 );
+        put_byte( 0x64 ); put_byte( 0xff );                   /* call dword ptr fs:[0C0h] */
+        put_byte( 0x15 ); put_dword( 0xc0 );
+        put_byte( 0x83 ); put_byte( 0xc4 ); put_byte( 0x04 ); /* add esp, 4 */
+        put_byte( 0xc2 ); put_word( get_args_size(odp) );     /* ret X */
     }
 
     /* name to show in stub message */
@@ -772,7 +794,7 @@ static void create_stub_exports_x86( DLLSPEC *spec )
         ORDDEF *odp = spec->ordinals[i];
         if (odp)
         {
-            const char *name = get_stub_name( odp, spec );
+            const char *name = (odp->flags & FLAG_SYSCALL) ? odp->link_name : get_stub_name( odp, spec );
             put_dword( label_rva( name ) );
         }
         else
