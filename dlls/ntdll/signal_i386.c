@@ -1904,6 +1904,20 @@ static inline DWORD get_fpu_code( const CONTEXT *context )
     return EXCEPTION_FLT_INVALID_OPERATION;  /* generic error */
 }
 
+static void fakedll_stub ( CONTEXT *context )
+{
+    EXCEPTION_RECORD record;
+
+    record.ExceptionCode    = EXCEPTION_WINE_STUB;
+    record.ExceptionFlags   = EH_NONCONTINUABLE;
+    record.ExceptionRecord  = NULL;
+    record.ExceptionAddress = (void*)context->Eip;
+    record.NumberParameters = 2;
+    record.ExceptionInformation[0] = (ULONG_PTR)context->Ecx;
+    record.ExceptionInformation[1] = (ULONG_PTR)context->Edx;
+
+    for (;;) NtRaiseException( &record, context, TRUE );
+}
 
 /**********************************************************************
  *		raise_segv_exception
@@ -1963,6 +1977,9 @@ static void WINAPI raise_segv_exception( EXCEPTION_RECORD *rec, CONTEXT *context
         }
         break;
     case EXCEPTION_WINE_SYSCALL:
+        if (rec->ExceptionInformation[0] == 0xdeadc0de)
+            fakedll_stub( context );
+
         FIXME("unimplemented syscall handler for 0x%lx, stack 0x%lx\n",
               rec->ExceptionInformation[0], rec->ExceptionInformation[1]);
         context->Eax = STATUS_INVALID_SYSTEM_SERVICE;
