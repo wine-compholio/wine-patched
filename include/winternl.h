@@ -363,7 +363,7 @@ typedef struct _TEB
     PVOID                        WinSockData;                       /* f6c/1738 */
     ULONG                        GdiBatchCount;                     /* f70/1740 */
     ULONG                        Spare2;                            /* f74/1744 */
-    PVOID                        Spare3;                            /* f78/1748 */
+    PVOID                        Spare3;                            /* f78/1748 used for fakedll thunks */
     PVOID                        Spare4;                            /* f7c/1750 */
     PVOID                        ReservedForOle;                    /* f80/1758 */
     ULONG                        WaitingOnLoaderLock;               /* f84/1760 */
