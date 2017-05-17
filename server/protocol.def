@@ -2742,6 +2742,13 @@ enum coords_relative
 @END
 
 
+/* Set the layer region */
+@REQ(set_layer_region)
+    user_handle_t  window;        /* handle to the window */
+    VARARG(region,rectangles);    /* list of rectangles for the region (in window coords) */
+@END
+
+
 /* Get the window update region */
 @REQ(get_update_region)
     user_handle_t  window;        /* handle to the window */
