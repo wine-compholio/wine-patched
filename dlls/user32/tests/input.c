@@ -2384,13 +2384,11 @@ static void test_Input_mouse(void)
 
         if (msg.message == WM_LBUTTONDOWN)
         {
-            todo_wine
             ok(msg.hwnd == button_win, "msg.hwnd = %p\n", msg.hwnd);
             got_button_down = TRUE;
         }
         else if (msg.message == WM_LBUTTONUP)
         {
-            todo_wine
             ok(msg.hwnd == button_win, "msg.hwnd = %p\n", msg.hwnd);
             got_button_up = TRUE;
             break;
