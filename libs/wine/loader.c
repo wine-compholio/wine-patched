@@ -455,7 +455,7 @@ static void *map_dll( const IMAGE_NT_HEADERS *nt_descr )
     sec->SizeOfRawData = data_start - code_start;
     sec->Misc.VirtualSize = sec->SizeOfRawData;
     sec->VirtualAddress   = code_start;
-    sec->PointerToRawData = code_start;
+    sec->PointerToRawData = 0x200; /* file alignment */
     sec->Characteristics  = (IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ);
     sec++;
 
