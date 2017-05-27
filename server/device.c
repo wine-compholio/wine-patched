@@ -588,7 +588,11 @@ static void delete_device( struct device *device )
     if (!device->manager) return;  /* already deleted */
 
     LIST_FOR_EACH_ENTRY_SAFE( file, next, &device->files, struct device_file, entry )
+    {
+        grab_object( &file->obj );
         delete_file( file );
+        release_object( &file->obj );
+    }
 
     unlink_named_object( &device->obj );
     list_remove( &device->entry );
@@ -616,7 +620,9 @@ static void device_manager_destroy( struct object *obj )
     while ((ptr = list_head( &manager->devices )))
     {
         struct device *device = LIST_ENTRY( ptr, struct device, entry );
+        grab_object( &device->obj );
         delete_device( device );
+        release_object( &device->obj );
     }
 }
 
