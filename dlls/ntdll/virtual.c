@@ -2290,6 +2290,33 @@ static int get_free_mem_state_callback( void *start, size_t size, void *arg )
 }
 
 
+/* get the section mapping handle */
+static NTSTATUS get_section_mapping( HANDLE process, LPCVOID addr, HANDLE *mapping )
+{
+    struct file_view *view;
+    NTSTATUS status = STATUS_INVALID_ADDRESS;
+    sigset_t sigset;
+    char *base;
+
+    if (process != NtCurrentProcess())
+    {
+        FIXME( "query section mapping from other process not implemented yet\n" );
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    base = ROUND_ADDR( addr, page_mask );
+
+    server_enter_uninterrupted_section( &csVirtual, &sigset );
+    if ((view = VIRTUAL_FindView( base, 0 )) && view->mapping)
+    {
+        status = NtDuplicateObject( NtCurrentProcess(), view->mapping, NtCurrentProcess(),
+                                    mapping, 0, 0, DUP_HANDLE_SAME_ACCESS );
+    }
+    server_leave_uninterrupted_section( &csVirtual, &sigset );
+    return status;
+}
+
+
 /* get basic information about a memory block */
 static NTSTATUS get_basic_memory_info( HANDLE process, LPCVOID addr,
                                        MEMORY_BASIC_INFORMATION *info,
@@ -2416,6 +2443,84 @@ static NTSTATUS get_basic_memory_info( HANDLE process, LPCVOID addr,
 }
 
 
+/* get file name for mapped section */
+static NTSTATUS get_section_name( HANDLE process, LPCVOID addr,
+                                  MEMORY_SECTION_NAME *info,
+                                  SIZE_T len, SIZE_T *res_len )
+{
+    UNICODE_STRING nt_name;
+    ANSI_STRING unix_name;
+    data_size_t size = 1024;
+    WCHAR *name = NULL;
+    NTSTATUS status;
+    HANDLE mapping;
+
+    if (!addr || !info || !res_len) return STATUS_INVALID_PARAMETER;
+
+    if (!(status = get_section_mapping( process, addr, &mapping )))
+    {
+        status = server_get_unix_name( mapping, &unix_name );
+        close_handle( mapping );
+        if (!status)
+        {
+            status = wine_unix_to_nt_file_name( &unix_name, &nt_name );
+            RtlFreeAnsiString( &unix_name );
+        }
+        if (!status) goto found;
+        if (status == STATUS_OBJECT_TYPE_MISMATCH) status = STATUS_FILE_INVALID;
+        return status;
+    }
+
+    for (;;)
+    {
+        if (!(name = RtlAllocateHeap( GetProcessHeap(), 0, (size + 1) * sizeof(WCHAR) )))
+            return STATUS_NO_MEMORY;
+
+        SERVER_START_REQ( get_dll_info )
+        {
+            req->handle = wine_server_obj_handle( process );
+            req->base_address = (ULONG_PTR)addr;
+            wine_server_set_reply( req, name, size * sizeof(WCHAR) );
+            status = wine_server_call( req );
+            size = reply->filename_len / sizeof(WCHAR);
+        }
+        SERVER_END_REQ;
+
+        if (!status)
+        {
+            name[size] = 0;
+            break;
+        }
+        RtlFreeHeap( GetProcessHeap(), 0, name );
+        if (status == STATUS_DLL_NOT_FOUND) return STATUS_INVALID_ADDRESS;
+        if (status != STATUS_BUFFER_TOO_SMALL) return status;
+    }
+
+    if (!RtlDosPathNameToNtPathName_U( name, &nt_name, NULL, NULL ))
+    {
+        RtlFreeHeap( GetProcessHeap(), 0, name );
+        return STATUS_INVALID_PARAMETER;
+    }
+
+found:
+    *res_len = sizeof(MEMORY_SECTION_NAME) + nt_name.Length + sizeof(WCHAR);
+    if (len >= *res_len)
+    {
+        info->SectionFileName.Length = nt_name.Length;
+        info->SectionFileName.MaximumLength = nt_name.Length + sizeof(WCHAR);
+        info->SectionFileName.Buffer = (WCHAR *)(info + 1);
+        memcpy(info->SectionFileName.Buffer, nt_name.Buffer, nt_name.Length);
+        info->SectionFileName.Buffer[ nt_name.Length / sizeof(WCHAR) ] = 0;
+    }
+    else
+        status = (len < sizeof(MEMORY_SECTION_NAME)) ? STATUS_INFO_LENGTH_MISMATCH : STATUS_BUFFER_OVERFLOW;
+
+    RtlFreeHeap( GetProcessHeap(), 0, name );
+    RtlFreeUnicodeString( &nt_name );
+    return status;
+}
+
+
 #define UNIMPLEMENTED_INFO_CLASS(c) \
     case c: \
         FIXME("(process=%p,addr=%p) Unimplemented information class: " #c "\n", process, addr); \
@@ -2437,8 +2542,10 @@ NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
         case MemoryBasicInformation:
             return get_basic_memory_info( process, addr, buffer, len, res_len );
 
+        case MemorySectionName:
+            return get_section_name( process, addr, buffer, len, res_len );
+
         UNIMPLEMENTED_INFO_CLASS(MemoryWorkingSetList);
-        UNIMPLEMENTED_INFO_CLASS(MemorySectionName);
         UNIMPLEMENTED_INFO_CLASS(MemoryBasicVlmInformation);
 
         default:
