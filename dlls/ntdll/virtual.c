@@ -56,6 +56,7 @@
 #include "wine/library.h"
 #include "wine/server.h"
 #include "wine/exception.h"
+#include "wine/unicode.h"
 #include "wine/rbtree.h"
 #include "wine/debug.h"
 #include "ntdll_misc.h"
@@ -162,6 +163,8 @@ static BYTE **pages_vprot;
 #else  /* on 32-bit we use a simple array with one byte per page */
 static BYTE *pages_vprot;
 #endif
+
+#define MAX_DIR_ENTRY_LEN 255  /* max length of a directory entry in chars */
 
 static struct file_view *view_block_start, *view_block_end, *next_free_view;
 static const size_t view_block_size = 0x100000;
@@ -2740,12 +2743,15 @@ static NTSTATUS get_section_name( HANDLE process, LPCVOID addr,
                                   MEMORY_SECTION_NAME *info,
                                   SIZE_T len, SIZE_T *res_len )
 {
+    static const WCHAR dosprefixW[] = {'\\','?','?','\\'};
+    WCHAR symlinkW[MAX_DIR_ENTRY_LEN] = {0};
     UNICODE_STRING nt_name;
     ANSI_STRING unix_name;
     data_size_t size = 1024;
-    WCHAR *name = NULL;
+    WCHAR *ptr, *name = NULL;
     NTSTATUS status;
     HANDLE mapping;
+    size_t offset = 0;
 
     if (!addr || !info || !res_len) return STATUS_INVALID_PARAMETER;
 
@@ -2804,14 +2810,34 @@ static NTSTATUS get_section_name( HANDLE process, LPCVOID addr,
     }
 
 found:
-    *res_len = sizeof(MEMORY_SECTION_NAME) + nt_name.Length + sizeof(WCHAR);
+    if (nt_name.Length >= sizeof(dosprefixW) &&
+        !memcmp( nt_name.Buffer, dosprefixW, sizeof(dosprefixW) ))
+    {
+        UNICODE_STRING device_name = nt_name;
+        offset = sizeof(dosprefixW) / sizeof(WCHAR);
+        while (offset * sizeof(WCHAR) < nt_name.Length && nt_name.Buffer[ offset ] != '\\') offset++;
+        device_name.Length = offset * sizeof(WCHAR);
+        if (read_nt_symlink( NULL, &device_name, symlinkW, MAX_DIR_ENTRY_LEN ))
+        {
+            symlinkW[0] = 0;
+            offset = 0;
+        }
+    }
+
+    *res_len = sizeof(MEMORY_SECTION_NAME) + strlenW(symlinkW) * sizeof(WCHAR) +
+               nt_name.Length - offset * sizeof(WCHAR) + sizeof(WCHAR);
     if (len >= *res_len)
     {
-        info->SectionFileName.Length = nt_name.Length;
-        info->SectionFileName.MaximumLength = nt_name.Length + sizeof(WCHAR);
+        info->SectionFileName.Length = strlenW(symlinkW) * sizeof(WCHAR) +
+                                       nt_name.Length - offset * sizeof(WCHAR);
+        info->SectionFileName.MaximumLength = info->SectionFileName.Length + sizeof(WCHAR);
         info->SectionFileName.Buffer = (WCHAR *)(info + 1);
-        memcpy(info->SectionFileName.Buffer, nt_name.Buffer, nt_name.Length);
-        info->SectionFileName.Buffer[ nt_name.Length / sizeof(WCHAR) ] = 0;
+
+        ptr = (WCHAR *)(info + 1);
+        strcpyW( ptr, symlinkW );
+        ptr += strlenW(symlinkW);
+        memcpy( ptr, nt_name.Buffer + offset, nt_name.Length - offset * sizeof(WCHAR) );
+        ptr[ nt_name.Length / sizeof(WCHAR) - offset ] = 0;
     }
     else
         status = (len < sizeof(MEMORY_SECTION_NAME)) ? STATUS_INFO_LENGTH_MISMATCH : STATUS_BUFFER_OVERFLOW;
