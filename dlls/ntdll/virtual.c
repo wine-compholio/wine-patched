@@ -2291,7 +2291,7 @@ static int get_free_mem_state_callback( void *start, size_t size, void *arg )
 
 
 /* get the section mapping handle */
-static NTSTATUS get_section_mapping( HANDLE process, LPCVOID addr, HANDLE *mapping )
+NTSTATUS virtual_get_section_mapping( HANDLE process, LPCVOID addr, HANDLE *mapping )
 {
     struct file_view *view;
     NTSTATUS status = STATUS_INVALID_ADDRESS;
@@ -2300,8 +2300,18 @@ static NTSTATUS get_section_mapping( HANDLE process, LPCVOID addr, HANDLE *mappi
 
     if (process != NtCurrentProcess())
     {
-        FIXME( "query section mapping from other process not implemented yet\n" );
-        return STATUS_NOT_IMPLEMENTED;
+        apc_call_t call;
+        apc_result_t result;
+
+        memset( &call, 0, sizeof(call) );
+
+        call.virtual_section.type = APC_VIRTUAL_SECTION;
+        call.virtual_section.addr = wine_server_client_ptr( addr );
+        status = server_queue_process_apc( process, &call, &result );
+        if (status != STATUS_SUCCESS) return status;
+
+        *mapping = wine_server_ptr_handle( result.virtual_section.mapping );
+        return result.virtual_section.status;
     }
 
     base = ROUND_ADDR( addr, page_mask );
@@ -2457,7 +2467,7 @@ static NTSTATUS get_section_name( HANDLE process, LPCVOID addr,
 
     if (!addr || !info || !res_len) return STATUS_INVALID_PARAMETER;
 
-    if (!(status = get_section_mapping( process, addr, &mapping )))
+    if (!(status = virtual_get_section_mapping( process, addr, &mapping )))
     {
         status = server_get_unix_name( mapping, &unix_name );
         close_handle( mapping );
