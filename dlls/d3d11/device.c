@@ -5799,7 +5799,7 @@ static UINT STDMETHODCALLTYPE d3d11_device_GetCreationFlags(ID3D11Device *iface)
 
 static HRESULT STDMETHODCALLTYPE d3d11_device_GetDeviceRemovedReason(ID3D11Device *iface)
 {
-    FIXME("iface %p stub!\n", iface);
+    TRACE("iface %p stub!\n", iface);
 
     return S_OK;
 }
