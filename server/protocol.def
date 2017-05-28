@@ -448,6 +448,7 @@ enum apc_type
     APC_VIRTUAL_ALLOC,
     APC_VIRTUAL_FREE,
     APC_VIRTUAL_QUERY,
+    APC_VIRTUAL_SECTION,
     APC_VIRTUAL_PROTECT,
     APC_VIRTUAL_FLUSH,
     APC_VIRTUAL_LOCK,
@@ -504,6 +505,12 @@ typedef union
         int              __pad;
         client_ptr_t     addr;      /* requested address */
     } virtual_query;
+    struct
+    {
+        enum apc_type    type;      /* APC_VIRTUAL_SECTION */
+        int              __pad;
+        client_ptr_t     addr;      /* requested address */
+    } virtual_section;
     struct
     {
         enum apc_type    type;      /* APC_VIRTUAL_PROTECT */
@@ -595,6 +602,12 @@ typedef union
         unsigned short   alloc_prot;/* resulting allocation protection */
         unsigned short   alloc_type;/* resulting region allocation type */
     } virtual_query;
+    struct
+    {
+        enum apc_type    type;      /* APC_VIRTUAL_SECTION */
+        unsigned int     status;    /* status returned by call */
+        obj_handle_t     mapping;   /* resulting mapping */
+    } virtual_section;
     struct
     {
         enum apc_type    type;      /* APC_VIRTUAL_PROTECT */
