@@ -464,6 +464,19 @@ static BOOL invoke_apc( const apc_call_t *call, apc_result_t *result )
         }
         break;
     }
+    case APC_VIRTUAL_SECTION:
+    {
+        HANDLE mapping;
+        result->type = call->type;
+        addr = wine_server_get_ptr( call->virtual_section.addr );
+        if ((ULONG_PTR)addr == call->virtual_section.addr)
+        {
+            result->virtual_section.status = virtual_get_section_mapping( NtCurrentProcess(), addr, &mapping );
+            result->virtual_section.mapping = wine_server_obj_handle( mapping );
+        }
+        else result->virtual_section.status = STATUS_WORKING_SET_LIMIT_RANGE;
+        break;
+    }
     case APC_VIRTUAL_PROTECT:
         result->type = call->type;
         addr = wine_server_get_ptr( call->virtual_protect.addr );
