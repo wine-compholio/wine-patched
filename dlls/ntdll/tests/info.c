@@ -22,6 +22,7 @@
 #include <winnls.h>
 #include <stdio.h>
 
+static NTSTATUS (WINAPI * pRtlDowncaseUnicodeString)(UNICODE_STRING *, const UNICODE_STRING *, BOOLEAN);
 static NTSTATUS (WINAPI * pNtQuerySystemInformation)(SYSTEM_INFORMATION_CLASS, PVOID, ULONG, PULONG);
 static NTSTATUS (WINAPI * pNtQuerySystemInformationEx)(SYSTEM_INFORMATION_CLASS, void*, ULONG, void*, ULONG, ULONG*);
 static NTSTATUS (WINAPI * pNtPowerInformation)(POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG);
@@ -66,6 +67,7 @@ static BOOL InitFunctionPtrs(void)
         return FALSE;
     }
 
+    NTDLL_GET_PROC(RtlDowncaseUnicodeString);
     NTDLL_GET_PROC(NtQuerySystemInformation);
     NTDLL_GET_PROC(NtPowerInformation);
     NTDLL_GET_PROC(NtQueryInformationProcess);
@@ -1789,6 +1791,7 @@ static void test_queryvirtualmemory(void)
 {
     NTSTATUS status;
     SIZE_T readcount;
+    static const WCHAR windowsW[] = {'w','i','n','d','o','w','s'};
     static const char teststring[] = "test string";
     static char datatestbuf[42] = "abc";
     static char rwtestbuf[42];
@@ -1797,6 +1800,8 @@ static void test_queryvirtualmemory(void)
     HMODULE module;
     char buffer_name[sizeof(MEMORY_SECTION_NAME) + MAX_PATH * sizeof(WCHAR)];
     MEMORY_SECTION_NAME *msn = (MEMORY_SECTION_NAME *)buffer_name;
+    BOOL found;
+    int i;
 
     module = GetModuleHandleA( "ntdll.dll" );
     trace("Check flags of the PE header of NTDLL.DLL at %p\n", module);
@@ -1896,6 +1901,10 @@ static void test_queryvirtualmemory(void)
     ok( status == STATUS_SUCCESS, "Expected STATUS_SUCCESS, got %08x\n", status);
     ok( readcount > 0, "Expected readcount to be > 0\n");
     trace ("Section Name: %s\n", wine_dbgstr_w(msn->SectionFileName.Buffer));
+    pRtlDowncaseUnicodeString( &msn->SectionFileName, &msn->SectionFileName, FALSE );
+    for (found = FALSE, i = (msn->SectionFileName.Length - sizeof(windowsW)) / sizeof(WCHAR); i >= 0; i--)
+        found |= !memcmp( &msn->SectionFileName.Buffer[i], windowsW, sizeof(windowsW) );
+    ok( found, "Section name does not contain \"Windows\"\n");
 
     trace("Check section name of non mapped memory\n");
     memset(msn, 0, sizeof(*msn));
