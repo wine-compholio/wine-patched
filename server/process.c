@@ -49,6 +49,8 @@
 #include "user.h"
 #include "security.h"
 
+#include "wine/unicode.h"
+
 /* process structure */
 
 static struct list process_list = LIST_INIT(process_list);
@@ -1625,6 +1627,27 @@ DECL_HANDLER(load_dll)
             generate_debug_event( current, LOAD_DLL_DEBUG_EVENT, dll );
     }
     if (mapping) release_object( mapping );
+}
+
+/* prepend the system dir to the name of the already created modules */
+DECL_HANDLER(init_system_dir)
+{
+    struct process *process = current->process;
+    struct process_dll *dll;
+    WCHAR *filename, *p;
+
+    LIST_FOR_EACH_ENTRY( dll, &process->dlls, struct process_dll, entry )
+    {
+        if (memchrW( dll->filename, '\\', dll->namelen / sizeof(WCHAR) )) continue;
+        if (!(filename = mem_alloc( get_req_data_size() + dll->namelen + sizeof(WCHAR) ))) continue;
+        memcpy( filename, get_req_data(), get_req_data_size() );
+        p = filename + get_req_data_size() / sizeof(WCHAR);
+        if (p > filename && p[-1] != '\\') *p++ = '\\';
+        memcpy( p, dll->filename, dll->namelen );
+        free( dll->filename );
+        dll->namelen += (p - filename) * sizeof(WCHAR);
+        dll->filename = filename;
+    }
 }
 
 /* notify the server that a dll is being unloaded */
