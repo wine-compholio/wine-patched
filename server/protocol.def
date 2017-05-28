@@ -1758,6 +1758,15 @@ enum char_info_mode
 @END
 
 
+/* Get file for a mapping */
+@REQ(get_mapping_file)
+    obj_handle_t process;       /* process handle */
+    client_ptr_t addr;          /* arbitrary address in view */
+@REPLY
+    obj_handle_t handle;        /* handle to file */
+@END
+
+
 /* Get a range of committed pages in a file mapping */
 @REQ(get_mapping_committed_range)
     client_ptr_t base;          /* view base address */
