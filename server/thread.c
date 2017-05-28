@@ -1483,6 +1483,14 @@ DECL_HANDLER(select)
             apc->result.create_thread.handle = handle;
             clear_error();  /* ignore errors from the above calls */
         }
+        else if (apc->result.type == APC_VIRTUAL_SECTION)  /* duplicate the handle to the caller process */
+        {
+            obj_handle_t mapping = duplicate_handle( current->process, apc->result.virtual_section.mapping,
+                                                     apc->caller->process, 0, 0, DUP_HANDLE_SAME_ACCESS );
+            close_handle( current->process, apc->result.virtual_section.mapping );
+            apc->result.virtual_section.mapping = mapping;
+            clear_error();  /* ignore errors from the above calls */
+        }
         else if (apc->result.type == APC_ASYNC_IO)
         {
             if (apc->owner)
@@ -1543,6 +1551,7 @@ DECL_HANDLER(queue_apc)
         process = get_process_from_handle( req->handle, PROCESS_VM_OPERATION );
         break;
     case APC_VIRTUAL_QUERY:
+    case APC_VIRTUAL_SECTION:
         process = get_process_from_handle( req->handle, PROCESS_QUERY_INFORMATION );
         break;
     case APC_MAP_VIEW:
