@@ -3942,6 +3942,14 @@ void CDECL __wine_init_windows_dir( const WCHAR *windir, const WCHAR *sysdir )
         RtlInitUnicodeString( &mod->FullDllName, buffer );
         RtlInitUnicodeString( &mod->BaseDllName, p );
     }
+
+    /* do the same for the wineserver dll list */
+    SERVER_START_REQ( init_system_dir )
+    {
+        wine_server_add_data( req, system_dir.Buffer, system_dir.Length );
+        wine_server_call( req );
+    }
+    SERVER_END_REQ;
 }
 
 
