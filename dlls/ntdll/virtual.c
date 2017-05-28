@@ -2320,10 +2320,18 @@ NTSTATUS virtual_get_section_mapping( HANDLE process, LPCVOID addr, HANDLE *mapp
     base = ROUND_ADDR( addr, page_mask );
 
     server_enter_uninterrupted_section( &csVirtual, &sigset );
-    if ((view = VIRTUAL_FindView( base, 0 )) && view->mapping)
+    if ((view = VIRTUAL_FindView( base, 0 )))
     {
-        status = NtDuplicateObject( NtCurrentProcess(), view->mapping, NtCurrentProcess(),
-                                    mapping, 0, 0, DUP_HANDLE_SAME_ACCESS );
+        if (view->mapping)
+        {
+            status = NtDuplicateObject( NtCurrentProcess(), view->mapping, NtCurrentProcess(),
+                                        mapping, 0, 0, DUP_HANDLE_SAME_ACCESS );
+        }
+        else if (view->protect & VPROT_IMAGE)
+        {
+            *mapping = NULL;
+            status = STATUS_SUCCESS;
+        }
     }
     server_leave_uninterrupted_section( &csVirtual, &sigset );
     return status;
@@ -2473,7 +2481,10 @@ static NTSTATUS get_section_name( HANDLE process, LPCVOID addr,
 
     if (!addr || !info || !res_len) return STATUS_INVALID_PARAMETER;
 
-    if (!(status = virtual_get_section_mapping( process, addr, &mapping )))
+    if ((status = virtual_get_section_mapping( process, addr, &mapping )))
+        return status;
+
+    if (mapping)
     {
         status = server_get_unix_name( mapping, &unix_name );
         close_handle( mapping );
