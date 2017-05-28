@@ -1724,7 +1724,7 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_RSSetState(ID3D11DeviceCon
     wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_CULLMODE, desc->CullMode);
     /* OpenGL style depth bias. */
     if (desc->DepthBias || desc->SlopeScaledDepthBias)
-        FIXME("Ignoring depth bias.\n");
+        WARN("Ignoring depth bias.\n");
     /* GL_DEPTH_CLAMP */
     if (!desc->DepthClipEnable)
         FIXME("Ignoring DepthClipEnable %#x.\n", desc->DepthClipEnable);
