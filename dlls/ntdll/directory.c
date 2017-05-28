@@ -2927,7 +2927,7 @@ static NTSTATUS nt_to_unix_file_name_internal( const UNICODE_STRING *nameW, ANSI
 }
 
 /* read the contents of an NT symlink object */
-static NTSTATUS read_nt_symlink( HANDLE root, UNICODE_STRING *name, WCHAR *target, size_t length )
+NTSTATUS read_nt_symlink( HANDLE root, UNICODE_STRING *name, WCHAR *target, size_t length )
 {
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING targetW;
