@@ -955,6 +955,12 @@ struct rawinput_device
 @END
 
 
+/* Prepend the system directory to already loaded modules */
+@REQ(init_system_dir)
+    VARARG(sysdir,unicode_str); /* system directory */
+@END
+
+
 /* Notify the server that a dll is being unloaded */
 @REQ(unload_dll)
     mod_handle_t base;         /* base address */
