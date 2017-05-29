@@ -1224,6 +1224,9 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
 
     wine_rb_clear(&device->samplers, device_free_sampler, NULL);
 
+#if defined(STAGING_CSMT)
+    context_set_current(NULL);
+#endif /* STAGING_CSMT */
     wined3d_device_delete_opengl_contexts(device);
 
     if (device->fb.depth_stencil)
@@ -4241,6 +4244,7 @@ HRESULT CDECL wined3d_device_copy_sub_resource_region(struct wined3d_device *dev
             return WINED3DERR_INVALIDCALL;
         }
 
+#if !defined(STAGING_CSMT)
         if (dst_texture->sub_resources[dst_sub_resource_idx].map_count)
         {
             WARN("Destination sub-resource %u is mapped.\n", dst_sub_resource_idx);
@@ -4251,6 +4255,19 @@ HRESULT CDECL wined3d_device_copy_sub_resource_region(struct wined3d_device *dev
         {
             WARN("Source sub-resource %u is mapped.\n", src_sub_resource_idx);
             return WINED3DERR_INVALIDCALL;
+#else  /* STAGING_CSMT */
+        if (dst_texture->sub_resources[dst_sub_resource_idx].map_count ||
+            src_texture->sub_resources[src_sub_resource_idx].map_count)
+        {
+            struct wined3d_device *device = dst_texture->resource.device;
+            device->cs->ops->finish(device->cs, WINED3D_CS_QUEUE_DEFAULT);
+            if (dst_texture->sub_resources[dst_sub_resource_idx].map_count ||
+                src_texture->sub_resources[src_sub_resource_idx].map_count)
+            {
+                WARN("Destination or source sub-resource is mapped.\n");
+                return WINEDDERR_SURFACEBUSY;
+            }
+#endif /* STAGING_CSMT */
         }
 
         if (!src_box)
@@ -5292,3 +5309,58 @@ LRESULT device_process_message(struct wined3d_device *device, HWND window, BOOL 
     else
         return CallWindowProcA(proc, window, message, wparam, lparam);
 }
+#if defined(STAGING_CSMT)
+
+/* Context activation is done by the caller */
+struct wined3d_gl_bo *wined3d_device_get_bo(struct wined3d_device *device, UINT size, GLenum gl_usage,
+        GLenum type_hint, struct wined3d_context *context)
+{
+    struct wined3d_gl_bo *ret;
+    const struct wined3d_gl_info *gl_info;
+
+    TRACE("device %p, size %u, gl_usage %u, type_hint %u\n", device, size, gl_usage,
+            type_hint);
+
+    ret = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*ret));
+    if(!ret)
+        return NULL;
+    ret->type_hint = type_hint;
+    ret->size = size;
+    ret->usage = gl_usage;
+
+    gl_info = context->gl_info;
+
+    GL_EXTCALL(glGenBuffers(1, &ret->name));
+    if (type_hint == GL_ELEMENT_ARRAY_BUFFER)
+        context_invalidate_state(context, STATE_INDEXBUFFER);
+    GL_EXTCALL(glBindBuffer(type_hint, ret->name));
+    GL_EXTCALL(glBufferData(type_hint, size, NULL, gl_usage));
+    GL_EXTCALL(glBindBuffer(type_hint, 0));
+    checkGLcall("Create buffer object");
+
+    TRACE("Successfully created and set up buffer %u\n", ret->name);
+    return ret;
+}
+
+/* Context activation is done by the caller */
+static void wined3d_device_destroy_bo(struct wined3d_device *device, const struct wined3d_context *context,
+        struct wined3d_gl_bo *bo)
+{
+    const struct wined3d_gl_info *gl_info = context->gl_info;
+    TRACE("device %p, bo %p, GL bo %u\n", device, bo, bo->name);
+
+    GL_EXTCALL(glDeleteBuffers(1, &bo->name));
+    checkGLcall("glDeleteBuffers");
+
+    HeapFree(GetProcessHeap(), 0, bo);
+}
+
+/* Context activation is done by the caller */
+void wined3d_device_release_bo(struct wined3d_device *device, struct wined3d_gl_bo *bo,
+        const struct wined3d_context *context)
+{
+    TRACE("device %p, bo %p, GL bo %u\n", device, bo, bo->name);
+
+    wined3d_device_destroy_bo(device, context, bo);
+}
+#endif /* STAGING_CSMT */
