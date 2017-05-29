@@ -53,6 +53,7 @@
 #include "windef.h"
 #include "winbase.h"
 #include "winuser.h"
+#include "wingdi.h"
 #include "winnls.h"
 
 #include "wine/test.h"
@@ -1996,7 +1997,9 @@ static void test_Input_mouse(void)
     struct thread_data thread_data;
     HANDLE thread;
     DWORD thread_id;
+    WNDCLASSA wclass;
     POINT pt, pt_org;
+    BOOL ret;
     MSG msg;
 
     GetCursorPos(&pt_org);
@@ -2200,6 +2203,160 @@ static void test_Input_mouse(void)
     ok(got_button_up, "expected WM_LBUTTONUP message\n");
     DestroyWindow(hwnd);
     ok(ReleaseCapture(), "ReleaseCapture failed\n");
+
+    wclass.style         = 0;
+    wclass.lpfnWndProc   = WndProc;
+    wclass.cbClsExtra    = 0;
+    wclass.cbWndExtra    = 0;
+    wclass.hInstance     = GetModuleHandleA(NULL);
+    wclass.hIcon         = LoadIconA(0, (LPCSTR)IDI_APPLICATION);
+    wclass.hCursor       = LoadCursorA(NULL, (LPCSTR)IDC_ARROW);
+    wclass.hbrBackground = CreateSolidBrush(RGB(128, 128, 128));
+    wclass.lpszMenuName  = NULL;
+    wclass.lpszClassName = "InputLayeredTestClass";
+    RegisterClassA( &wclass );
+
+    /* click through layered window with alpha channel / color key */
+    hwnd = CreateWindowA(wclass.lpszClassName, "InputLayeredTest",
+            WS_VISIBLE | WS_POPUP, 100, 100, 100, 100, button_win, NULL, NULL, NULL);
+    ok(hwnd != NULL, "CreateWindowEx failed\n");
+
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    SetWindowLongA(hwnd, GWL_EXSTYLE, GetWindowLongA(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+    ret = SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+    ok(ret, "SetLayeredWindowAttributes failed\n");
+    while (wait_for_message(&msg)) DispatchMessageA(&msg);
+    Sleep(100);
+
+    got_button_down = got_button_up = FALSE;
+    simulate_click(TRUE, 150, 150);
+    while (wait_for_message(&msg))
+    {
+        DispatchMessageA(&msg);
+
+        if (msg.message == WM_LBUTTONDOWN)
+        {
+            ok(msg.hwnd == hwnd, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_down = TRUE;
+        }
+        else if (msg.message == WM_LBUTTONUP)
+        {
+            ok(msg.hwnd == hwnd, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_up = TRUE;
+            break;
+        }
+    }
+    ok(got_button_down, "expected WM_LBUTTONDOWN message\n");
+    ok(got_button_up, "expected WM_LBUTTONUP message\n");
+
+    ret = SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
+    ok(ret, "SetLayeredWindowAttributes failed\n");
+    while (wait_for_message(&msg)) DispatchMessageA(&msg);
+    Sleep(100);
+
+    got_button_down = got_button_up = FALSE;
+    simulate_click(TRUE, 150, 150);
+    while (wait_for_message(&msg))
+    {
+        DispatchMessageA(&msg);
+
+        if (msg.message == WM_LBUTTONDOWN)
+        {
+            todo_wine
+            ok(msg.hwnd == button_win, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_down = TRUE;
+        }
+        else if (msg.message == WM_LBUTTONUP)
+        {
+            todo_wine
+            ok(msg.hwnd == button_win, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_up = TRUE;
+            break;
+        }
+    }
+    ok(got_button_down || broken(!got_button_down), "expected WM_LBUTTONDOWN message\n");
+    ok(got_button_up, "expected WM_LBUTTONUP message\n");
+
+    ret = SetLayeredWindowAttributes(hwnd, RGB(0, 255, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+    ok(ret, "SetLayeredWindowAttributes failed\n");
+    while (wait_for_message(&msg)) DispatchMessageA(&msg);
+    Sleep(100);
+
+    got_button_down = got_button_up = FALSE;
+    simulate_click(TRUE, 150, 150);
+    while (wait_for_message(&msg))
+    {
+        DispatchMessageA(&msg);
+
+        if (msg.message == WM_LBUTTONDOWN)
+        {
+            ok(msg.hwnd == hwnd, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_down = TRUE;
+        }
+        else if (msg.message == WM_LBUTTONUP)
+        {
+            ok(msg.hwnd == hwnd, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_up = TRUE;
+            break;
+        }
+    }
+    ok(got_button_down, "expected WM_LBUTTONDOWN message\n");
+    ok(got_button_up, "expected WM_LBUTTONUP message\n");
+
+    ret = SetLayeredWindowAttributes(hwnd, RGB(128, 128, 128), 0, LWA_COLORKEY);
+    ok(ret, "SetLayeredWindowAttributes failed\n");
+    while (wait_for_message(&msg)) DispatchMessageA(&msg);
+    Sleep(100);
+
+    got_button_down = got_button_up = FALSE;
+    simulate_click(TRUE, 150, 150);
+    while (wait_for_message(&msg))
+    {
+        DispatchMessageA(&msg);
+
+        if (msg.message == WM_LBUTTONDOWN)
+        {
+            todo_wine
+            ok(msg.hwnd == button_win, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_down = TRUE;
+        }
+        else if (msg.message == WM_LBUTTONUP)
+        {
+            todo_wine
+            ok(msg.hwnd == button_win, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_up = TRUE;
+            break;
+        }
+    }
+    ok(got_button_down, "expected WM_LBUTTONDOWN message\n");
+    ok(got_button_up, "expected WM_LBUTTONUP message\n");
+
+    SetWindowLongA(hwnd, GWL_EXSTYLE, GetWindowLongA(hwnd, GWL_EXSTYLE) & ~WS_EX_LAYERED);
+    while (wait_for_message(&msg)) DispatchMessageA(&msg);
+    Sleep(100);
+
+    got_button_down = got_button_up = FALSE;
+    simulate_click(TRUE, 150, 150);
+    while (wait_for_message(&msg))
+    {
+        DispatchMessageA(&msg);
+
+        if (msg.message == WM_LBUTTONDOWN)
+        {
+            ok(msg.hwnd == hwnd, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_down = TRUE;
+        }
+        else if (msg.message == WM_LBUTTONUP)
+        {
+            ok(msg.hwnd == hwnd, "msg.hwnd = %p\n", msg.hwnd);
+            got_button_up = TRUE;
+            break;
+        }
+    }
+    ok(got_button_down, "expected WM_LBUTTONDOWN message\n");
+    ok(got_button_up, "expected WM_LBUTTONUP message\n");
+
+    DestroyWindow(hwnd);
     SetCursorPos(pt_org.x, pt_org.y);
 
     CloseHandle(thread_data.start_event);
