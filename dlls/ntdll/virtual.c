@@ -1533,6 +1533,12 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
             if (VIRTUAL_GetUnixProt( *vprot ) & PROT_READ) ret = STATUS_SUCCESS;
             else update_shared_data = FALSE;
         }
+        else if ((view->protect & VPROT_SYSTEM) && (VIRTUAL_GetUnixProt( *vprot ) & PROT_READ))
+        {
+            /* ignore fault if page can be made readable */
+            if (VIRTUAL_SetProt( view, page, page_size, *vprot )) ret = STATUS_SUCCESS;
+            else *vprot &= ~VPROT_READ; /* don't bother to call VIRTUAL_SetProt again */
+        }
         if (!on_signal_stack && (*vprot & VPROT_GUARD))
         {
             VIRTUAL_SetProt( view, page, page_size, *vprot & ~VPROT_GUARD );
