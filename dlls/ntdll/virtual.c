@@ -1640,6 +1640,16 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
             if (VIRTUAL_GetUnixProt( *vprot ) & PROT_READ) ret = STATUS_SUCCESS;
             else update_shared_data = FALSE;
         }
+        else if (!err && (view->protect & VPROT_SYSTEM) && (VIRTUAL_GetUnixProt( *vprot ) & PROT_READ))
+        {
+            int unix_prot = VIRTUAL_GetUnixProt( *vprot );
+            unsigned char vec;
+
+            if (!VIRTUAL_SetProt( view, page, page_size, *vprot )) *vprot &= ~(VPROT_READ | VPROT_EXEC);
+            else if (!mincore( page, page_size, &vec ) && (vec & 1)) ret = STATUS_SUCCESS;
+            else if (wine_anon_mmap( page, page_size, unix_prot, MAP_FIXED ) != page) *vprot &= ~(VPROT_READ | VPROT_EXEC);
+            else ret = STATUS_SUCCESS;
+        }
         if (!on_signal_stack && (*vprot & VPROT_GUARD))
         {
             VIRTUAL_SetProt( view, page, page_size, *vprot & ~VPROT_GUARD );
