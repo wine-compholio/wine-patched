@@ -429,6 +429,16 @@ static inline BOOL is_write_watch_range( const void *addr, size_t size )
 
 
 /***********************************************************************
+ *           is_system_range
+ */
+static inline BOOL is_system_range( const void *addr, size_t size )
+{
+    struct file_view *view = VIRTUAL_FindView( addr, size );
+    return view && (view->protect & VPROT_SYSTEM);
+}
+
+
+/***********************************************************************
  *           find_view_range
  *
  * Find the first view overlapping at least part of the specified range.
@@ -1821,6 +1831,19 @@ NTSTATUS virtual_handle_fault( LPCVOID addr, DWORD err, BOOL on_signal_stack )
         /* ignore fault if page is readable now */
         if (VIRTUAL_GetUnixProt( get_page_vprot( page )) & PROT_READ) ret = STATUS_SUCCESS;
         else update_shared_data = FALSE;
+    }
+    else if (!err && (VIRTUAL_GetUnixProt( vprot ) & PROT_READ) && is_system_range( page, page_size ))
+    {
+        int unix_prot = VIRTUAL_GetUnixProt( vprot );
+        unsigned char vec;
+
+        mprotect_range( page, page_size, 0, 0 );
+        if (!mincore( page, page_size, &vec ) && (vec & 1))
+            ret = STATUS_SUCCESS;
+        else if (wine_anon_mmap( page, page_size, unix_prot, MAP_FIXED ) == page)
+            ret = STATUS_SUCCESS;
+        else
+            set_page_vprot_bits( page, page_size, 0, VPROT_READ | VPROT_EXEC );
     }
     server_leave_uninterrupted_section( &csVirtual, &sigset );
 
