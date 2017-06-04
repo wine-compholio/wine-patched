@@ -14464,7 +14464,8 @@ static void check_format_support(const unsigned int *format_support, D3D_FEATURE
 
         if (formats[i].fl_required <= feature_level)
         {
-            todo_wine ok(supported, "Format %#x - %s not supported, feature_level %#x, format support %#x.\n",
+            todo_wine_if(formats[i].format == DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM)
+            ok(supported, "Format %#x - %s not supported, feature_level %#x, format support %#x.\n",
                     format, feature_name, feature_level, format_support[format]);
             continue;
         }
@@ -14477,6 +14478,9 @@ static void check_format_support(const unsigned int *format_support, D3D_FEATURE
             continue;
         }
 
+        todo_wine_if(formats[i].format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
+                formats[i].format == DXGI_FORMAT_R10G10B10A2_UNORM ||
+                formats[i].format == DXGI_FORMAT_R32_UINT)
         ok(!supported, "Format %#x - %s supported, feature level %#x, format support %#x.\n",
                 format, feature_name, feature_level, format_support[format]);
     }
@@ -14484,6 +14488,15 @@ static void check_format_support(const unsigned int *format_support, D3D_FEATURE
 
 static void test_required_format_support(const D3D_FEATURE_LEVEL feature_level)
 {
+    static const UINT expected = D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER |
+            D3D11_FORMAT_SUPPORT_TEXTURE1D | D3D11_FORMAT_SUPPORT_TEXTURE2D |
+            D3D11_FORMAT_SUPPORT_TEXTURE3D | D3D11_FORMAT_SUPPORT_TEXTURECUBE |
+            D3D11_FORMAT_SUPPORT_MIP | D3D11_FORMAT_SUPPORT_MIP_AUTOGEN |
+            D3D11_FORMAT_SUPPORT_RENDER_TARGET | D3D11_FORMAT_SUPPORT_BLENDABLE |
+            D3D11_FORMAT_SUPPORT_DISPLAY /* | D3D11_FORMAT_SUPPORT_SHADER_LOAD
+            D3D11_FORMAT_SUPPORT_SHADER_SAMPLE | D3D11_FORMAT_SUPPORT_CPU_LOCKABLE |
+            D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE | D3D11_FORMAT_SUPPORT_BACK_BUFFER_CAST
+            D3D11_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET */;
     unsigned int format_support[DXGI_FORMAT_B4G4R4A4_UNORM + 1];
     struct device_desc device_desc;
     ID3D11Device *device;
@@ -14510,6 +14523,24 @@ static void test_required_format_support(const D3D_FEATURE_LEVEL feature_level)
     hr = ID3D11Device_CheckFormatSupport(device, ~0u, &support);
     ok(hr == E_FAIL, "Got unexpected hr %#x.\n", hr);
     ok(!support, "Got unexpected format support %#x.\n", support);
+
+    /* crashes on Windows, even though MSDN states the function returns E_INVALIDARG */
+    if (0)
+    {
+        hr = ID3D11Device_CheckFormatSupport(device, DXGI_FORMAT_R8G8B8A8_UNORM, NULL);
+        ok(hr == E_INVALIDARG, "Expected E_INVALIDARG, got %#x.\n", hr);
+    }
+
+    hr = ID3D11Device_CheckFormatSupport(device, DXGI_FORMAT_UNKNOWN, &support);
+    ok(hr == E_FAIL, "Expected E_FAIL, got %#x.\n", hr);
+
+    hr = ID3D11Device_CheckFormatSupport(device, 0xdeadbeef, &support);
+    ok(hr == E_FAIL, "Expected E_FAIL, got %#x.\n", hr);
+
+    hr = ID3D11Device_CheckFormatSupport(device, DXGI_FORMAT_R8G8B8A8_UNORM, &support);
+    ok(hr == S_OK, "Expected S_OK, got %#x.\n", hr);
+    ok((support & expected) == expected, "Expected the following features to be supported: %#x.\n",
+       (support ^ expected) & expected);
 
     memset(format_support, 0, sizeof(format_support));
     for (format = DXGI_FORMAT_UNKNOWN; format <= DXGI_FORMAT_B4G4R4A4_UNORM; ++format)
