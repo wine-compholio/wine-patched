@@ -1315,7 +1315,7 @@ ISFHelper_fnCopyItems (ISFHelper * iface, IShellFolder * pSFFrom, UINT cidl,
 
         if (SUCCEEDED (IPersistFolder2_GetCurFolder (ppf2, &pidl))) {
             SHGetPathFromIDListW (pidl, wszSrcPathRoot);
-            ZeroMemory(wszDstPath, MAX_PATH+1);
+            ZeroMemory(wszDstPath, sizeof(wszDstPath));
             if (This->sPathTarget)
                 lstrcpynW(wszDstPath, This->sPathTarget, MAX_PATH);
             PathAddBackslashW(wszSrcPathRoot);
