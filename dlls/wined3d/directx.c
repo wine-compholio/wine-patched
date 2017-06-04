@@ -5271,8 +5271,21 @@ HRESULT CDECL wined3d_check_device_format(const struct wined3d *wined3d, UINT ad
         case WINED3D_RTYPE_NONE:
             allowed_usage = WINED3DUSAGE_DEPTHSTENCIL
                     | WINED3DUSAGE_RENDERTARGET;
-            gl_type = WINED3D_GL_RES_TYPE_TEX_2D;
+            gl_type = WINED3D_GL_RES_TYPE_TEX_1D;
             gl_type_end = WINED3D_GL_RES_TYPE_TEX_3D;
+            break;
+
+        case WINED3D_RTYPE_TEXTURE_1D:
+            allowed_usage = WINED3DUSAGE_DYNAMIC
+                    | WINED3DUSAGE_SOFTWAREPROCESSING
+                    | WINED3DUSAGE_TEXTURE
+                    | WINED3DUSAGE_QUERY_FILTER
+                    | WINED3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING
+                    | WINED3DUSAGE_QUERY_SRGBREAD
+                    | WINED3DUSAGE_QUERY_SRGBWRITE
+                    | WINED3DUSAGE_QUERY_VERTEXTEXTURE
+                    | WINED3DUSAGE_QUERY_WRAPANDMIP;
+            gl_type = gl_type_end = WINED3D_GL_RES_TYPE_TEX_1D;
             break;
 
         case WINED3D_RTYPE_TEXTURE_2D:
@@ -5329,6 +5342,12 @@ HRESULT CDECL wined3d_check_device_format(const struct wined3d *wined3d, UINT ad
                     | WINED3DUSAGE_QUERY_VERTEXTEXTURE
                     | WINED3DUSAGE_QUERY_WRAPANDMIP;
             gl_type = gl_type_end = WINED3D_GL_RES_TYPE_TEX_3D;
+            break;
+
+        case WINED3D_RTYPE_BUFFER:
+            allowed_usage = WINED3DUSAGE_DYNAMIC
+                    | WINED3DUSAGE_QUERY_VERTEXTEXTURE;
+            gl_type = gl_type_end = WINED3D_GL_RES_TYPE_BUFFER;
             break;
 
         default:
