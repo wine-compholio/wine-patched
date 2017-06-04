@@ -3610,6 +3610,7 @@ static DWORD WINAPI SelectReadThread(void *param)
     struct sockaddr_in addr;
     struct timeval select_timeout;
 
+    memset(&readfds, 0, sizeof(readfds));
     FD_ZERO(&readfds);
     FD_SET(par->s, &readfds);
     select_timeout.tv_sec=5;
