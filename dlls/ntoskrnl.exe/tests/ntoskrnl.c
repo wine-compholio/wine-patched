@@ -208,6 +208,12 @@ static void test_NtBuildNumber(void)
     wine_run_kernel_test(device_path, WINE_IOCTL_NtBuildNumber, NULL);
 }
 
+static void test_ExInitializeNPagedLookasideList(void)
+{
+    trace("Running tests for ExInitializeNPagedLookasideList\n");
+    wine_run_kernel_test(device_path, WINE_IOCTL_ExInitializeNPagedLookasideList, NULL);
+}
+
 START_TEST(ntoskrnl)
 {
     char filename[MAX_PATH];
@@ -222,6 +228,7 @@ START_TEST(ntoskrnl)
     test_PsGetCurrentProcessId();
     test_PsGetCurrentThread();
     test_NtBuildNumber();
+    test_ExInitializeNPagedLookasideList();
 
     unload_driver(service, filename);
 }
