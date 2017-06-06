@@ -1802,7 +1802,24 @@ void WINAPI ExInitializeNPagedLookasideList(PNPAGED_LOOKASIDE_LIST Lookaside,
                                             ULONG Tag,
                                             USHORT Depth)
 {
-    FIXME( "stub: %p, %p, %p, %u, %lu, %u, %u\n", Lookaside, Allocate, Free, Flags, Size, Tag, Depth );
+    TRACE( "%p, %p, %p, %u, %lu, %u, %u\n", Lookaside, Allocate, Free, Flags, Size, Tag, Depth );
+
+    RtlInitializeSListHead( &Lookaside->L.u.ListHead );
+    Lookaside->L.Depth                 = 4;
+    Lookaside->L.MaximumDepth          = 256;
+    Lookaside->L.TotalAllocates        = 0;
+    Lookaside->L.u2.AllocateMisses     = 0;
+    Lookaside->L.TotalFrees            = 0;
+    Lookaside->L.u3.FreeMisses         = 0;
+    Lookaside->L.Type                  = NonPagedPool | Flags;
+    Lookaside->L.Tag                   = Tag;
+    Lookaside->L.Size                  = Size;
+    Lookaside->L.u4.Allocate           = Allocate ? Allocate : ExAllocatePoolWithTag;
+    Lookaside->L.u5.Free               = Free ? Free : ExFreePool;
+    Lookaside->L.LastTotalAllocates    = 0;
+    Lookaside->L.u6.LastAllocateMisses = 0;
+
+    /* FIXME: insert in global list of lookadside lists */
 }
 
 /***********************************************************************
