@@ -742,7 +742,7 @@
 @ stdcall NtAllocateLocallyUniqueId(ptr) ntdll.NtAllocateLocallyUniqueId
 @ stdcall NtAllocateUuids(ptr ptr ptr ptr) ntdll.NtAllocateUuids
 @ stdcall NtAllocateVirtualMemory(long ptr long ptr long long) ntdll.NtAllocateVirtualMemory
-@ stub NtBuildNumber
+@ extern NtBuildNumber
 @ stdcall NtClose(long) ntdll.NtClose
 @ stdcall NtConnectPort(ptr ptr ptr ptr ptr ptr ptr ptr) ntdll.NtConnectPort
 @ stdcall NtCreateEvent(ptr long ptr long long) ntdll.NtCreateEvent
