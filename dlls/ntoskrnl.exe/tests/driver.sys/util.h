@@ -31,6 +31,24 @@ static inline const char* kernel_strrchr(const char *str, int character)
     return ret;
 }
 
+static inline size_t kernel_strlen(const char *str)
+{
+    const char *ptr = str;
+    while (*ptr) ptr++;
+    return ptr - str;
+}
+
+static inline int kernel_strncmp(const char *str1, const char *str2, size_t len)
+{
+    if (!len) return 0;
+    while (--len && *str1 && *str1 == *str2)
+    {
+        str1++;
+        str2++;
+    }
+    return *str1 - *str2;
+}
+
 static inline void* kernel_memcpy(void *destination, const void *source, size_t num)
 {
     const char *src = source;

@@ -31,6 +31,7 @@
 #include "winbase.h"
 #include "winternl.h"
 #include "winioctl.h"
+#include "ddk/ntddk.h"
 #include "ddk/wdm.h"
 
 #define WINE_KERNEL
@@ -44,6 +45,8 @@ const WCHAR driver_device[] = {'\\','D','e','v','i','c','e',
                                '\\','W','i','n','e','T','e','s','t','D','r','i','v','e','r',0};
 const WCHAR driver_link[] = {'\\','D','o','s','D','e','v','i','c','e','s',
                              '\\','W','i','n','e','T','e','s','t','D','r','i','v','e','r',0};
+
+static LDR_MODULE *ldr_module;
 
 static void *get_system_routine(const char *name)
 {
@@ -128,6 +131,60 @@ KERNEL_TESTCASE(ExInitializeNPagedLookasideList)
     return STATUS_SUCCESS;
 }
 
+static BOOL equal_string(ANSI_STRING *str1, const char *str2)
+{
+    if (str1->Length != kernel_strlen(str2)) return FALSE;
+    return !kernel_strncmp(str1->Buffer, str2, str1->Length);
+}
+
+KERNEL_TESTCASE(LdrModules)
+{
+    BOOL win32k = FALSE, dxgkrnl = FALSE, dxgmms1 = FALSE;
+    LIST_ENTRY *start, *entry;
+    ANSI_STRING name_a;
+    LDR_MODULE *mod;
+    NTSTATUS status;
+
+    /* Try to find start of the InLoadOrderModuleList list */
+    for (start = ldr_module->InLoadOrderModuleList.Flink; ; start = start->Flink)
+    {
+        mod = CONTAINING_RECORD(start, LDR_MODULE, InLoadOrderModuleList);
+
+        if (!MmIsAddressValid(&mod->BaseAddress) || !mod->BaseAddress) break;
+        if (!MmIsAddressValid(&mod->LoadCount) || !mod->LoadCount) break;
+        if (!MmIsAddressValid(&mod->SizeOfImage) || !mod->SizeOfImage) break;
+        if (!MmIsAddressValid(&mod->EntryPoint) || mod->EntryPoint < mod->BaseAddress ||
+            (DWORD_PTR)mod->EntryPoint > (DWORD_PTR)mod->BaseAddress + mod->SizeOfImage) break;
+    }
+
+    for (entry = start->Flink; entry != start; entry = entry->Flink)
+    {
+        mod = CONTAINING_RECORD(entry, LDR_MODULE, InLoadOrderModuleList);
+
+        status = RtlUnicodeStringToAnsiString(&name_a, &mod->BaseDllName, TRUE);
+        ok(!status, "RtlUnicodeStringToAnsiString failed with %08x\n", status);
+        if (status) continue;
+
+        if (entry == start->Flink)
+        {
+            ok(equal_string(&name_a, "ntoskrnl.exe"),
+               "Expected ntoskrnl.exe, got %.*s\n", name_a.Length, name_a.Buffer);
+        }
+
+        if (equal_string(&name_a, "win32k.sys"))  win32k  = TRUE;
+        if (equal_string(&name_a, "dxgkrnl.sys")) dxgkrnl = TRUE;
+        if (equal_string(&name_a, "dxgmms1.sys")) dxgmms1 = TRUE;
+
+        RtlFreeAnsiString(&name_a);
+    }
+
+    ok(win32k,  "Failed to find win32k.sys\n");
+    ok(dxgkrnl, "Failed to find dxgkrnl.sys\n");
+    ok(dxgmms1, "Failed to find dxgmms1.sys\n");
+
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS WINAPI driver_Create(DEVICE_OBJECT *device, IRP *irp)
 {
     irp->IoStatus.u.Status = STATUS_SUCCESS;
@@ -167,6 +224,7 @@ static NTSTATUS WINAPI driver_IoControl(DEVICE_OBJECT *device, IRP *irp)
         DECLARE_TEST(PsGetCurrentThread);
         DECLARE_TEST(NtBuildNumber);
         DECLARE_TEST(ExInitializeNPagedLookasideList);
+        DECLARE_TEST(LdrModules);
 
         default:
             break;
@@ -210,6 +268,8 @@ NTSTATUS WINAPI DriverEntry(DRIVER_OBJECT *driver, PUNICODE_STRING registry)
     NTSTATUS status;
 
     DbgPrint("loading driver\n");
+
+    ldr_module = (LDR_MODULE*)driver->DriverSection;
 
     /* Allow unloading of the driver */
     driver->DriverUnload = driver_Unload;
