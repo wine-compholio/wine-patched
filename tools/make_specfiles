@@ -425,6 +425,7 @@ my @dll_groups =
  [
   "ntoskrnl.exe",
   "hal",
+  "win32k.sys",
  ],
 );
 
