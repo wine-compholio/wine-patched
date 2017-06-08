@@ -214,6 +214,12 @@ static void test_ExInitializeNPagedLookasideList(void)
     wine_run_kernel_test(device_path, WINE_IOCTL_ExInitializeNPagedLookasideList, NULL);
 }
 
+static void test_LdrModules(void)
+{
+    trace("Running tests for LdrModules\n");
+    wine_run_kernel_test(device_path, WINE_IOCTL_LdrModules, NULL);
+}
+
 START_TEST(ntoskrnl)
 {
     char filename[MAX_PATH];
@@ -229,6 +235,7 @@ START_TEST(ntoskrnl)
     test_PsGetCurrentThread();
     test_NtBuildNumber();
     test_ExInitializeNPagedLookasideList();
+    test_LdrModules();
 
     unload_driver(service, filename);
 }
