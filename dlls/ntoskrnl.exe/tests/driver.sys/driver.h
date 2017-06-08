@@ -26,6 +26,7 @@
 #define WINE_IOCTL_PsGetCurrentThread              WINE_TEST_IOCTL(1)
 #define WINE_IOCTL_NtBuildNumber                   WINE_TEST_IOCTL(2)
 #define WINE_IOCTL_ExInitializeNPagedLookasideList WINE_TEST_IOCTL(3)
+#define WINE_IOCTL_LdrModules                      WINE_TEST_IOCTL(4)
 
 struct test_PsGetCurrentProcessId
 {
