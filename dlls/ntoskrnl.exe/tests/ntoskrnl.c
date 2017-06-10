@@ -202,6 +202,12 @@ static void test_PsGetCurrentThread(void)
     wine_run_kernel_test(device_path, WINE_IOCTL_PsGetCurrentThread, NULL);
 }
 
+static void test_NtBuildNumber(void)
+{
+    trace("Running tests for NtBuildNumber\n");
+    wine_run_kernel_test(device_path, WINE_IOCTL_NtBuildNumber, NULL);
+}
+
 START_TEST(ntoskrnl)
 {
     char filename[MAX_PATH];
@@ -215,6 +221,7 @@ START_TEST(ntoskrnl)
 
     test_PsGetCurrentProcessId();
     test_PsGetCurrentThread();
+    test_NtBuildNumber();
 
     unload_driver(service, filename);
 }
