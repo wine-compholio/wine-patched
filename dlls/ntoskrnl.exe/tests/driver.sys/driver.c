@@ -35,10 +35,28 @@
 #include "test.h"
 #include "driver.h"
 
+extern PVOID WINAPI MmGetSystemRoutineAddress(PUNICODE_STRING);
+
 const WCHAR driver_device[] = {'\\','D','e','v','i','c','e',
                                '\\','W','i','n','e','T','e','s','t','D','r','i','v','e','r',0};
 const WCHAR driver_link[] = {'\\','D','o','s','D','e','v','i','c','e','s',
                              '\\','W','i','n','e','T','e','s','t','D','r','i','v','e','r',0};
+
+static void *get_system_routine(const char *name)
+{
+    UNICODE_STRING name_u;
+    ANSI_STRING name_a;
+    NTSTATUS status;
+    void *ret;
+
+    RtlInitAnsiString(&name_a, name);
+    status = RtlAnsiStringToUnicodeString(&name_u, &name_a, TRUE);
+    if (status) return NULL;
+
+    ret = MmGetSystemRoutineAddress(&name_u);
+    RtlFreeUnicodeString(&name_u);
+    return ret;
+}
 
 /* In each kernel testcase the following variables are available:
  *
@@ -62,6 +80,21 @@ KERNEL_TESTCASE(PsGetCurrentThread)
     return STATUS_SUCCESS;
 }
 
+KERNEL_TESTCASE(NtBuildNumber)
+{
+    USHORT *pNtBuildNumber;
+    ULONG build;
+
+    if (!(pNtBuildNumber = get_system_routine("NtBuildNumber")))
+    {
+        win_skip("Could not get pointer to NtBuildNumber\n");
+        return STATUS_SUCCESS;
+    }
+
+    PsGetVersion(NULL, NULL, &build, NULL);
+    ok(*pNtBuildNumber == build, "Expected build number %u, got %u\n", build, *pNtBuildNumber);
+    return STATUS_SUCCESS;
+}
 
 static NTSTATUS WINAPI driver_Create(DEVICE_OBJECT *device, IRP *irp)
 {
@@ -100,6 +133,7 @@ static NTSTATUS WINAPI driver_IoControl(DEVICE_OBJECT *device, IRP *irp)
     {
         DECLARE_TEST(PsGetCurrentProcessId);
         DECLARE_TEST(PsGetCurrentThread);
+        DECLARE_TEST(NtBuildNumber);
 
         default:
             break;
