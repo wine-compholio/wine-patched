@@ -2160,11 +2160,9 @@ void virtual_release_address_space(void)
     }
     else
     {
-#ifndef __APPLE__  /* dyld doesn't support parts of the WINE_DOS segment being unmapped */
         range.base  = (char *)0x20000000;
         range.limit = (char *)0x7f000000;
         while (wine_mmap_enum_reserved_areas( free_reserved_memory, &range, 0 )) /* nothing */;
-#endif
     }
 
     server_leave_uninterrupted_section( &csVirtual, &sigset );
