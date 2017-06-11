@@ -696,6 +696,7 @@ struct apple_stack_info
  * Callback for wine_mmap_enum_reserved_areas to allocate space for
  * the secondary thread's stack.
  */
+#ifndef _WIN64
 static int apple_alloc_thread_stack( void *base, size_t size, void *arg )
 {
     struct apple_stack_info *info = arg;
@@ -712,6 +713,7 @@ static int apple_alloc_thread_stack( void *base, size_t size, void *arg )
                                   info->desired_size, PROT_READ|PROT_WRITE, MAP_FIXED );
     return (info->stack != (void *)-1);
 }
+#endif
 
 /***********************************************************************
  *           apple_create_wine_thread
@@ -729,6 +731,7 @@ static void apple_create_wine_thread( void *init_func )
 
     if (!pthread_attr_init( &attr ))
     {
+#ifndef _WIN64
         struct apple_stack_info info;
 
         /* Try to put the new thread's stack in the reserved area.  If this
@@ -740,6 +743,7 @@ static void apple_create_wine_thread( void *init_func )
             wine_mmap_remove_reserved_area( info.stack, info.desired_size, 0 );
             pthread_attr_setstackaddr( &attr, (char*)info.stack + info.desired_size );
         }
+#endif
 
         if (!pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE ) &&
             !pthread_create( &thread, &attr, init_func, NULL ))
