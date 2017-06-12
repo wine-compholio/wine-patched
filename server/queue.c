@@ -1605,8 +1605,11 @@ static void queue_hardware_message( struct desktop *desktop, struct message *msg
     {
         if (msg->msg == WM_MOUSEMOVE)
         {
-            int x = min( max( msg->x, desktop->cursor.clip.left ), desktop->cursor.clip.right-1 );
-            int y = min( max( msg->y, desktop->cursor.clip.top ), desktop->cursor.clip.bottom-1 );
+            int x = msg->x, y = msg->y;
+            if (x < desktop->cursor.clip.left) x = desktop->cursor.clip.left;
+            else if (x >= desktop->cursor.clip.right) x = desktop->cursor.clip.right - 1;
+            if (y < desktop->cursor.clip.top) y = desktop->cursor.clip.top;
+            else if (y >= desktop->cursor.clip.bottom) y = desktop->cursor.clip.bottom - 1;
             if (desktop->cursor.x != x || desktop->cursor.y != y) always_queue = 1;
             desktop->cursor.x = x;
             desktop->cursor.y = y;
