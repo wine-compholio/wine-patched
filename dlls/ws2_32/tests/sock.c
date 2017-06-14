@@ -10004,6 +10004,11 @@ static void test_completion_port(void)
     ok(io_port != NULL, "failed to create completion port %u\n", GetLastError());
 
     io_info.Flags = FILE_SKIP_COMPLETION_PORT_ON_SUCCESS;
+    status = pNtSetInformationFile((HANDLE)src, &io, &io_info, sizeof(io_info), FileIoCompletionNotificationInformation);
+    ok(status == STATUS_SUCCESS || broken(status == STATUS_INVALID_INFO_CLASS) /* XP */,
+       "expected STATUS_SUCCESS, got %08x\n", status);
+
+    io_info.Flags = FILE_SKIP_COMPLETION_PORT_ON_SUCCESS;
     status = pNtSetInformationFile((HANDLE)dest, &io, &io_info, sizeof(io_info), FileIoCompletionNotificationInformation);
     ok(status == STATUS_SUCCESS || broken(status == STATUS_INVALID_INFO_CLASS) /* XP */,
        "expected STATUS_SUCCESS, got %08x\n", status);

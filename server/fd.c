@@ -2595,7 +2595,7 @@ DECL_HANDLER(add_fd_completion)
     struct fd *fd = get_handle_fd_obj( current->process, req->handle, 0 );
     if (fd)
     {
-        if (fd->completion && (!(fd->comp_flags & COMPLETION_SKIP_ON_SUCCESS) || req->status))
+        if (fd->completion && (!(fd->comp_flags & COMPLETION_SKIP_ON_SUCCESS) || req->status || req->force))
             add_completion( fd->completion, fd->comp_key, req->cvalue, req->status, req->information );
         release_object( fd );
     }
