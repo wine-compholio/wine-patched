@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 
+#define COBJMACROS
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -28,6 +29,8 @@
 #include "wine/list.h"
 #include "nvapi.h"
 #include "d3d9.h"
+
+#include "wine/wined3d.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(nvapi);
 
@@ -589,6 +592,75 @@ static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResou
     return NVAPI_ERROR;
 }
 
+static NvU32 get_video_memory(void)
+{
+    static NvU32 cache;
+    struct wined3d_adapter_identifier identifier;
+    struct wined3d *wined3d;
+    HRESULT hr = E_FAIL;
+
+    if (cache) return cache;
+
+    memset(&identifier, 0, sizeof(identifier));
+
+    wined3d_mutex_lock();
+    wined3d = wined3d_create(0);
+    if (wined3d)
+    {
+        hr = wined3d_get_adapter_identifier(wined3d, 0, 0, &identifier);
+        wined3d_decref(wined3d);
+    }
+    wined3d_mutex_unlock();
+
+    if (SUCCEEDED(hr))
+    {
+        cache = identifier.video_memory / 1024;
+        return cache;
+    }
+
+    return 1024 * 1024; /* fallback: 1GB */
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetPhysicalFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pSize);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_INVALID_HANDLE;
+    }
+
+    if (!pSize)
+        return NVAPI_INVALID_ARGUMENT;
+
+    *pSize = get_video_memory();
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pSize)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pSize);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_INVALID_HANDLE;
+    }
+
+    if (!pSize)
+        return NVAPI_INVALID_ARGUMENT;
+
+    *pSize = get_video_memory();
+    return NVAPI_OK;
+}
+
 void* CDECL nvapi_QueryInterface(unsigned int offset)
 {
     static const struct
@@ -631,6 +703,8 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0xee1370cf, NvAPI_GetLogicalGPUFromDisplay},
         {0xfceac864, NvAPI_D3D_GetObjectHandleForResource},
         {0xa064bdfc, NvAPI_D3D9_RegisterResource},
+        {0x46fbeb03, NvAPI_GPU_GetPhysicalFrameBufferSize},
+        {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
