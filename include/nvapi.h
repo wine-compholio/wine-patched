@@ -77,9 +77,25 @@ typedef struct
     NvU32 nextFrameAFRIndex;
     NvU32 previousFrameAFRIndex;
     NvU32 bIsCurAFRGroupNew;
-} NV_GET_CURRENT_SLI_STATE;
+} NV_GET_CURRENT_SLI_STATE_V1;
 
-#define NV_GET_CURRENT_SLI_STATE_VER  MAKE_NVAPI_VERSION(NV_GET_CURRENT_SLI_STATE, 1)
+typedef struct
+{
+    NvU32 version;
+    NvU32 maxNumAFRGroups;
+    NvU32 numAFRGroups;
+    NvU32 currentAFRIndex;
+    NvU32 nextFrameAFRIndex;
+    NvU32 previousFrameAFRIndex;
+    NvU32 bIsCurAFRGroupNew;
+    NvU32 numVRSLIGpus;
+} NV_GET_CURRENT_SLI_STATE_V2;
+
+#define NV_GET_CURRENT_SLI_STATE_VER1 MAKE_NVAPI_VERSION(NV_GET_CURRENT_SLI_STATE_V1, 1)
+#define NV_GET_CURRENT_SLI_STATE_VER2 MAKE_NVAPI_VERSION(NV_GET_CURRENT_SLI_STATE_V2, 1)
+
+#define NV_GET_CURRENT_SLI_STATE_VER NV_GET_CURRENT_SLI_STATE_VER2
+#define NV_GET_CURRENT_SLI_STATE     NV_GET_CURRENT_SLI_STATE_V2
 
 /* undocumented stuff */
 typedef struct
