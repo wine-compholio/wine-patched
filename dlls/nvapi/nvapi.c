@@ -544,10 +544,23 @@ static NvAPI_Status CDECL NvAPI_D3D_GetCurrentSLIState(IUnknown *pDevice, NV_GET
     if (!pDevice || !pSliState)
         return NVAPI_INVALID_ARGUMENT;
 
-    if (pSliState->version != NV_GET_CURRENT_SLI_STATE_VER)
+    if (pSliState->version != NV_GET_CURRENT_SLI_STATE_VER1 &&
+        pSliState->version != NV_GET_CURRENT_SLI_STATE_VER2)
         return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
 
-    return NVAPI_NO_ACTIVE_SLI_TOPOLOGY;
+    /* Simulate single GPU */
+    pSliState->maxNumAFRGroups = 1;
+    pSliState->numAFRGroups = 1;
+    pSliState->currentAFRIndex = 0;
+    pSliState->nextFrameAFRIndex = 0;
+    pSliState->previousFrameAFRIndex = 0;
+    pSliState->bIsCurAFRGroupNew = FALSE;
+
+    /* No VR SLI */
+    if (pSliState->version == NV_GET_CURRENT_SLI_STATE_VER2)
+        pSliState->numVRSLIGpus = 0;
+
+    return NVAPI_OK;
 }
 
 static NvAPI_Status CDECL NvAPI_GetLogicalGPUFromDisplay(NvDisplayHandle hNvDisp, NvLogicalGpuHandle *pLogicalGPU)
