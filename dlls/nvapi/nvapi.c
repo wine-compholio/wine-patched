@@ -661,6 +661,26 @@ static NvAPI_Status CDECL NvAPI_GPU_GetVirtualFrameBufferSize(NvPhysicalGpuHandl
     return NVAPI_OK;
 }
 
+static NvAPI_Status CDECL NvAPI_GPU_GetGpuCoreCount(NvPhysicalGpuHandle hPhysicalGpu, NvU32 *pCount)
+{
+    TRACE("(%p, %p)\n", hPhysicalGpu, pCount);
+
+    if (!hPhysicalGpu)
+        return NVAPI_EXPECTED_PHYSICAL_GPU_HANDLE;
+
+    if (hPhysicalGpu != FAKE_PHYSICAL_GPU)
+    {
+        FIXME("invalid handle: %p\n", hPhysicalGpu);
+        return NVAPI_INVALID_HANDLE;
+    }
+
+    if (!pCount)
+        return NVAPI_INVALID_ARGUMENT;
+
+    *pCount = 1;
+    return NVAPI_OK;
+}
+
 void* CDECL nvapi_QueryInterface(unsigned int offset)
 {
     static const struct
@@ -705,6 +725,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0xa064bdfc, NvAPI_D3D9_RegisterResource},
         {0x46fbeb03, NvAPI_GPU_GetPhysicalFrameBufferSize},
         {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
+        {0xc7026a87, NvAPI_GPU_GetGpuCoreCount},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
