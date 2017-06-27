@@ -1716,7 +1716,7 @@ static int queue_mouse_message( struct desktop *desktop, user_handle_t win, cons
     struct hardware_msg_data *msg_data;
     struct message *msg;
     unsigned int i, time, flags;
-    int wait = 0, x, y;
+    int hooked = 0, x, y;
 
     static const unsigned int messages[] =
     {
@@ -1822,13 +1822,13 @@ static int queue_mouse_message( struct desktop *desktop, user_handle_t win, cons
         /* specify a sender only when sending the last message */
         if (!(flags & ((1 << sizeof(messages)/sizeof(messages[0])) - 1)))
         {
-            if (!(wait = send_hook_ll_message( desktop, msg, input, sender )))
+            if (!(hooked = send_hook_ll_message( desktop, msg, input, sender )))
                 queue_hardware_message( desktop, msg, 0 );
         }
         else if (!send_hook_ll_message( desktop, msg, input, NULL ))
             queue_hardware_message( desktop, msg, 0 );
     }
-    return wait;
+    return hooked && sender;
 }
 
 /* queue a hardware message for a keyboard event */
@@ -1840,7 +1840,7 @@ static int queue_keyboard_message( struct desktop *desktop, user_handle_t win, c
     struct message *msg;
     unsigned char vkey = input->kbd.vkey;
     unsigned int message_code, time;
-    int wait;
+    int hooked;
 
     if (!(time = input->kbd.time)) time = get_tick_count();
 
@@ -1973,10 +1973,10 @@ static int queue_keyboard_message( struct desktop *desktop, user_handle_t win, c
         msg_data->flags |= (flags & (KF_EXTENDED | KF_ALTDOWN | KF_UP)) >> 8;
     }
 
-    if (!(wait = send_hook_ll_message( desktop, msg, input, sender )))
+    if (!(hooked = send_hook_ll_message( desktop, msg, input, sender )))
         queue_hardware_message( desktop, msg, 1 );
 
-    return wait;
+    return hooked && sender;
 }
 
 /* queue a hardware message for a custom type of event */
@@ -2494,7 +2494,7 @@ DECL_HANDLER(send_hardware_message)
 {
     struct thread *thread = NULL;
     struct desktop *desktop;
-    struct msg_queue *sender = get_current_queue();
+    struct msg_queue *sender = (req->flags & SEND_HWMSG_INJECTED) ? get_current_queue() : NULL;
     data_size_t size = min( 256, get_reply_max_size() );
 
     if (!(desktop = get_thread_desktop( current, 0 ))) return;
