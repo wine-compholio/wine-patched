@@ -2259,6 +2259,7 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_RSSetState(ID3D11DeviceCon
     struct d3d_device *device = device_from_immediate_ID3D11DeviceContext(iface);
     struct d3d_rasterizer_state *rasterizer_state_impl;
     const D3D11_RASTERIZER_DESC *desc;
+    union {DWORD d; float f;} slope;
 
     TRACE("iface %p, rasterizer_state %p.\n", iface, rasterizer_state);
 
@@ -2271,6 +2272,8 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_RSSetState(ID3D11DeviceCon
         wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_SCISSORTESTENABLE, FALSE);
         wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_MULTISAMPLEANTIALIAS, FALSE);
         wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_ANTIALIASEDLINEENABLE, FALSE);
+        wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_DEPTHBIAS, 0);
+        wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_SLOPESCALEDEPTHBIAS, 0);
         wined3d_mutex_unlock();
         return;
     }
@@ -2280,12 +2283,16 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_RSSetState(ID3D11DeviceCon
     desc = &rasterizer_state_impl->desc;
     wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_FILLMODE, desc->FillMode);
     wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_CULLMODE, desc->CullMode);
+
     /* OpenGL style depth bias. */
-    if (desc->DepthBias || desc->SlopeScaledDepthBias)
-        FIXME("Ignoring depth bias.\n");
-    /* GL_DEPTH_CLAMP */
+    slope.f = desc->SlopeScaledDepthBias;
+    wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_DEPTHBIAS, desc->DepthBias);
+    wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_SLOPESCALEDEPTHBIAS, slope.d);
+    if (desc->DepthBiasClamp)
+        FIXME("Ignoring DepthBiasClamp %f.\n", desc->DepthBiasClamp);
     if (!desc->DepthClipEnable)
         FIXME("Ignoring DepthClipEnable %#x.\n", desc->DepthClipEnable);
+
     wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_SCISSORTESTENABLE, desc->ScissorEnable);
     wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_MULTISAMPLEANTIALIAS, desc->MultisampleEnable);
     wined3d_device_set_render_state(device->wined3d_device,

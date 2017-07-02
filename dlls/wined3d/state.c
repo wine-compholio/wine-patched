@@ -1726,6 +1726,7 @@ static void state_depthbias(struct wined3d_context *context, const struct wined3
         union
         {
             DWORD d;
+            INT   i;
             float f;
         } scale_bias, const_bias;
 
@@ -1740,6 +1741,11 @@ static void state_depthbias(struct wined3d_context *context, const struct wined3
             float bias = -(float)const_bias.d;
             gl_info->gl_ops.gl.p_glPolygonOffset(bias, bias);
             checkGLcall("glPolygonOffset");
+        }
+        else if (context->d3d_info->wined3d_creation_flags & WINED3D_FORWARD_DEPTH_BIAS)
+        {
+            gl_info->gl_ops.gl.p_glPolygonOffset(scale_bias.f, const_bias.i);
+            checkGLcall("glPolygonOffset(...)");
         }
         else
         {
