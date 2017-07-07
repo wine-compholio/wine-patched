@@ -1152,6 +1152,7 @@ struct d3d11_test_context
     ID3D11InputLayout *input_layout;
     ID3D11VertexShader *vs;
     ID3D11Buffer *vb;
+    float last_depth;
 
     ID3D11PixelShader *ps;
     ID3D11Buffer *ps_cb;
@@ -1228,12 +1229,13 @@ static void release_test_context_(unsigned int line, struct d3d11_test_context *
     ok_(__FILE__, line)(!ref, "Device has %u references left.\n", ref);
 }
 
-#define draw_quad(c) draw_quad_(__LINE__, c)
-static void draw_quad_(unsigned int line, struct d3d11_test_context *context)
+#define draw_quad(c) draw_quad_(__LINE__, c, 0.0f)
+#define draw_quad_depth(c,d) draw_quad_(__LINE__, c, d)
+static void draw_quad_(unsigned int line, struct d3d11_test_context *context, float depth)
 {
     static const D3D11_INPUT_ELEMENT_DESC default_layout_desc[] =
     {
-        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
     static const DWORD default_vs_code[] =
     {
@@ -1259,12 +1261,12 @@ static void draw_quad_(unsigned int line, struct d3d11_test_context *context)
         0x49534f50, 0x4e4f4954, 0xababab00, 0x4e47534f, 0x0000002c, 0x00000001, 0x00000008, 0x00000020,
         0x00000000, 0x00000001, 0x00000003, 0x00000000, 0x0000000f, 0x505f5653, 0x5449534f, 0x004e4f49,
     };
-    static const struct vec2 quad[] =
+    struct vec3 quad[] =
     {
-        {-1.0f, -1.0f},
-        {-1.0f,  1.0f},
-        { 1.0f, -1.0f},
-        { 1.0f,  1.0f},
+        {-1.0f, -1.0f, depth},
+        {-1.0f,  1.0f, depth},
+        { 1.0f, -1.0f, depth},
+        { 1.0f,  1.0f, depth},
     };
 
     ID3D11Device *device = context->device;
@@ -1282,6 +1284,11 @@ static void draw_quad_(unsigned int line, struct d3d11_test_context *context)
         hr = ID3D11Device_CreateVertexShader(device, default_vs_code, sizeof(default_vs_code), NULL, &context->vs);
         ok_(__FILE__, line)(SUCCEEDED(hr), "Failed to create vertex shader, hr %#x.\n", hr);
     }
+    else if (context->last_depth != depth)
+    {
+        ID3D11DeviceContext_UpdateSubresource(context->immediate_context,
+            (ID3D11Resource *)context->vb, 0, NULL, quad, 0, 0);
+    }
 
     ID3D11DeviceContext_IASetInputLayout(context->immediate_context, context->input_layout);
     ID3D11DeviceContext_IASetPrimitiveTopology(context->immediate_context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -1289,6 +1296,7 @@ static void draw_quad_(unsigned int line, struct d3d11_test_context *context)
     offset = 0;
     ID3D11DeviceContext_IASetVertexBuffers(context->immediate_context, 0, 1, &context->vb, &stride, &offset);
     ID3D11DeviceContext_VSSetShader(context->immediate_context, context->vs, NULL, 0);
+    context->last_depth = depth;
 
     ID3D11DeviceContext_Draw(context->immediate_context, 4, 0);
 }
@@ -1299,8 +1307,9 @@ static void set_quad_color(struct d3d11_test_context *context, const struct vec4
             (ID3D11Resource *)context->ps_cb, 0, NULL, color, 0, 0);
 }
 
-#define draw_color_quad(c, color) draw_color_quad_(__LINE__, c, color)
-static void draw_color_quad_(unsigned int line, struct d3d11_test_context *context, const struct vec4 *color)
+#define draw_color_quad(c, color) draw_color_quad_(__LINE__, c, color, 0.0f)
+#define draw_color_quad_depth(c, color, depth) draw_color_quad_(__LINE__, c, color, depth)
+static void draw_color_quad_(unsigned int line, struct d3d11_test_context *context, const struct vec4 *color, float depth)
 {
     static const DWORD ps_color_code[] =
     {
@@ -1342,7 +1351,7 @@ static void draw_color_quad_(unsigned int line, struct d3d11_test_context *conte
 
     set_quad_color(context, color);
 
-    draw_quad_(line, context);
+    draw_quad_(line, context, depth);
 }
 
 static void test_create_device(void)
@@ -14203,12 +14212,12 @@ static void test_face_culling(void)
         0x00000000, 0x3f800000, 0x00000000, 0x3f800000, 0x00004002, 0x00000000, 0x00000000, 0x3f800000,
         0x3f800000, 0x0100003e,
     };
-    static const struct vec2 ccw_quad[] =
+    static const struct vec3 ccw_quad[] =
     {
-        {-1.0f,  1.0f},
-        {-1.0f, -1.0f},
-        { 1.0f,  1.0f},
-        { 1.0f, -1.0f},
+        {-1.0f,  1.0f, 0.0f},
+        {-1.0f, -1.0f, 0.0f},
+        { 1.0f,  1.0f, 0.0f},
+        { 1.0f, -1.0f, 0.0f},
     };
     static const struct
     {
@@ -15083,12 +15092,12 @@ static void test_stencil_separate(void)
 
     static const float red[] = {1.0f, 0.0f, 0.0f, 1.0f};
     static const struct vec4 green = {0.0f, 1.0f, 0.0f, 1.0f};
-    static const struct vec2 ccw_quad[] =
+    static const struct vec3 ccw_quad[] =
     {
-        {-1.0f, -1.0f},
-        { 1.0f, -1.0f},
-        {-1.0f,  1.0f},
-        { 1.0f,  1.0f},
+        {-1.0f, -1.0f, 0.0f},
+        { 1.0f, -1.0f, 0.0f},
+        {-1.0f,  1.0f, 0.0f},
+        { 1.0f,  1.0f, 0.0f},
     };
 
     if (!init_test_context(&test_context, NULL))
@@ -15167,6 +15176,207 @@ static void test_stencil_separate(void)
     ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
     draw_color_quad(&test_context, &green);
     check_texture_color(test_context.backbuffer, 0xff0000ff, 1);
+
+    ID3D11DepthStencilState_Release(ds_state);
+    ID3D11DepthStencilView_Release(ds_view);
+    ID3D11RasterizerState_Release(rs);
+    ID3D11Texture2D_Release(texture);
+    release_test_context(&test_context);
+}
+
+static void test_depth_separate(void)
+{
+    struct d3d11_test_context test_context;
+    D3D11_TEXTURE2D_DESC texture_desc;
+    D3D11_DEPTH_STENCIL_DESC ds_desc;
+    ID3D11DepthStencilState *ds_state;
+    ID3D11DepthStencilView *ds_view;
+    D3D11_RASTERIZER_DESC rs_desc;
+    ID3D11DeviceContext *context;
+    struct resource_readback rb;
+    ID3D11RasterizerState *rs;
+    ID3D11Texture2D *texture;
+    ID3D11Device *device;
+    D3D11_VIEWPORT vp;
+    DWORD color;
+    HRESULT hr;
+
+    static const float red[] = {1.0f, 0.0f, 0.0f, 1.0f};
+    static const struct vec4 green = {0.0f, 1.0f, 0.0f, 1.0f};
+    static const struct vec4 blue = {0.0f, 0.0f, 1.0f, 1.0f};
+    static const struct vec4 white = {1.0f, 1.0f, 1.0f, 1.0f};
+    static const DWORD green_d = 0xff00ff00;
+    static const DWORD blue_d = 0xffff0000;
+    static const DWORD red_d = 0xff0000ff;
+    static const DWORD white_d = 0xffffffff;
+
+    if (!init_test_context(&test_context, NULL))
+        return;
+
+    device = test_context.device;
+    context = test_context.immediate_context;
+
+    texture_desc.Width = 640;
+    texture_desc.Height = 480;
+    texture_desc.MipLevels = 1;
+    texture_desc.ArraySize = 1;
+    texture_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    texture_desc.SampleDesc.Count = 1;
+    texture_desc.SampleDesc.Quality = 0;
+    texture_desc.Usage = D3D11_USAGE_DEFAULT;
+    texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    texture_desc.CPUAccessFlags = 0;
+    texture_desc.MiscFlags = 0;
+    hr = ID3D11Device_CreateTexture2D(device, &texture_desc, NULL, &texture);
+    ok(SUCCEEDED(hr), "Failed to create texture, hr %#x.\n", hr);
+    hr = ID3D11Device_CreateDepthStencilView(device, (ID3D11Resource *)texture, NULL, &ds_view);
+    ok(SUCCEEDED(hr), "Failed to create depth stencil view, hr %#x.\n", hr);
+
+    ds_desc.DepthEnable = TRUE;
+    ds_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    ds_desc.DepthFunc = D3D11_COMPARISON_LESS;
+    ds_desc.StencilEnable = FALSE;
+    ds_desc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+    ds_desc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+    ds_desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_ZERO;
+    ds_desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_ZERO;
+    ds_desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_ZERO;
+    ds_desc.FrontFace.StencilFunc = D3D11_COMPARISON_NEVER;
+    ds_desc.BackFace.StencilFailOp = D3D11_STENCIL_OP_ZERO;
+    ds_desc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_ZERO;
+    ds_desc.BackFace.StencilPassOp = D3D11_STENCIL_OP_ZERO;
+    ds_desc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+    hr = ID3D11Device_CreateDepthStencilState(device, &ds_desc, &ds_state);
+    ok(SUCCEEDED(hr), "Failed to create depth stencil state, hr %#x.\n", hr);
+
+    rs_desc.FillMode = D3D11_FILL_SOLID;
+    rs_desc.CullMode = D3D11_CULL_NONE;
+    rs_desc.FrontCounterClockwise = FALSE;
+    rs_desc.DepthBias = 0;
+    rs_desc.DepthBiasClamp = 0.0f;
+    rs_desc.SlopeScaledDepthBias = 0.0f;
+    rs_desc.DepthClipEnable = TRUE;
+    rs_desc.ScissorEnable = FALSE;
+    rs_desc.MultisampleEnable = FALSE;
+    rs_desc.AntialiasedLineEnable = FALSE;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.1f, 0);
+    ID3D11DeviceContext_OMSetRenderTargets(context, 1, &test_context.backbuffer_rtv, ds_view);
+    ID3D11DeviceContext_OMSetDepthStencilState(context, ds_state, 0);
+    ID3D11DeviceContext_RSSetState(context, rs);
+
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    vp.Width = texture_desc.Width;
+    vp.Height = texture_desc.Height;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 0.7f;
+    ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
+
+    /* simple depth tests */
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, 0.0f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, 0.7f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, 0.0f);
+    draw_color_quad_depth(&test_context, &blue, 0.0f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    /* clipped */
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, 1.1f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, red_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, -0.1f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, red_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    /* clipping disabled */
+    ID3D11RasterizerState_Release(rs);
+    rs_desc.DepthClipEnable = FALSE;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, 1.1f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    todo_wine ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, -0.1f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    todo_wine ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+
+    /* depth bias */
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_depth(&test_context, &green, 0.5f);
+    ID3D11RasterizerState_Release(rs);
+    rs_desc.DepthClipEnable = TRUE;
+    rs_desc.DepthBias = -100000;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+    draw_color_quad_depth(&test_context, &blue, 0.5f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    todo_wine ok(compare_color(color, blue_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+    ID3D11RasterizerState_Release(rs);
+    rs_desc.DepthBias = -100005;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+    draw_color_quad_depth(&test_context, &white, 0.5f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    todo_wine ok(compare_color(color, white_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+    ID3D11RasterizerState_Release(rs);
+    rs_desc.DepthBias = -99995;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+    draw_color_quad_depth(&test_context, &green, 0.5f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    todo_wine ok(compare_color(color, white_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
 
     ID3D11DepthStencilState_Release(ds_state);
     ID3D11DepthStencilView_Release(ds_view);
@@ -21068,6 +21278,7 @@ START_TEST(d3d11)
     test_shader_input_registers_limits();
     test_unbind_shader_resource_view();
     test_stencil_separate();
+    test_depth_separate();
     test_uav_load();
     test_cs_uav_store();
     test_ps_cs_uav_binding();
