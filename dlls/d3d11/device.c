@@ -6237,7 +6237,7 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CheckFormatSupport(ID3D11Device *i
     FIXME("iface %p, format %u, format_support %p partial-stub!\n", iface, format, format_support);
 
     wined3d_format = wined3dformat_from_dxgi_format(format);
-    if ((format && !wined3d_format) || wined3d_format == WINED3DFMT_UNKNOWN)
+    if (format && !wined3d_format)
     {
         WARN("Invalid format %#x.\n", format);
         *format_support = 0;
