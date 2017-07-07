@@ -50,6 +50,7 @@ enum deferred_cmd
     DEFERRED_CSSETSHADERRESOURCES,      /* res_info */
     DEFERRED_DSSETSHADERRESOURCES,      /* res_info */
     DEFERRED_GSSETSHADERRESOURCES,      /* res_info */
+    DEFERRED_HSSETSHADERRESOURCES,      /* res_info */
     DEFERRED_PSSETSHADERRESOURCES,      /* res_info */
 
     DEFERRED_DSSETSAMPLERS,             /* samplers_info */
@@ -271,7 +272,7 @@ static struct deferred_call *add_deferred_call(struct d3d11_deferred_context *co
 }
 
 /* for DEFERRED_CSSETSHADERRESOURCES, DEFERRED_DSSETSHADERRESOURCES, DEFERRED_GSSETSHADERRESOURCES,
- * and DEFERRED_PSSETSHADERRESOURCES */
+ * DEFERRED_HSSETSHADERRESOURCES and DEFERRED_PSSETSHADERRESOURCES */
 static void add_deferred_set_shader_resources(struct d3d11_deferred_context *context, enum deferred_cmd cmd,
         UINT start_slot, UINT view_count, ID3D11ShaderResourceView *const *views)
 {
@@ -441,6 +442,7 @@ static void free_deferred_calls(struct list *commands)
             case DEFERRED_CSSETSHADERRESOURCES:
             case DEFERRED_DSSETSHADERRESOURCES:
             case DEFERRED_GSSETSHADERRESOURCES:
+            case DEFERRED_HSSETSHADERRESOURCES:
             case DEFERRED_PSSETSHADERRESOURCES:
             {
                 for (i = 0; i < call->res_info.num_views; i++)
@@ -631,6 +633,12 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             case DEFERRED_GSSETSHADERRESOURCES:
             {
                 ID3D11DeviceContext_GSSetShaderResources(iface, call->res_info.start_slot,
+                    call->res_info.num_views, call->res_info.views);
+                break;
+            }
+            case DEFERRED_HSSETSHADERRESOURCES:
+            {
+                ID3D11DeviceContext_HSSetShaderResources(iface, call->res_info.start_slot,
                     call->res_info.num_views, call->res_info.views);
                 break;
             }
@@ -4315,8 +4323,12 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_ExecuteCommandList(ID3D11De
 static void STDMETHODCALLTYPE d3d11_deferred_context_HSSetShaderResources(ID3D11DeviceContext *iface,
         UINT start_slot, UINT view_count, ID3D11ShaderResourceView *const *views)
 {
-    FIXME("iface %p, start_slot %u, view_count %u, views %p stub!\n",
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+
+    TRACE("iface %p, start_slot %u, view_count %u, views %p.\n",
             iface, start_slot, view_count, views);
+
+    add_deferred_set_shader_resources(context, DEFERRED_HSSETSHADERRESOURCES, start_slot, view_count, views);
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_HSSetShader(ID3D11DeviceContext *iface,
