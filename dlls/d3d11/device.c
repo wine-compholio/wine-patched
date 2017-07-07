@@ -55,6 +55,7 @@ enum deferred_cmd
 
     DEFERRED_CSSETCONSTANTBUFFERS,      /* constant_buffers_info */
     DEFERRED_DSSETCONSTANTBUFFERS,      /* constant_buffers_info */
+    DEFERRED_GSSETCONSTANTBUFFERS,      /* constant_buffers_info */
     DEFERRED_HSSETCONSTANTBUFFERS,      /* constant_buffers_info */
     DEFERRED_PSSETCONSTANTBUFFERS,      /* constant_buffers_info */
     DEFERRED_VSSETCONSTANTBUFFERS,      /* constant_buffers_info */
@@ -309,8 +310,8 @@ static void add_deferred_set_samplers(struct d3d11_deferred_context *context, en
     }
 }
 
-/* for DEFERRED_CSSETCONSTANTBUFFERS. DEFERRED_DSSETCONSTANTBUFFERS, DEFERRED_HSSETCONSTANTBUFFERS,
- * DEFERRED_PSSETCONSTANTBUFFERS and DEFERRED_VSSETCONSTANTBUFFERS */
+/* for DEFERRED_CSSETCONSTANTBUFFERS. DEFERRED_DSSETCONSTANTBUFFERS, DEFERRED_GSSETCONSTANTBUFFERS,
+ * DEFERRED_HSSETCONSTANTBUFFERS, DEFERRED_PSSETCONSTANTBUFFERS and DEFERRED_VSSETCONSTANTBUFFERS */
 static void add_deferred_set_constant_buffers(struct d3d11_deferred_context *context, enum deferred_cmd cmd,
         UINT start_slot, UINT buffer_count, ID3D11Buffer *const *buffers)
 {
@@ -456,6 +457,7 @@ static void free_deferred_calls(struct list *commands)
             }
             case DEFERRED_CSSETCONSTANTBUFFERS:
             case DEFERRED_DSSETCONSTANTBUFFERS:
+            case DEFERRED_GSSETCONSTANTBUFFERS:
             case DEFERRED_HSSETCONSTANTBUFFERS:
             case DEFERRED_PSSETCONSTANTBUFFERS:
             case DEFERRED_VSSETCONSTANTBUFFERS:
@@ -642,6 +644,12 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             case DEFERRED_DSSETCONSTANTBUFFERS:
             {
                 ID3D11DeviceContext_DSSetConstantBuffers(iface, call->constant_buffers_info.start_slot,
+                        call->constant_buffers_info.num_buffers, call->constant_buffers_info.buffers);
+                break;
+            }
+            case DEFERRED_GSSETCONSTANTBUFFERS:
+            {
+                ID3D11DeviceContext_GSSetConstantBuffers(iface, call->constant_buffers_info.start_slot,
                         call->constant_buffers_info.num_buffers, call->constant_buffers_info.buffers);
                 break;
             }
@@ -3896,8 +3904,12 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_DrawInstanced(ID3D11DeviceC
 static void STDMETHODCALLTYPE d3d11_deferred_context_GSSetConstantBuffers(ID3D11DeviceContext *iface,
         UINT start_slot, UINT buffer_count, ID3D11Buffer *const *buffers)
 {
-    FIXME("iface %p, start_slot %u, buffer_count %u, buffers %p stub!\n",
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+
+    TRACE("iface %p, start_slot %u, buffer_count %u, buffers %p.\n",
             iface, start_slot, buffer_count, buffers);
+
+    add_deferred_set_constant_buffers(context, DEFERRED_GSSETCONSTANTBUFFERS, start_slot, buffer_count, buffers);
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_GSSetShader(ID3D11DeviceContext *iface,
