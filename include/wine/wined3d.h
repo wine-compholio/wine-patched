@@ -32,6 +32,8 @@
 
 #include "wine/list.h"
 
+DEFINE_GUID(IID_IWineD3DDevice, 0xd56e2a4c, 0x5127, 0x8437, 0x65, 0x8a, 0x98, 0xc5, 0xbb, 0x78, 0x94, 0x98);
+
 #define WINED3D_OK                                              S_OK
 
 #define _FACWINED3D                                             0x876
