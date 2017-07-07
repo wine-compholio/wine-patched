@@ -11436,6 +11436,7 @@ static void test_cb_relative_addressing(void)
     ID3D11Buffer *colors_cb, *index_cb;
     unsigned int i, index[4] = {0};
     ID3D11DeviceContext *context;
+    unsigned int stride, offset;
     ID3D11PixelShader *ps;
     ID3D11Device *device;
     HRESULT hr;
@@ -11576,9 +11577,16 @@ float4 main(const ps_in v) : SV_TARGET
     hr = ID3D11Device_CreatePixelShader(device, ps_code, sizeof(ps_code), NULL, &ps);
     ok(SUCCEEDED(hr), "Failed to create pixel shader, hr %#x.\n", hr);
 
+    ID3D11DeviceContext_VSSetShader(context, test_context.vs, NULL, 0);
     ID3D11DeviceContext_VSSetConstantBuffers(context, 0, 1, &index_cb);
     ID3D11DeviceContext_VSSetConstantBuffers(context, 1, 1, &colors_cb);
     ID3D11DeviceContext_PSSetShader(context, ps, NULL, 0);
+
+    stride = sizeof(*quad);
+    offset = 0;
+    ID3D11DeviceContext_IASetInputLayout(context, test_context.input_layout);
+    ID3D11DeviceContext_IASetPrimitiveTopology(context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &test_context.vb, &stride, &offset);
 
     for (i = 0; i < ARRAY_SIZE(test_data); ++i)
     {
@@ -11587,7 +11595,7 @@ float4 main(const ps_in v) : SV_TARGET
         index[0] = test_data[i].index;
         ID3D11DeviceContext_UpdateSubresource(context, (ID3D11Resource *)index_cb, 0, NULL, &index, 0, 0);
 
-        draw_quad(&test_context);
+        ID3D11DeviceContext_Draw(context, 4, 0);
         check_texture_color(test_context.backbuffer, test_data[i].expected, 1);
     }
 
