@@ -80,6 +80,9 @@ enum deferred_cmd
     DEFERRED_CLEARSTATE,
     DEFERRED_CLEARRENDERTARGETVIEW,     /* clear_rtv_info */
     DEFERRED_CLEARDEPTHSTENCILVIEW,     /* clear_depth_info */
+
+    DEFERRED_BEGIN,                     /* async_info */
+    DEFERRED_END,                       /* async_info */
 };
 
 struct deferred_call
@@ -237,6 +240,10 @@ struct deferred_call
             FLOAT depth;
             UINT8 stencil;
         } clear_depth_info;
+        struct
+        {
+            ID3D11Asynchronous *asynchronous;
+        } async_info;
     };
 };
 
@@ -527,6 +534,13 @@ static void free_deferred_calls(struct list *commands)
                     ID3D11DepthStencilView_Release(call->clear_depth_info.view);
                 break;
             }
+            case DEFERRED_BEGIN:
+            case DEFERRED_END:
+            {
+                if (call->async_info.asynchronous)
+                    ID3D11Asynchronous_Release(call->async_info.asynchronous);
+                break;
+            }
             default:
             {
                 FIXME("Unimplemented command type %u\n", call->cmd);
@@ -800,6 +814,16 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                 ID3D11DeviceContext_ClearDepthStencilView(iface, call->clear_depth_info.view,
                         call->clear_depth_info.flags, call->clear_depth_info.depth,
                         call->clear_depth_info.stencil);
+                break;
+            }
+            case DEFERRED_BEGIN:
+            {
+                ID3D11DeviceContext_Begin(iface, call->async_info.asynchronous);
+                break;
+            }
+            case DEFERRED_END:
+            {
+                ID3D11DeviceContext_End(iface, call->async_info.asynchronous);
                 break;
             }
             default:
@@ -4023,13 +4047,33 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_VSSetSamplers(ID3D11DeviceC
 static void STDMETHODCALLTYPE d3d11_deferred_context_Begin(ID3D11DeviceContext *iface,
         ID3D11Asynchronous *asynchronous)
 {
-    FIXME("iface %p, asynchronous %p stub!\n", iface, asynchronous);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, asynchronous %p.\n", iface, asynchronous);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_BEGIN;
+    if (asynchronous) ID3D11Asynchronous_AddRef(asynchronous);
+    call->async_info.asynchronous = asynchronous;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_End(ID3D11DeviceContext *iface,
         ID3D11Asynchronous *asynchronous)
 {
-    FIXME("iface %p, asynchronous %p stub!\n", iface, asynchronous);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, asynchronous %p.\n", iface, asynchronous);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_END;
+    if (asynchronous) ID3D11Asynchronous_AddRef(asynchronous);
+    call->async_info.asynchronous = asynchronous;
 }
 
 static HRESULT STDMETHODCALLTYPE d3d11_deferred_context_GetData(ID3D11DeviceContext *iface,
