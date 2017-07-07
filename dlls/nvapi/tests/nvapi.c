@@ -45,6 +45,7 @@ static NvAPI_Status (CDECL* pNvAPI_EnumNvidiaDisplayHandle)(NvU32 thisEnum, NvDi
 static NvAPI_Status (CDECL* pNvAPI_SYS_GetDriverAndBranchVersion)(NvU32* pDriverVersion, NvAPI_ShortString szBuildBranchString);
 static NvAPI_Status (CDECL* pNvAPI_D3D_GetCurrentSLIState)(IUnknown *pDevice, NV_GET_CURRENT_SLI_STATE *pSliState);
 static NvAPI_Status (CDECL* pNvAPI_GetLogicalGPUFromDisplay)(NvDisplayHandle hNvDisp, NvLogicalGpuHandle *pLogicalGPU);
+static NvAPI_Status (CDECL* pNvAPI_D3D11_SetDepthBoundsTest)(IUnknown*, NvU32, float, float);
 
 static const struct
 {
@@ -68,6 +69,7 @@ function_list[] =
     {0x2926aaad, (void**) &pNvAPI_SYS_GetDriverAndBranchVersion},
     {0x4b708b54, (void**) &pNvAPI_D3D_GetCurrentSLIState},
     {0xee1370cf, (void**) &pNvAPI_GetLogicalGPUFromDisplay},
+    {0x7aaf7a04, (void**) &pNvAPI_D3D11_SetDepthBoundsTest},
 };
 
 static BOOL init(void)
@@ -705,6 +707,20 @@ cleanup:
     if (window) DestroyWindow(window);
 }
 
+static void test_NvAPI_D3D11_SetDepthBoundsTest(void)
+{
+    NvAPI_Status status;
+
+    if (!pNvAPI_D3D11_SetDepthBoundsTest)
+    {
+        win_skip("NvAPI_D3D11_SetDepthBoundsTest export not found.\n");
+        return;
+    }
+
+    status = pNvAPI_D3D11_SetDepthBoundsTest(NULL, 0, 0.0, 0.0);
+    ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
+}
+
 START_TEST( nvapi )
 {
     WNDCLASSA wc = {0};
@@ -724,6 +740,7 @@ START_TEST( nvapi )
     test_NvAPI_EnumNvidiaDisplayHandle();
     test_NvAPI_SYS_GetDriverAndBranchVersion();
     test_NvAPI_GetLogicalGPUFromDisplay();
+    test_NvAPI_D3D11_SetDepthBoundsTest();
 
     /* d3d9 tests */
     wc.lpfnWndProc = DefWindowProcA;
