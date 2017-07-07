@@ -15551,7 +15551,7 @@ static void test_depth_separate(void)
     draw_color_quad_z(&test_context, &green, 1.1f);
     get_texture_readback(test_context.backbuffer, 0, &rb);
     color = get_readback_color(&rb, 320, 240);
-    todo_wine ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
     release_resource_readback(&rb);
 
     ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
@@ -15559,7 +15559,7 @@ static void test_depth_separate(void)
     draw_color_quad_z(&test_context, &green, -0.1f);
     get_texture_readback(test_context.backbuffer, 0, &rb);
     color = get_readback_color(&rb, 320, 240);
-    todo_wine ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
     release_resource_readback(&rb);
 
     /* depth bias */
