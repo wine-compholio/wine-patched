@@ -14487,7 +14487,7 @@ static void check_format_support(const unsigned int *format_support, D3D_FEATURE
 
 static void test_required_format_support(const D3D_FEATURE_LEVEL feature_level)
 {
-    static const UINT expected = D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER |
+    UINT expected = D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER |
             D3D11_FORMAT_SUPPORT_TEXTURE1D | D3D11_FORMAT_SUPPORT_TEXTURE2D |
             D3D11_FORMAT_SUPPORT_TEXTURE3D | D3D11_FORMAT_SUPPORT_TEXTURECUBE |
             D3D11_FORMAT_SUPPORT_MIP | D3D11_FORMAT_SUPPORT_MIP_AUTOGEN |
@@ -14530,12 +14530,10 @@ static void test_required_format_support(const D3D_FEATURE_LEVEL feature_level)
         ok(hr == E_INVALIDARG, "Expected E_INVALIDARG, got %#x.\n", hr);
     }
 
-    hr = ID3D11Device_CheckFormatSupport(device, DXGI_FORMAT_UNKNOWN, &support);
-    ok(hr == E_FAIL, "Expected E_FAIL, got %#x.\n", hr);
-
     hr = ID3D11Device_CheckFormatSupport(device, 0xdeadbeef, &support);
     ok(hr == E_FAIL, "Expected E_FAIL, got %#x.\n", hr);
 
+    if (feature_level < D3D_FEATURE_LEVEL_10_0) expected &= ~D3D11_FORMAT_SUPPORT_TEXTURE1D;
     hr = ID3D11Device_CheckFormatSupport(device, DXGI_FORMAT_R8G8B8A8_UNORM, &support);
     ok(hr == S_OK, "Expected S_OK, got %#x.\n", hr);
     ok((support & expected) == expected, "Expected the following features to be supported: %#x.\n",
