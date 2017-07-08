@@ -10776,7 +10776,7 @@ static void test_copy_subresource_region(void)
             for (j = 0; j < min(level_src_height, level_dst_height); j++)
             {
                 c_result = (DWORD*)((char*)map_desc.pData + j * map_desc.RowPitch);
-                todo_wine ok(c_result[i] == c_expected[j * level_src_width + i],
+                ok(c_result[i] == c_expected[j * level_src_width + i],
                    "Got unexpected color 0x%08x at (%u, %u), expected 0x%08x for test %u.\n",
                    c_result[i], i, j, c_expected[j * level_src_width + i], k);
             }
