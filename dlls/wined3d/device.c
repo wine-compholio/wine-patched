@@ -4061,7 +4061,10 @@ void CDECL wined3d_device_copy_resource(struct wined3d_device *device,
         return;
     }
 
-    if (src_resource->format->id != dst_resource->format->id)
+    if (src_resource->format->id != dst_resource->format->id &&
+            (src_resource->format->typeless_id != dst_resource->format->typeless_id ||
+            src_resource->format->gl_view_class != dst_resource->format->gl_view_class ||
+            !src_resource->format->typeless_id))
     {
         WARN("Resource formats (%s / %s) don't match.\n",
                 debug_d3dformat(dst_resource->format->id),
@@ -4072,8 +4075,7 @@ void CDECL wined3d_device_copy_resource(struct wined3d_device *device,
     if (dst_resource->type == WINED3D_RTYPE_BUFFER)
     {
         wined3d_box_set(&box, 0, 0, src_resource->size, 1, 0, 1);
-        wined3d_cs_emit_blt_sub_resource(device->cs, dst_resource, 0, &box,
-                src_resource, 0, &box, 0, NULL, WINED3D_TEXF_POINT);
+        wined3d_cs_emit_copy_sub_resource(device->cs, dst_resource, 0, &box, src_resource, 0, &box);
         return;
     }
 
@@ -4099,8 +4101,7 @@ void CDECL wined3d_device_copy_resource(struct wined3d_device *device,
         {
             unsigned int idx = j * dst_texture->level_count + i;
 
-            wined3d_cs_emit_blt_sub_resource(device->cs, dst_resource, idx, &box,
-                    src_resource, idx, &box, 0, NULL, WINED3D_TEXF_POINT);
+            wined3d_cs_emit_copy_sub_resource(device->cs, dst_resource, idx, &box, src_resource, idx, &box);
         }
     }
 }
