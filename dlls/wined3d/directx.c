@@ -6534,6 +6534,18 @@ static void wined3d_adapter_init_fb_cfgs(struct wined3d_adapter *adapter, HDC dc
     }
 }
 
+static BOOL has_extension(const char *list, const char *ext)
+{
+    size_t len = strlen(ext);
+    while (list)
+    {
+        while (*list == ' ') list++;
+        if (!strncmp(list, ext, len) && (!list[len] || list[len] == ' ')) return TRUE;
+        list = strchr(list, ' ');
+    }
+    return FALSE;
+}
+
 static BOOL wined3d_adapter_init(struct wined3d_adapter *adapter, UINT ordinal, DWORD wined3d_creation_flags)
 {
     static const DWORD supported_gl_versions[] =
@@ -6543,8 +6555,9 @@ static BOOL wined3d_adapter_init(struct wined3d_adapter *adapter, UINT ordinal, 
     };
     struct wined3d_gl_info *gl_info = &adapter->gl_info;
     struct wined3d_caps_gl_ctx caps_gl_ctx = {0};
-    unsigned int i;
+    DWORD max_gl_version = wined3d_settings.max_gl_version;
     DISPLAY_DEVICEW display_device;
+    unsigned int i;
 
     TRACE("adapter %p, ordinal %u.\n", adapter, ordinal);
 
@@ -6589,15 +6602,25 @@ static BOOL wined3d_adapter_init(struct wined3d_adapter *adapter, UINT ordinal, 
         return FALSE;
     }
 
+    if (wined3d_creation_flags & WINED3D_REQUEST_D3D10)
+    {
+        const char *gl_extensions = (const char *)gl_info->gl_ops.gl.p_glGetString(GL_EXTENSIONS);
+        if (!has_extension(gl_extensions, "GL_ARB_compatibility"))
+        {
+            ERR_(winediag)("GL_ARB_compatibility not supported, requesting context with GL version 3.2.\n");
+            max_gl_version = MAKEDWORD_VERSION(3, 2);
+        }
+    }
+
     for (i = 0; i < ARRAY_SIZE(supported_gl_versions); ++i)
     {
-        if (supported_gl_versions[i] <= wined3d_settings.max_gl_version)
+        if (supported_gl_versions[i] <= max_gl_version)
             break;
     }
     if (i == ARRAY_SIZE(supported_gl_versions))
     {
         ERR_(winediag)("Requested invalid GL version %u.%u.\n",
-                wined3d_settings.max_gl_version >> 16, wined3d_settings.max_gl_version & 0xffff);
+                max_gl_version >> 16, max_gl_version & 0xffff);
         i = ARRAY_SIZE(supported_gl_versions) - 1;
     }
 
