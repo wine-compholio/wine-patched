@@ -1313,6 +1313,7 @@ enum wined3d_shader_byte_code_format
 #define WINED3D_NO_PRIMITIVE_RESTART                            0x00000800
 #define WINED3D_LEGACY_CUBEMAP_FILTERING                        0x00001000
 #define WINED3D_FORWARD_DEPTH_BIAS                              0x00002000
+#define WINED3D_REQUEST_D3D10                                   0x00004000
 
 #define WINED3D_RESZ_CODE                                       0x7fa05000
 
