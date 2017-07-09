@@ -5445,12 +5445,16 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CreateBlendState(ID3D11Device *ifa
 
         return S_OK;
     }
-    wined3d_mutex_unlock();
 
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+    {
+        wined3d_mutex_unlock();
         return E_OUTOFMEMORY;
+    }
 
-    if (FAILED(hr = d3d_blend_state_init(object, device, &tmp_desc)))
+    hr = d3d_blend_state_init(object, device, &tmp_desc);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
     {
         WARN("Failed to initialize blend state, hr %#x.\n", hr);
         HeapFree(GetProcessHeap(), 0, object);
@@ -5525,12 +5529,16 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CreateDepthStencilState(ID3D11Devi
 
         return S_OK;
     }
-    wined3d_mutex_unlock();
 
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+    {
+        wined3d_mutex_unlock();
         return E_OUTOFMEMORY;
+    }
 
-    if (FAILED(hr = d3d_depthstencil_state_init(object, device, &tmp_desc)))
+    hr = d3d_depthstencil_state_init(object, device, &tmp_desc);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
     {
         WARN("Failed to initialize depthstencil state, hr %#x.\n", hr);
         HeapFree(GetProcessHeap(), 0, object);
@@ -5568,12 +5576,16 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CreateRasterizerState(ID3D11Device
 
         return S_OK;
     }
-    wined3d_mutex_unlock();
 
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+    {
+        wined3d_mutex_unlock();
         return E_OUTOFMEMORY;
+    }
 
-    if (FAILED(hr = d3d_rasterizer_state_init(object, device, desc)))
+    hr = d3d_rasterizer_state_init(object, device, desc);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
     {
         WARN("Failed to initialize rasterizer state, hr %#x.\n", hr);
         HeapFree(GetProcessHeap(), 0, object);
@@ -5622,12 +5634,16 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CreateSamplerState(ID3D11Device *i
 
         return S_OK;
     }
-    wined3d_mutex_unlock();
 
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+    {
+        wined3d_mutex_unlock();
         return E_OUTOFMEMORY;
+    }
 
-    if (FAILED(hr = d3d_sampler_state_init(object, device, &normalized_desc)))
+    hr = d3d_sampler_state_init(object, device, &normalized_desc);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
     {
         WARN("Failed to initialize sampler state, hr %#x.\n", hr);
         HeapFree(GetProcessHeap(), 0, object);
