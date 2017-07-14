@@ -57,6 +57,15 @@ typedef void *NvDisplayHandle;
 typedef void *StereoHandle;
 typedef void *NVDX_ObjectHandle;
 
+typedef enum
+{
+    NVAPI_DEVICE_FEATURE_LEVEL_NULL      = -1,
+    NVAPI_DEVICE_FEATURE_LEVEL_10_0      = 0,
+    NVAPI_DEVICE_FEATURE_LEVEL_10_0_PLUS = 1,
+    NVAPI_DEVICE_FEATURE_LEVEL_10_1      = 2,
+    NVAPI_DEVICE_FEATURE_LEVEL_11_0      = 3,
+} NVAPI_DEVICE_FEATURE_LEVEL;
+
 typedef struct
 {
     NvU32              version;
