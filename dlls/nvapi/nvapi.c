@@ -30,6 +30,7 @@
 #include "wine/list.h"
 #include "nvapi.h"
 #include "d3d9.h"
+#include "d3d11.h"
 
 #include "wine/wined3d.h"
 
@@ -709,6 +710,58 @@ static NvAPI_Status CDECL NvAPI_D3D11_SetDepthBoundsTest(IUnknown *pDeviceOrCont
     return NVAPI_OK;
 }
 
+static NVAPI_DEVICE_FEATURE_LEVEL translate_feature_level(D3D_FEATURE_LEVEL level_d3d)
+{
+    switch (level_d3d)
+    {
+        case D3D_FEATURE_LEVEL_9_1:
+        case D3D_FEATURE_LEVEL_9_2:
+        case D3D_FEATURE_LEVEL_9_3:
+            return NVAPI_DEVICE_FEATURE_LEVEL_NULL;
+        case D3D_FEATURE_LEVEL_10_0:
+            return NVAPI_DEVICE_FEATURE_LEVEL_10_0;
+        case D3D_FEATURE_LEVEL_10_1:
+            return NVAPI_DEVICE_FEATURE_LEVEL_10_1;
+        case D3D_FEATURE_LEVEL_11_0:
+        default:
+            return NVAPI_DEVICE_FEATURE_LEVEL_11_0;
+    }
+}
+
+static NvAPI_Status CDECL NvAPI_D3D11_CreateDevice(IDXGIAdapter *adapter, D3D_DRIVER_TYPE driver_type, HMODULE swrast, UINT flags,
+                                                   const D3D_FEATURE_LEVEL *feature_levels, UINT levels, UINT sdk_version,
+                                                   ID3D11Device **device_out, D3D_FEATURE_LEVEL *obtained_feature_level,
+                                                   ID3D11DeviceContext **immediate_context, NVAPI_DEVICE_FEATURE_LEVEL *supported)
+{
+    D3D_FEATURE_LEVEL level;
+    HRESULT hr;
+
+    hr = D3D11CreateDevice(adapter, driver_type, swrast, flags, feature_levels, levels, sdk_version, device_out, &level, immediate_context);
+    if (FAILED(hr)) return NVAPI_ERROR;
+    if (obtained_feature_level) *obtained_feature_level = level;
+    if (supported) *supported = translate_feature_level(level);
+
+    return NVAPI_OK;
+}
+
+static NvAPI_Status CDECL NvAPI_D3D11_CreateDeviceAndSwapChain(IDXGIAdapter *adapter, D3D_DRIVER_TYPE driver_type,HMODULE swrast, UINT flags,
+                                                               const D3D_FEATURE_LEVEL *feature_levels, UINT levels, UINT sdk_version,
+                                                               const DXGI_SWAP_CHAIN_DESC *swapchain_desc, IDXGISwapChain **swapchain,
+                                                               ID3D11Device **device_out, D3D_FEATURE_LEVEL *obtained_feature_level,
+                                                               ID3D11DeviceContext **immediate_context, NVAPI_DEVICE_FEATURE_LEVEL *supported)
+{
+    D3D_FEATURE_LEVEL level;
+    HRESULT hr;
+
+    hr = D3D11CreateDeviceAndSwapChain(adapter, driver_type, swrast, flags, feature_levels, levels, sdk_version, swapchain_desc, swapchain,
+                                       device_out, &level, immediate_context);
+    if (FAILED(hr)) return NVAPI_ERROR;
+    if (obtained_feature_level) *obtained_feature_level = level;
+    if (supported) *supported = translate_feature_level(level);
+
+    return NVAPI_OK;
+}
+
 void* CDECL nvapi_QueryInterface(unsigned int offset)
 {
     static const struct
@@ -755,6 +808,8 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
         {0x5a04b644, NvAPI_GPU_GetVirtualFrameBufferSize},
         {0xc7026a87, NvAPI_GPU_GetGpuCoreCount},
         {0x7aaf7a04, NvAPI_D3D11_SetDepthBoundsTest},
+        {0x6a16d3a0, NvAPI_D3D11_CreateDevice},
+        {0xbb939ee5, NvAPI_D3D11_CreateDeviceAndSwapChain},
     };
     unsigned int i;
     TRACE("(%x)\n", offset);
