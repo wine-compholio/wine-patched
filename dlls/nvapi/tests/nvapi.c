@@ -18,6 +18,7 @@
 
 #include <stdarg.h>
 
+#define COBJMACROS
 #include "windef.h"
 #include "winbase.h"
 #include "wingdi.h"
@@ -25,7 +26,8 @@
 #include "shlwapi.h"
 #include "winerror.h"
 #include "nvapi.h"
-#include <d3d9.h>
+#include "d3d9.h"
+#include "d3d11.h"
 
 #include "wine/test.h"
 
@@ -46,6 +48,8 @@ static NvAPI_Status (CDECL* pNvAPI_SYS_GetDriverAndBranchVersion)(NvU32* pDriver
 static NvAPI_Status (CDECL* pNvAPI_D3D_GetCurrentSLIState)(IUnknown *pDevice, NV_GET_CURRENT_SLI_STATE *pSliState);
 static NvAPI_Status (CDECL* pNvAPI_GetLogicalGPUFromDisplay)(NvDisplayHandle hNvDisp, NvLogicalGpuHandle *pLogicalGPU);
 static NvAPI_Status (CDECL* pNvAPI_D3D11_SetDepthBoundsTest)(IUnknown*, NvU32, float, float);
+static NvAPI_Status (CDECL* pNvAPI_D3D11_CreateDevice)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT,
+                                                       ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**, NVAPI_DEVICE_FEATURE_LEVEL*);
 
 static const struct
 {
@@ -70,6 +74,7 @@ function_list[] =
     {0x4b708b54, (void**) &pNvAPI_D3D_GetCurrentSLIState},
     {0xee1370cf, (void**) &pNvAPI_GetLogicalGPUFromDisplay},
     {0x7aaf7a04, (void**) &pNvAPI_D3D11_SetDepthBoundsTest},
+    {0x6a16d3a0, (void**) &pNvAPI_D3D11_CreateDevice},
 };
 
 static BOOL init(void)
@@ -721,6 +726,56 @@ static void test_NvAPI_D3D11_SetDepthBoundsTest(void)
     ok(status == NVAPI_INVALID_ARGUMENT, "Expected status NVAPI_INVALID_ARGUMENT, got %d\n", status);
 }
 
+static void test_NvAPI_D3D11_CreateDevice(void)
+{
+    NVAPI_DEVICE_FEATURE_LEVEL level_nvapi;
+    D3D_FEATURE_LEVEL level_d3d;
+    ID3D11Device *device;
+    NvAPI_Status status;
+
+    if (!pNvAPI_D3D11_CreateDevice)
+    {
+        win_skip("NvAPI_D3D11_CreateDevice export not found.\n");
+        return;
+    }
+
+    status = pNvAPI_D3D11_CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, 0,
+                                       D3D11_SDK_VERSION, &device, &level_d3d, NULL, &level_nvapi);
+    ok(status == NVAPI_OK, "Expected status NVAPI_OK, got %d\n", status);
+
+    switch (level_d3d)
+    {
+        case D3D_FEATURE_LEVEL_9_1:
+        case D3D_FEATURE_LEVEL_9_2:
+        case D3D_FEATURE_LEVEL_9_3:
+            ok(level_nvapi == NVAPI_DEVICE_FEATURE_LEVEL_NULL, "Expected level NVAPI_DEVICE_FEATURE_LEVEL_NULL, got %d\n", level_nvapi);
+            break;
+        case D3D_FEATURE_LEVEL_10_0:
+            ok(level_nvapi == NVAPI_DEVICE_FEATURE_LEVEL_10_0 || level_nvapi == NVAPI_DEVICE_FEATURE_LEVEL_10_0_PLUS,
+               "Expected level NVAPI_DEVICE_FEATURE_LEVEL_10_0(_PLUS), got %d\n", level_nvapi);
+            break;
+        case D3D_FEATURE_LEVEL_10_1:
+            ok(level_nvapi == NVAPI_DEVICE_FEATURE_LEVEL_10_1, "Expected level NVAPI_DEVICE_FEATURE_LEVEL_10_1, got %d\n", level_nvapi);
+            break;
+        case D3D_FEATURE_LEVEL_11_0:
+        default:
+            ok(level_nvapi == NVAPI_DEVICE_FEATURE_LEVEL_11_0, "Expected level NVAPI_DEVICE_FEATURE_LEVEL_11_0, got %d\n", level_nvapi);
+            break;
+    }
+
+    if (status == NVAPI_OK)
+        ID3D11Device_Release(device);
+
+    level_d3d = D3D_FEATURE_LEVEL_9_1;
+    status = pNvAPI_D3D11_CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, &level_d3d, 1,
+                                       D3D11_SDK_VERSION, &device, NULL, NULL, &level_nvapi);
+    ok(status == NVAPI_OK, "Expected status NVAPI_OK, got %d\n", status);
+    ok(level_nvapi == NVAPI_DEVICE_FEATURE_LEVEL_NULL, "Expected level NVAPI_DEVICE_FEATURE_LEVEL_NULL, got %d\n", level_nvapi);
+
+    if (status == NVAPI_OK)
+        ID3D11Device_Release(device);
+}
+
 START_TEST( nvapi )
 {
     WNDCLASSA wc = {0};
@@ -741,6 +796,7 @@ START_TEST( nvapi )
     test_NvAPI_SYS_GetDriverAndBranchVersion();
     test_NvAPI_GetLogicalGPUFromDisplay();
     test_NvAPI_D3D11_SetDepthBoundsTest();
+    test_NvAPI_D3D11_CreateDevice();
 
     /* d3d9 tests */
     wc.lpfnWndProc = DefWindowProcA;
