@@ -1228,9 +1228,13 @@ __ASM_STDCALL_FUNC( RtlCaptureContext, 4,
                     "movl 8(%esp),%eax\n\t"    /* context */
                     "movl $0x10007,(%eax)\n\t" /* context->ContextFlags */
                     "movw %gs,0x8c(%eax)\n\t"  /* context->SegGs */
+                    "movw $0,0x8e(%eax)\n\t"
                     "movw %fs,0x90(%eax)\n\t"  /* context->SegFs */
+                    "movw $0,0x92(%eax)\n\t"
                     "movw %es,0x94(%eax)\n\t"  /* context->SegEs */
+                    "movw $0,0x96(%eax)\n\t"
                     "movw %ds,0x98(%eax)\n\t"  /* context->SegDs */
+                    "movw $0,0x9a(%eax)\n\t"
                     "movl %edi,0x9c(%eax)\n\t" /* context->Edi */
                     "movl %esi,0xa0(%eax)\n\t" /* context->Esi */
                     "movl %ebx,0xa4(%eax)\n\t" /* context->Ebx */
@@ -1240,6 +1244,7 @@ __ASM_STDCALL_FUNC( RtlCaptureContext, 4,
                     "movl 4(%esp),%edx\n\t"
                     "movl %edx,0xb8(%eax)\n\t" /* context->Eip */
                     "movw %cs,0xbc(%eax)\n\t"  /* context->SegCs */
+                    "movw $0,0xbe(%eax)\n\t"
                     "pushfl\n\t"
                     __ASM_CFI(".cfi_adjust_cfa_offset 4\n\t")
                     "popl 0xc0(%eax)\n\t"      /* context->EFlags */
@@ -1247,6 +1252,7 @@ __ASM_STDCALL_FUNC( RtlCaptureContext, 4,
                     "leal 8(%esp),%edx\n\t"
                     "movl %edx,0xc4(%eax)\n\t" /* context->Esp */
                     "movw %ss,0xc8(%eax)\n\t"  /* context->SegSs */
+                    "movw $0,0xca(%eax)\n\t"
                     "popl 0xb0(%eax)\n\t"      /* context->Eax */
                     __ASM_CFI(".cfi_adjust_cfa_offset -4\n\t")
                     "ret $4" )
