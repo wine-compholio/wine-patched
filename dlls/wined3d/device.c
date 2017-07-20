@@ -382,10 +382,8 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
         }
 
         gl_info->gl_ops.gl.p_glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-        context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE));
-        context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE1));
-        context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE2));
-        context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE3));
+        for (i = 0; i < MAX_RENDER_TARGETS; ++i)
+            context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITE(i)));
         gl_info->gl_ops.gl.p_glClearColor(color->r, color->g, color->b, color->a);
         checkGLcall("glClearColor");
         clear_mask = clear_mask | GL_COLOR_BUFFER_BIT;
