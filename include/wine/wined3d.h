@@ -385,8 +385,20 @@ enum wined3d_render_state
     WINED3D_RS_BLENDOPALPHA                 = 209,
     WINED3D_RS_DEPTHCLIP                    = 210,
     WINED3D_RS_DEPTHBIASCLAMP               = 211,
+    WINED3D_RS_COLORWRITEENABLE4            = 212,
+    WINED3D_RS_COLORWRITEENABLE5            = 213,
+    WINED3D_RS_COLORWRITEENABLE6            = 214,
+    WINED3D_RS_COLORWRITEENABLE7            = 215,
 };
-#define WINEHIGHEST_RENDER_STATE                                WINED3D_RS_DEPTHBIASCLAMP
+#define WINEHIGHEST_RENDER_STATE                                WINED3D_RS_COLORWRITEENABLE7
+
+static inline enum wined3d_render_state WINED3D_RS_COLORWRITE(int index)
+{
+    if (index == 0) return WINED3D_RS_COLORWRITEENABLE;
+    if (index <= 3) return WINED3D_RS_COLORWRITEENABLE1 + index - 1;
+    if (index <= 7) return WINED3D_RS_COLORWRITEENABLE4 + index - 4;
+    return WINED3D_RS_COLORWRITEENABLE;
+}
 
 enum wined3d_blend
 {
