@@ -10171,13 +10171,13 @@ static void test_il_append_aligned(void)
     ID3D11DeviceContext_DrawInstanced(context, 4, 4, 0, 4);
 
     color = get_texture_color(test_context.backbuffer,  80, 240);
-    todo_wine ok(compare_color(color, 0xff00ff00, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, 0xff00ff00, 1), "Got unexpected color 0x%08x.\n", color);
     color = get_texture_color(test_context.backbuffer, 240, 240);
-    todo_wine ok(compare_color(color, 0xff0000ff, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, 0xff0000ff, 1), "Got unexpected color 0x%08x.\n", color);
     color = get_texture_color(test_context.backbuffer, 400, 240);
-    todo_wine ok(compare_color(color, 0xffff00ff, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, 0xffff00ff, 1), "Got unexpected color 0x%08x.\n", color);
     color = get_texture_color(test_context.backbuffer, 560, 240);
-    todo_wine ok(compare_color(color, 0xffff0000, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, 0xffff0000, 1), "Got unexpected color 0x%08x.\n", color);
 
     ID3D11PixelShader_Release(ps);
     ID3D11VertexShader_Release(vs);
