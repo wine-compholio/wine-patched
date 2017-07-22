@@ -3935,6 +3935,7 @@ struct wined3d_pixel_shader
     /* Some information about the shader behavior */
     BOOL color0_mov;
     DWORD color0_reg;
+    DWORD depth_compare;
 };
 
 struct wined3d_compute_shader
