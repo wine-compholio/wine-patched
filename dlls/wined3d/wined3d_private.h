@@ -494,6 +494,8 @@ enum wined3d_shader_register_type
     WINED3DSPR_COVERAGE,
     WINED3DSPR_SAMPLEMASK,
     WINED3DSPR_GSINSTID,
+    WINED3DSPR_DEPTHOUT_GREATER_EQUAL,
+    WINED3DSPR_DEPTHOUT_LESS_EQUAL,
 };
 
 enum wined3d_data_type
@@ -4055,6 +4057,8 @@ static inline BOOL shader_is_scalar(const struct wined3d_shader_register *reg)
             return FALSE;
 
         case WINED3DSPR_DEPTHOUT:   /* oDepth */
+        case WINED3DSPR_DEPTHOUT_GREATER_EQUAL:
+        case WINED3DSPR_DEPTHOUT_LESS_EQUAL:
         case WINED3DSPR_CONSTBOOL:  /* b# */
         case WINED3DSPR_LOOP:       /* aL */
         case WINED3DSPR_PREDICATE:  /* p0 */

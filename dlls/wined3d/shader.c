@@ -2139,6 +2139,14 @@ static void shader_dump_register(struct wined3d_string_buffer *buffer,
             shader_addline(buffer, "oC");
             break;
 
+        case WINED3DSPR_DEPTHOUT_GREATER_EQUAL:
+            shader_addline(buffer, "oDepth_greater_equal");
+            break;
+
+        case WINED3DSPR_DEPTHOUT_LESS_EQUAL:
+            shader_addline(buffer, "oDepth_less_equal");
+            break;
+
         case WINED3DSPR_DEPTHOUT:
             shader_addline(buffer, "oDepth");
             break;

@@ -2631,6 +2631,8 @@ static void shader_glsl_get_register_name(const struct wined3d_shader_register *
             sprintf(register_name, "%s", hwrastout_reg_names[reg->idx[0].offset]);
             break;
 
+        case WINED3DSPR_DEPTHOUT_GREATER_EQUAL:
+        case WINED3DSPR_DEPTHOUT_LESS_EQUAL:
         case WINED3DSPR_DEPTHOUT:
             sprintf(register_name, "gl_FragDepth");
             break;
