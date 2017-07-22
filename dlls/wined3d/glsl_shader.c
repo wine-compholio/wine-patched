@@ -6989,9 +6989,19 @@ static GLuint shader_glsl_generate_pshader(const struct wined3d_context *context
      * nvidia drivers write a warning if we don't do so. */
     if (gl_info->supported[ARB_TEXTURE_RECTANGLE])
         shader_addline(buffer, "#extension GL_ARB_texture_rectangle : enable\n");
+    if (gl_info->supported[ARB_CONSERVATIVE_DEPTH] && shader->u.ps.depth_compare)
+        shader_addline(buffer, "#extension GL_ARB_conservative_depth : enable\n");
 
     /* Base Declarations */
     shader_generate_glsl_declarations(context, buffer, shader, reg_maps, &priv_ctx);
+
+    if (gl_info->supported[ARB_CONSERVATIVE_DEPTH])
+    {
+        if (shader->u.ps.depth_compare == WINED3DSPR_DEPTHOUT_GREATER_EQUAL)
+            shader_addline(buffer, "layout (depth_greater) out float gl_FragDepth;\n");
+        else if (shader->u.ps.depth_compare == WINED3DSPR_DEPTHOUT_LESS_EQUAL)
+            shader_addline(buffer, "layout (depth_less) out float gl_FragDepth;\n");
+    }
 
     /* Declare uniforms for NP2 texcoord fixup:
      * This is NOT done inside the loop that declares the texture samplers

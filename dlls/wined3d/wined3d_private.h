@@ -3967,6 +3967,7 @@ struct wined3d_pixel_shader
     DWORD color0_reg;
 
     BOOL force_early_depth_stencil;
+    DWORD depth_compare;
 };
 
 struct wined3d_compute_shader
