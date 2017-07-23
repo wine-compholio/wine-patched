@@ -18982,7 +18982,7 @@ static void test_uav_counters(void)
     data = 8;
     ID3D11DeviceContext_CSSetUnorderedAccessViews(context, 0, 1, &uav, &data);
     data = read_uav_counter(context, staging_buffer, uav);
-    todo_wine ok(data == 8, "Got unexpected value %u.\n", data);
+    ok(data == 8, "Got unexpected value %u.\n", data);
 
     ID3D11DeviceContext_CSSetShader(context, cs_producer, NULL, 0);
     data = 0;
@@ -18994,7 +18994,7 @@ static void test_uav_counters(void)
     /* produce */
     ID3D11DeviceContext_Dispatch(context, 16, 1, 1);
     data = read_uav_counter(context, staging_buffer, uav);
-    todo_wine ok(data == 64, "Got unexpected value %u.\n", data);
+    ok(data == 64, "Got unexpected value %u.\n", data);
     get_buffer_readback(buffer, &rb);
     memcpy(id, rb.map_desc.pData, 64 * sizeof(*id));
     release_resource_readback(&rb);
@@ -19030,12 +19030,12 @@ static void test_uav_counters(void)
     data = 8;
     ID3D11DeviceContext_CSSetUnorderedAccessViews(context, 0, 1, &uav, &data);
     data = read_uav_counter(context, staging_buffer, uav);
-    todo_wine ok(data == 8, "Got unexpected value %u.\n", data);
+    ok(data == 8, "Got unexpected value %u.\n", data);
 
     /* consume */
     ID3D11DeviceContext_Dispatch(context, 1, 1, 1);
     data = read_uav_counter(context, staging_buffer, uav);
-    todo_wine ok(data == 4, "Got unexpected value %u.\n", data);
+    ok(data == 4, "Got unexpected value %u.\n", data);
     ID3D11DeviceContext_Dispatch(context, 1, 1, 1);
     data = read_uav_counter(context, staging_buffer, uav);
     ok(!data, "Got unexpected value %u.\n", data);

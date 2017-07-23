@@ -37,6 +37,7 @@
 @ cdecl wined3d_device_clear_rendertarget_view(ptr ptr ptr long ptr float long)
 @ cdecl wined3d_device_clear_unordered_access_view_uint(ptr ptr ptr)
 @ cdecl wined3d_device_copy_resource(ptr ptr ptr)
+@ cdecl wined3d_device_copy_structure_count(ptr ptr long ptr)
 @ cdecl wined3d_device_copy_sub_resource_region(ptr ptr long long long long ptr long ptr)
 @ cdecl wined3d_device_create(ptr long long ptr long long ptr ptr)
 @ cdecl wined3d_device_decref(ptr)

@@ -1973,8 +1973,22 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_UpdateSubresource(ID3D11De
 static void STDMETHODCALLTYPE d3d11_immediate_context_CopyStructureCount(ID3D11DeviceContext *iface,
         ID3D11Buffer *dst_buffer, UINT dst_offset, ID3D11UnorderedAccessView *src_view)
 {
-    FIXME("iface %p, dst_buffer %p, dst_offset %u, src_view %p stub!\n",
+    struct d3d_device *device = device_from_immediate_ID3D11DeviceContext(iface);
+    struct d3d11_unordered_access_view *view;
+    struct d3d_buffer *buffer;
+
+    TRACE("iface %p, dst_buffer %p, dst_offset %u, src_view %p.\n",
             iface, dst_buffer, dst_offset, src_view);
+
+    if (!dst_buffer || !src_view)
+        return;
+
+    buffer = unsafe_impl_from_ID3D11Buffer(dst_buffer);
+    view = unsafe_impl_from_ID3D11UnorderedAccessView(src_view);
+
+    wined3d_mutex_lock();
+    wined3d_device_copy_structure_count(device->wined3d_device, buffer->wined3d_buffer, dst_offset, view->wined3d_view);
+    wined3d_mutex_unlock();
 }
 
 static void STDMETHODCALLTYPE d3d11_immediate_context_ClearRenderTargetView(ID3D11DeviceContext *iface,
