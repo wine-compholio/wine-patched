@@ -1601,7 +1601,7 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_OMSetRenderTargetsAndUnord
         wined3d_mutex_lock();
         for (i = 0; i < unordered_access_view_start_slot; ++i)
         {
-            wined3d_device_set_unordered_access_view(device->wined3d_device, i, NULL);
+            wined3d_device_set_unordered_access_view(device->wined3d_device, i, NULL, ~0u);
         }
         for (i = 0; i < unordered_access_view_count; ++i)
         {
@@ -1616,12 +1616,13 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_OMSetRenderTargetsAndUnord
 
             wined3d_device_set_unordered_access_view(device->wined3d_device,
                     unordered_access_view_start_slot + i,
-                    view ? view->wined3d_view : NULL);
+                    view ? view->wined3d_view : NULL,
+                    initial_counts ? initial_counts[i] : ~0u);
         }
         for (; unordered_access_view_start_slot + i < D3D11_PS_CS_UAV_REGISTER_COUNT; ++i)
         {
             wined3d_device_set_unordered_access_view(device->wined3d_device,
-                    unordered_access_view_start_slot + i, NULL);
+                    unordered_access_view_start_slot + i, NULL, ~0u);
         }
         wined3d_mutex_unlock();
     }
@@ -2299,7 +2300,7 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_CSSetUnorderedAccessViews(
             FIXME("Ignoring initial count %u for slot %u.\n", initial_counts[i], start_slot + i);
 
         wined3d_device_set_cs_uav(device->wined3d_device, start_slot + i,
-                view ? view->wined3d_view : NULL);
+                view ? view->wined3d_view : NULL, initial_counts ? initial_counts[i] : ~0u);
     }
     wined3d_mutex_unlock();
 }
@@ -3441,8 +3442,8 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_ClearState(ID3D11DeviceCon
     wined3d_device_set_depth_stencil_view(device->wined3d_device, NULL);
     for (i = 0; i < D3D11_PS_CS_UAV_REGISTER_COUNT; ++i)
     {
-        wined3d_device_set_unordered_access_view(device->wined3d_device, i, NULL);
-        wined3d_device_set_cs_uav(device->wined3d_device, i, NULL);
+        wined3d_device_set_unordered_access_view(device->wined3d_device, i, NULL, ~0u);
+        wined3d_device_set_cs_uav(device->wined3d_device, i, NULL, ~0u);
     }
     ID3D11DeviceContext_OMSetDepthStencilState(iface, NULL, 0);
     ID3D11DeviceContext_OMSetBlendState(iface, NULL, blend_factor, D3D11_DEFAULT_SAMPLE_MASK);

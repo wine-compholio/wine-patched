@@ -902,6 +902,24 @@ void wined3d_unordered_access_view_clear_uint(struct wined3d_unordered_access_vi
     checkGLcall("clear unordered access view");
 }
 
+void wined3d_unordered_access_view_set_counter(struct wined3d_unordered_access_view *view,
+        unsigned int initial_count)
+{
+    const struct wined3d_gl_info *gl_info;
+    struct wined3d_context *context;
+    GLuint value = initial_count;
+
+    if (!view->counter_bo)
+        return;
+
+    context = context_acquire(view->resource->device, NULL, 0);
+    gl_info = context->gl_info;
+    GL_EXTCALL(glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, view->counter_bo));
+    GL_EXTCALL(glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(value), &value));
+    checkGLcall("set atomic counter");
+    context_release(context);
+}
+
 static void wined3d_unordered_access_view_cs_init(void *object)
 {
     struct wined3d_unordered_access_view *view = object;
