@@ -1815,7 +1815,17 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_Dispatch(ID3D11DeviceConte
 static void STDMETHODCALLTYPE d3d11_immediate_context_DispatchIndirect(ID3D11DeviceContext *iface,
         ID3D11Buffer *buffer, UINT offset)
 {
-    FIXME("iface %p, buffer %p, offset %u stub!\n", iface, buffer, offset);
+    struct d3d_device *device = device_from_immediate_ID3D11DeviceContext(iface);
+    struct d3d_buffer *d3d_buffer;
+
+    TRACE("iface %p, buffer %p, offset %u.\n", iface, buffer, offset);
+
+    d3d_buffer = unsafe_impl_from_ID3D11Buffer(buffer);
+
+    wined3d_mutex_lock();
+    wined3d_device_dispatch_compute_indirect(device->wined3d_device,
+            d3d_buffer->wined3d_buffer, offset);
+    wined3d_mutex_unlock();
 }
 
 static void STDMETHODCALLTYPE d3d11_immediate_context_RSSetState(ID3D11DeviceContext *iface,
