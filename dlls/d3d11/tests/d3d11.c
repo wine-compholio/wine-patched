@@ -19043,7 +19043,7 @@ static void test_uav_counters(void)
     for (i = 0; i < 8; ++i)
     {
         data = get_readback_color(&rb, i, 0);
-        todo_wine ok(data == 0xdeadbeef, "Got data %u at %u.\n", data, i);
+        ok(data == 0xdeadbeef, "Got data %u at %u.\n", data, i);
     }
     release_resource_readback(&rb);
 
