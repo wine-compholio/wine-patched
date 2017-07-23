@@ -45,6 +45,7 @@
 @ cdecl wined3d_device_dispatch_compute_indirect(ptr ptr long)
 @ cdecl wined3d_device_draw_indexed_primitive(ptr long long)
 @ cdecl wined3d_device_draw_indexed_primitive_instanced(ptr long long long long)
+@ cdecl wined3d_device_draw_indexed_primitive_instanced_indirect(ptr ptr long)
 @ cdecl wined3d_device_draw_primitive(ptr long long)
 @ cdecl wined3d_device_draw_primitive_instanced(ptr long long long long)
 @ cdecl wined3d_device_end_scene(ptr)
