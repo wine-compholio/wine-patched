@@ -4289,6 +4289,22 @@ void CDECL wined3d_device_update_sub_resource(struct wined3d_device *device, str
     wined3d_cs_emit_update_sub_resource(device->cs, resource, sub_resource_idx, box, data, row_pitch, depth_pitch);
 }
 
+HRESULT CDECL wined3d_device_copy_structure_count(struct wined3d_device *device, struct wined3d_buffer *dst_buffer,
+    unsigned int offset, struct wined3d_unordered_access_view *src_view)
+{
+    TRACE("device %p, dst_buffer %p, offset %u, src_view %p.\n",
+            device, dst_buffer, offset, src_view);
+
+    if (offset + sizeof(GLuint) > dst_buffer->resource.size)
+    {
+        WARN("Offset %u too large.\n", offset);
+        return WINED3DERR_INVALIDCALL;
+    }
+
+    wined3d_cs_emit_copy_structure_count(device->cs, dst_buffer, offset, src_view);
+    return WINED3D_OK;
+}
+
 HRESULT CDECL wined3d_device_clear_rendertarget_view(struct wined3d_device *device,
         struct wined3d_rendertarget_view *view, const RECT *rect, DWORD flags,
         const struct wined3d_color *color, float depth, DWORD stencil)

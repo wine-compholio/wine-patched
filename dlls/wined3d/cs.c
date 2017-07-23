@@ -71,6 +71,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_ADD_DIRTY_TEXTURE_REGION,
     WINED3D_CS_OP_CLEAR_UNORDERED_ACCESS_VIEW,
     WINED3D_CS_OP_COPY_SUB_RESOURCE,
+    WINED3D_CS_OP_COPY_STRUCTURE_COUNT,
     WINED3D_CS_OP_STOP,
 };
 
@@ -429,6 +430,14 @@ struct wined3d_cs_copy_sub_resource
     struct wined3d_resource *src_resource;
     unsigned int src_sub_resource_idx;
     struct wined3d_box src_box;
+};
+
+struct wined3d_cs_copy_structure_count
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_buffer *dst_buffer;
+    unsigned int offset;
+    struct wined3d_unordered_access_view *src_view;
 };
 
 struct wined3d_cs_stop
@@ -2380,6 +2389,37 @@ void wined3d_cs_emit_copy_sub_resource(struct wined3d_cs *cs, struct wined3d_res
     cs->ops->submit(cs, WINED3D_CS_QUEUE_DEFAULT);
 }
 
+static void wined3d_cs_exec_copy_structure_count(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_copy_structure_count *op = data;
+
+    if (op->src_view->counter_bo)
+    {
+        wined3d_buffer_copy_from_gl_buffer(op->dst_buffer, op->offset,
+                op->src_view->counter_bo, GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint));
+    }
+
+    wined3d_resource_release(&op->dst_buffer->resource);
+    wined3d_resource_release(op->src_view->resource);
+}
+
+void wined3d_cs_emit_copy_structure_count(struct wined3d_cs *cs, struct wined3d_buffer *dst_buffer,
+        unsigned int offset, struct wined3d_unordered_access_view *src_view)
+{
+    struct wined3d_cs_copy_structure_count *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op), WINED3D_CS_QUEUE_DEFAULT);
+    op->opcode = WINED3D_CS_OP_COPY_STRUCTURE_COUNT;
+    op->dst_buffer = dst_buffer;
+    op->offset = offset;
+    op->src_view = src_view;
+
+    wined3d_resource_acquire(&dst_buffer->resource);
+    wined3d_resource_acquire(src_view->resource);
+
+    cs->ops->submit(cs, WINED3D_CS_QUEUE_DEFAULT);
+}
+
 static void wined3d_cs_emit_stop(struct wined3d_cs *cs)
 {
     struct wined3d_cs_stop *op;
@@ -2438,6 +2478,7 @@ static void (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_ADD_DIRTY_TEXTURE_REGION    */ wined3d_cs_exec_add_dirty_texture_region,
     /* WINED3D_CS_OP_CLEAR_UNORDERED_ACCESS_VIEW */ wined3d_cs_exec_clear_unordered_access_view,
     /* WINED3D_CS_OP_COPY_SUB_RESOURCE           */ wined3d_cs_exec_copy_sub_resource,
+    /* WINED3D_CS_OP_COPY_STRUCTURE_COUNT        */ wined3d_cs_exec_copy_structure_count,
 };
 
 static void *wined3d_cs_st_require_space(struct wined3d_cs *cs, size_t size, enum wined3d_cs_queue_id queue_id)
