@@ -1109,7 +1109,7 @@ static BOOL context_set_pixel_format(struct wined3d_context *context, HDC dc, BO
     if (dc == context->hdc && context->hdc_is_private && context->hdc_has_format)
         return TRUE;
 
-    if (dc == context->hdc && !context->hdc_is_private && WindowFromDC(dc) != context->win_handle)
+    if (dc == context->hdc && !private && WindowFromDC(dc) != context->win_handle)
         return FALSE;
 
     current = gl_info->gl_ops.wgl.p_wglGetPixelFormat(dc);
