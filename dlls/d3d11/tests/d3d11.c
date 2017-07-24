@@ -668,9 +668,10 @@ static void check_uav_desc_(unsigned int line, const D3D11_UNORDERED_ACCESS_VIEW
     }
 }
 
-#define create_buffer(a, b, c, d) create_buffer_(__LINE__, a, b, c, d)
+#define create_buffer(a, b, c, d) create_buffer_(__LINE__, a, b, 0, c, d)
+#define create_buffer_misc(a, b, c, d, e) create_buffer_(__LINE__, a, b, c, d, e)
 static ID3D11Buffer *create_buffer_(unsigned int line, ID3D11Device *device,
-        unsigned int bind_flags, unsigned int size, const void *data)
+        unsigned int bind_flags, unsigned int misc_flags, unsigned int size, const void *data)
 {
     D3D11_SUBRESOURCE_DATA resource_data;
     D3D11_BUFFER_DESC buffer_desc;
@@ -681,7 +682,7 @@ static ID3D11Buffer *create_buffer_(unsigned int line, ID3D11Device *device,
     buffer_desc.Usage = D3D11_USAGE_DEFAULT;
     buffer_desc.BindFlags = bind_flags;
     buffer_desc.CPUAccessFlags = 0;
-    buffer_desc.MiscFlags = 0;
+    buffer_desc.MiscFlags = misc_flags;
     buffer_desc.StructureByteStride = 0;
 
     resource_data.pSysMem = data;
@@ -16597,6 +16598,7 @@ static void test_uav_load(void)
 
 static void test_cs_uav_store(void)
 {
+    static const unsigned int params[4] = {16, 16, 16, 0};
     static const D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_11_0;
     D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc;
     static const float zero[4] = {0.0f};
@@ -16608,6 +16610,7 @@ static void test_cs_uav_store(void)
     ID3D11Texture2D *texture;
     ID3D11ComputeShader *cs;
     ID3D11Device *device;
+    ID3D11Buffer *buffer;
     ID3D11Buffer *cb;
     ULONG refcount;
     HRESULT hr;
@@ -16873,6 +16876,14 @@ static void test_cs_uav_store(void)
     ID3D11DeviceContext_UpdateSubresource(context, (ID3D11Resource *)cb, 0, NULL, &input, 0, 0);
     ID3D11DeviceContext_Dispatch(context, 16, 16, 1);
     check_texture_float(texture, 0.7f, 2);
+
+    input.x = 0.8f;
+    buffer = create_buffer_misc(device, D3D11_BIND_UNORDERED_ACCESS,
+            D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS, sizeof(params), params);
+    ID3D11DeviceContext_UpdateSubresource(context, (ID3D11Resource *)cb, 0, NULL, &input, 0, 0);
+    ID3D11DeviceContext_DispatchIndirect(context, buffer, 0);
+    check_texture_float(texture, 0.8f, 2);
+    ID3D11Buffer_Release(buffer);
 
     ID3D11ComputeShader_Release(cs);
 
