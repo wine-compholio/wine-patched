@@ -9979,6 +9979,7 @@ static void test_clear_state(void)
 
 static void test_il_append_aligned(void)
 {
+    static const unsigned int params[] = {4, 4, 0, 0};
     struct d3d11_test_context test_context;
     ID3D11InputLayout *input_layout;
     ID3D11DeviceContext *context;
@@ -9986,6 +9987,7 @@ static void test_il_append_aligned(void)
     ID3D11VertexShader *vs;
     ID3D11PixelShader *ps;
     ID3D11Device *device;
+    ID3D11Buffer *buffer;
     ID3D11Buffer *vb[3];
     DWORD color;
     HRESULT hr;
@@ -10155,7 +10157,6 @@ static void test_il_append_aligned(void)
     ID3D11DeviceContext_PSSetShader(context, ps, NULL, 0);
 
     ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
-
     ID3D11DeviceContext_DrawInstanced(context, 4, 4, 0, 0);
 
     color = get_texture_color(test_context.backbuffer,  80, 240);
@@ -10168,7 +10169,6 @@ static void test_il_append_aligned(void)
     ok(compare_color(color, 0xffff00ff, 1), "Got unexpected color 0x%08x.\n", color);
 
     ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
-
     ID3D11DeviceContext_DrawInstanced(context, 4, 4, 0, 4);
 
     color = get_texture_color(test_context.backbuffer,  80, 240);
@@ -10179,6 +10179,21 @@ static void test_il_append_aligned(void)
     ok(compare_color(color, 0xffff00ff, 1), "Got unexpected color 0x%08x.\n", color);
     color = get_texture_color(test_context.backbuffer, 560, 240);
     ok(compare_color(color, 0xffff0000, 1), "Got unexpected color 0x%08x.\n", color);
+
+    buffer = create_buffer_misc(device, D3D11_BIND_UNORDERED_ACCESS,
+                D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS, sizeof(params), params);
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_DrawInstancedIndirect(context, buffer, 0);
+    ID3D11Buffer_Release(buffer);
+
+    color = get_texture_color(test_context.backbuffer,  80, 240);
+    ok(compare_color(color, 0xff0000ff, 1), "Got unexpected color 0x%08x.\n", color);
+    color = get_texture_color(test_context.backbuffer, 240, 240);
+    ok(compare_color(color, 0xff00ff00, 1), "Got unexpected color 0x%08x.\n", color);
+    color = get_texture_color(test_context.backbuffer, 400, 240);
+    ok(compare_color(color, 0xffff0000, 1), "Got unexpected color 0x%08x.\n", color);
+    color = get_texture_color(test_context.backbuffer, 560, 240);
+    ok(compare_color(color, 0xffff00ff, 1), "Got unexpected color 0x%08x.\n", color);
 
     ID3D11PixelShader_Release(ps);
     ID3D11VertexShader_Release(vs);
