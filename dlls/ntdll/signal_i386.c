@@ -1281,12 +1281,16 @@ __ASM_GLOBAL_FUNC( set_full_cpu_context,
                    "movl 0xc4(%ecx),%eax\n\t" /* Esp */
                    "leal -4*4(%eax),%eax\n\t"
                    "movl 0xc0(%ecx),%edx\n\t" /* EFlags */
+                   ".byte 0x36\n\t"
                    "movl %edx,3*4(%eax)\n\t"
                    "movl 0xbc(%ecx),%edx\n\t" /* SegCs */
+                   ".byte 0x36\n\t"
                    "movl %edx,2*4(%eax)\n\t"
                    "movl 0xb8(%ecx),%edx\n\t" /* Eip */
+                   ".byte 0x36\n\t"
                    "movl %edx,1*4(%eax)\n\t"
                    "movl 0xb0(%ecx),%edx\n\t" /* Eax */
+                   ".byte 0x36\n\t"
                    "movl %edx,0*4(%eax)\n\t"
                    "pushl 0x98(%ecx)\n\t"     /* SegDs */
                    "movl 0xa8(%ecx),%edx\n\t" /* Edx */
