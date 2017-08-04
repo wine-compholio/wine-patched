@@ -126,6 +126,7 @@ struct token
     ACL           *default_dacl;    /* the default DACL to assign to objects created by this user */
     TOKEN_SOURCE   source;          /* source of the token */
     int            impersonation_level; /* impersonation level this token is capable of if non-primary token */
+    TOKEN_ELEVATION_TYPE elevation; /* elevation level */
 };
 
 struct privilege
@@ -558,7 +559,7 @@ static struct token *create_token( unsigned primary, const SID *user,
                                    const LUID_AND_ATTRIBUTES *privs, unsigned int priv_count,
                                    const ACL *default_dacl, TOKEN_SOURCE source,
                                    const luid_t *modified_id,
-                                   int impersonation_level )
+                                   int impersonation_level, TOKEN_ELEVATION_TYPE elevation )
 {
     struct token *token = alloc_object( &token_ops );
     if (token)
@@ -580,6 +581,7 @@ static struct token *create_token( unsigned primary, const SID *user,
             token->impersonation_level = impersonation_level;
         token->default_dacl = NULL;
         token->primary_group = NULL;
+        token->elevation = elevation;
 
         /* copy user */
         token->user = memdup( user, security_sid_len( user ));
@@ -692,7 +694,8 @@ struct token *token_duplicate( struct token *src_token, unsigned primary,
     token = create_token( primary, src_token->user, NULL, 0,
                           NULL, 0, src_token->default_dacl,
                           src_token->source, modified_id,
-                          impersonation_level );
+                          impersonation_level,
+                          src_token->elevation );
     if (!token) return token;
 
     /* copy groups */
@@ -896,7 +899,7 @@ struct token *token_create_admin( void )
         static const TOKEN_SOURCE admin_source = {"SeMgr", {0, 0}};
         token = create_token( TRUE, user_sid, admin_groups, sizeof(admin_groups)/sizeof(admin_groups[0]),
                               admin_privs, sizeof(admin_privs)/sizeof(admin_privs[0]), default_dacl,
-                              admin_source, NULL, -1 );
+                              admin_source, NULL, -1, TokenElevationTypeFull );
         /* we really need a primary group */
         assert( token->primary_group );
     }
@@ -1640,6 +1643,19 @@ DECL_HANDLER(get_token_statistics)
         reply->group_count = list_count( &token->groups );
         reply->privilege_count = list_count( &token->privileges );
 
+        release_object( token );
+    }
+}
+
+DECL_HANDLER(get_token_elevation_type)
+{
+    struct token *token;
+
+    if ((token = (struct token *)get_handle_obj( current->process, req->handle,
+                                                 TOKEN_QUERY,
+                                                 &token_ops )))
+    {
+        reply->elevation = token->elevation;
         release_object( token );
     }
 }

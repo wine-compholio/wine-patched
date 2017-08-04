@@ -580,18 +580,26 @@ NTSTATUS WINAPI NtQueryInformationToken(
         SERVER_END_REQ;
         break;
     case TokenElevationType:
+        SERVER_START_REQ( get_token_elevation_type )
         {
             TOKEN_ELEVATION_TYPE *elevation_type = tokeninfo;
-            FIXME("QueryInformationToken( ..., TokenElevationType, ...) semi-stub\n");
-            *elevation_type = TokenElevationTypeFull;
+            req->handle = wine_server_obj_handle( token );
+            status = wine_server_call( req );
+            if (status == STATUS_SUCCESS)
+                *elevation_type = reply->elevation;
         }
+        SERVER_END_REQ;
         break;
     case TokenElevation:
+        SERVER_START_REQ( get_token_elevation_type )
         {
             TOKEN_ELEVATION *elevation = tokeninfo;
-            FIXME("QueryInformationToken( ..., TokenElevation, ...) semi-stub\n");
-            elevation->TokenIsElevated = TRUE;
+            req->handle = wine_server_obj_handle( token );
+            status = wine_server_call( req );
+            if (status == STATUS_SUCCESS)
+                elevation->TokenIsElevated = (reply->elevation == TokenElevationTypeFull);
         }
+        SERVER_END_REQ;
         break;
     case TokenSessionId:
         {
