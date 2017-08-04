@@ -80,6 +80,9 @@ extern void fill_cpu_info(void) DECLSPEC_HIDDEN;
 extern void *grow_virtual_heap( HANDLE handle, SIZE_T *size ) DECLSPEC_HIDDEN;
 extern void heap_set_debug_flags( HANDLE handle ) DECLSPEC_HIDDEN;
 
+/* token */
+extern HANDLE CDECL __wine_create_default_token(BOOL admin);
+
 /* server support */
 extern timeout_t server_start_time DECLSPEC_HIDDEN;
 extern unsigned int server_cpus DECLSPEC_HIDDEN;
