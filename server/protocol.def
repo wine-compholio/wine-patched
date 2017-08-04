@@ -3628,6 +3628,14 @@ struct handle_info
 @END
 
 
+/* Create a new token */
+@REQ(create_token)
+    unsigned int  admin;        /* admin or limited token */
+@REPLY
+    obj_handle_t  token;        /* handle for new token */
+@END
+
+
 /* Create I/O completion port */
 @REQ(create_completion)
     unsigned int access;          /* desired access to a port */

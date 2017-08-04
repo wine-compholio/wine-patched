@@ -71,6 +71,7 @@ static const SID anonymous_logon_sid = { SID_REVISION, 1, { SECURITY_NT_AUTHORIT
 static const SID authenticated_user_sid = { SID_REVISION, 1, { SECURITY_NT_AUTHORITY }, { SECURITY_AUTHENTICATED_USER_RID } };
 static const SID local_system_sid = { SID_REVISION, 1, { SECURITY_NT_AUTHORITY }, { SECURITY_LOCAL_SYSTEM_RID } };
 static const SID high_label_sid = { SID_REVISION, 1, { SECURITY_MANDATORY_LABEL_AUTHORITY }, { SECURITY_MANDATORY_HIGH_RID } };
+static const SID medium_label_sid = { SID_REVISION, 1, { SECURITY_MANDATORY_LABEL_AUTHORITY }, { SECURITY_MANDATORY_MEDIUM_RID } };
 static const struct /* same fields as struct SID */
 {
     BYTE Revision;
@@ -110,6 +111,7 @@ const PSID security_builtin_admins_sid = (PSID)&builtin_admins_sid;
 const PSID security_builtin_users_sid = (PSID)&builtin_users_sid;
 const PSID security_domain_users_sid = (PSID)&domain_users_sid;
 const PSID security_high_label_sid = (PSID)&high_label_sid;
+const PSID security_medium_label_sid = (PSID)&medium_label_sid;
 
 static luid_t prev_luid_value = { 1000, 0 };
 
@@ -904,6 +906,64 @@ struct token *token_create_admin( void )
         token = create_token( TRUE, user_sid, admin_groups, sizeof(admin_groups)/sizeof(admin_groups[0]),
                               admin_privs, sizeof(admin_privs)/sizeof(admin_privs[0]), default_dacl,
                               admin_source, NULL, -1, TokenElevationTypeFull, &high_label_sid );
+        /* we really need a primary group */
+        assert( token->primary_group );
+    }
+
+    free( logon_sid );
+    free( alias_admins_sid );
+    free( alias_users_sid );
+    free( default_dacl );
+
+    return token;
+}
+
+static struct token *token_create_limited( void )
+{
+    struct token *token = NULL;
+    static const SID_IDENTIFIER_AUTHORITY nt_authority = { SECURITY_NT_AUTHORITY };
+    static const unsigned int alias_admins_subauth[] = { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS };
+    static const unsigned int alias_users_subauth[] = { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_USERS };
+    /* on Windows, this value changes every time the user logs on */
+    static const unsigned int logon_subauth[] = { SECURITY_LOGON_IDS_RID, 0, 1 /* FIXME: should be randomly generated when tokens are inherited by new processes */ };
+    PSID alias_admins_sid;
+    PSID alias_users_sid;
+    PSID logon_sid;
+    const SID *user_sid = security_unix_uid_to_sid( getuid() );
+    ACL *default_dacl = create_default_dacl( user_sid );
+
+    alias_admins_sid = security_sid_alloc( &nt_authority, sizeof(alias_admins_subauth)/sizeof(alias_admins_subauth[0]),
+                                           alias_admins_subauth );
+    alias_users_sid = security_sid_alloc( &nt_authority, sizeof(alias_users_subauth)/sizeof(alias_users_subauth[0]),
+                                          alias_users_subauth );
+    logon_sid = security_sid_alloc( &nt_authority, sizeof(logon_subauth)/sizeof(logon_subauth[0]),
+                                    logon_subauth );
+
+    if (alias_admins_sid && alias_users_sid && logon_sid && default_dacl)
+    {
+        const LUID_AND_ATTRIBUTES user_privs[] =
+        {
+            { SeChangeNotifyPrivilege        , SE_PRIVILEGE_ENABLED },
+            { SeShutdownPrivilege            , 0                    },
+            { SeUndockPrivilege              , 0                    },
+        };
+        /* note: we don't include non-builtin groups here for the user -
+         * telling us these is the job of a client-side program */
+        const SID_AND_ATTRIBUTES user_groups[] =
+        {
+            { security_world_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY },
+            { security_local_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY },
+            { security_interactive_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY },
+            { security_authenticated_user_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY },
+            { security_domain_users_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY|SE_GROUP_OWNER },
+            { alias_admins_sid, SE_GROUP_USE_FOR_DENY_ONLY },
+            { alias_users_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY },
+            { logon_sid, SE_GROUP_ENABLED|SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_MANDATORY|SE_GROUP_LOGON_ID },
+        };
+        static const TOKEN_SOURCE admin_source = {"SeMgr", {0, 0}};
+        token = create_token( TRUE, user_sid, user_groups, sizeof(user_groups)/sizeof(user_groups[0]),
+                              user_privs, sizeof(user_privs)/sizeof(user_privs[0]), default_dacl,
+                              admin_source, NULL, -1, TokenElevationTypeLimited, &medium_label_sid );
         /* we really need a primary group */
         assert( token->primary_group );
     }
@@ -1727,6 +1787,30 @@ DECL_HANDLER(set_token_default_dacl)
         if (acl_size)
             token->default_dacl = memdup( acl, acl_size );
 
+        release_object( token );
+    }
+}
+
+DECL_HANDLER(create_token)
+{
+    struct token *token;
+    PSID label;
+
+    if (req->admin)
+    {
+        token = token_create_admin();
+        label = security_high_label_sid;
+    }
+    else
+    {
+        token = token_create_limited();
+        label = security_medium_label_sid;
+    }
+
+    if (token)
+    {
+        if (token_assign_label( token, label ))
+            reply->token = alloc_handle( current->process, token, TOKEN_ALL_ACCESS, 0 );
         release_object( token );
     }
 }
