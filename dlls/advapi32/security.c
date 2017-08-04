@@ -840,6 +840,60 @@ BOOL WINAPI SetThreadToken(PHANDLE thread, HANDLE token)
                                                  ThreadImpersonationToken, &token, sizeof token ));
 }
 
+static BOOL allocate_groups(TOKEN_GROUPS **groups_ret, SID_AND_ATTRIBUTES *sids, DWORD count)
+{
+    TOKEN_GROUPS *groups;
+    DWORD i;
+
+    if (!count)
+    {
+        *groups_ret = NULL;
+        return TRUE;
+    }
+
+    groups = (TOKEN_GROUPS *)heap_alloc(FIELD_OFFSET(TOKEN_GROUPS, Groups) +
+                                        count * sizeof(SID_AND_ATTRIBUTES));
+    if (!groups)
+    {
+        SetLastError(ERROR_OUTOFMEMORY);
+        return FALSE;
+    }
+
+    groups->GroupCount = count;
+    for (i = 0; i < count; i++)
+        groups->Groups[i] = sids[i];
+
+    *groups_ret = groups;
+    return TRUE;
+}
+
+static BOOL allocate_privileges(TOKEN_PRIVILEGES **privileges_ret, LUID_AND_ATTRIBUTES *privs, DWORD count)
+{
+    TOKEN_PRIVILEGES *privileges;
+    DWORD i;
+
+    if (!count)
+    {
+        *privileges_ret = NULL;
+        return TRUE;
+    }
+
+    privileges = (TOKEN_PRIVILEGES *)heap_alloc(FIELD_OFFSET(TOKEN_PRIVILEGES, Privileges) +
+                                                count * sizeof(LUID_AND_ATTRIBUTES));
+    if (!privileges)
+    {
+        SetLastError(ERROR_OUTOFMEMORY);
+        return FALSE;
+    }
+
+    privileges->PrivilegeCount = count;
+    for (i = 0; i < count; i++)
+        privileges->Privileges[i] = privs[i];
+
+    *privileges_ret = privileges;
+    return TRUE;
+}
+
 /*************************************************************************
  * CreateRestrictedToken [ADVAPI32.@]
  *
@@ -871,25 +925,33 @@ BOOL WINAPI CreateRestrictedToken(
     PSID_AND_ATTRIBUTES restrictSids,
     PHANDLE newToken)
 {
-    TOKEN_TYPE type;
-    SECURITY_IMPERSONATION_LEVEL level = SecurityAnonymous;
-    DWORD size;
+    TOKEN_PRIVILEGES *delete_privs = NULL;
+    TOKEN_GROUPS *disable_groups = NULL;
+    TOKEN_GROUPS *restrict_sids = NULL;
+    BOOL ret = FALSE;
 
-    FIXME("(%p, 0x%x, %u, %p, %u, %p, %u, %p, %p): stub\n",
+    TRACE("(%p, 0x%x, %u, %p, %u, %p, %u, %p, %p)\n",
           baseToken, flags, nDisableSids, disableSids,
           nDeletePrivs, deletePrivs,
           nRestrictSids, restrictSids,
           newToken);
 
-    size = sizeof(type);
-    if (!GetTokenInformation( baseToken, TokenType, &type, size, &size )) return FALSE;
-    if (type == TokenImpersonation)
-    {
-        size = sizeof(level);
-        if (!GetTokenInformation( baseToken, TokenImpersonationLevel, &level, size, &size ))
-            return FALSE;
-    }
-    return DuplicateTokenEx( baseToken, MAXIMUM_ALLOWED, NULL, level, type, newToken );
+    if (!allocate_groups(&disable_groups, disableSids, nDisableSids))
+        goto done;
+
+    if (!allocate_privileges(&delete_privs, deletePrivs, nDeletePrivs))
+        goto done;
+
+    if (!allocate_groups(&restrict_sids, restrictSids, nRestrictSids))
+        goto done;
+
+    ret = set_ntstatus(NtFilterToken(baseToken, flags, disable_groups, delete_privs, restrict_sids, newToken));
+
+done:
+    heap_free(disable_groups);
+    heap_free(delete_privs);
+    heap_free(restrict_sids);
+    return ret;
 }
 
 /*	##############################
