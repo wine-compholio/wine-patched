@@ -4971,10 +4971,13 @@ static void test_GetUserNameW(void)
 
 static void test_CreateRestrictedToken(void)
 {
+    TOKEN_PRIMARY_GROUP *primary_group, *primary_group2;
     HANDLE process_token, token, r_token;
     PTOKEN_GROUPS token_groups, groups2;
     SID_AND_ATTRIBUTES sattr;
     SECURITY_IMPERSONATION_LEVEL level;
+    TOKEN_PRIVILEGES *privs;
+    PRIVILEGE_SET privset;
     TOKEN_TYPE type;
     BOOL is_member;
     DWORD size;
@@ -4990,7 +4993,7 @@ static void test_CreateRestrictedToken(void)
     ret = OpenProcessToken(GetCurrentProcess(), TOKEN_DUPLICATE|TOKEN_QUERY, &process_token);
     ok(ret, "got error %d\n", GetLastError());
 
-    ret = DuplicateTokenEx(process_token, TOKEN_DUPLICATE|TOKEN_ADJUST_GROUPS|TOKEN_QUERY,
+    ret = DuplicateTokenEx(process_token, TOKEN_DUPLICATE|TOKEN_ADJUST_GROUPS|TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,
         NULL, SecurityImpersonation, TokenImpersonation, &token);
     ok(ret, "got error %d\n", GetLastError());
 
@@ -5021,11 +5024,21 @@ static void test_CreateRestrictedToken(void)
     ok(ret, "got error %d\n", GetLastError());
     ok(is_member, "not a member\n");
 
-    /* disable a SID in new token */
+    privset.PrivilegeCount = 1;
+    privset.Control = PRIVILEGE_SET_ALL_NECESSARY;
+    ret = LookupPrivilegeValueA(NULL, "SeChangeNotifyPrivilege", &privset.Privilege[0].Luid);
+    ok(ret, "got error %d\n", GetLastError());
+
+    is_member = FALSE;
+    ret = PrivilegeCheck(token, &privset, &is_member);
+    ok(ret, "got error %d\n", GetLastError());
+    ok(is_member, "Expected SeChangeNotifyPrivilege to be enabled\n");
+
+    /* disable a SID and a privilege in new token */
     sattr.Sid = token_groups->Groups[i].Sid;
     sattr.Attributes = 0;
     r_token = NULL;
-    ret = pCreateRestrictedToken(token, 0, 1, &sattr, 0, NULL, 0, NULL, &r_token);
+    ret = pCreateRestrictedToken(token, 0, 1, &sattr, 1, &privset.Privilege[0], 0, NULL, &r_token);
     ok(ret, "got error %d\n", GetLastError());
 
     if (ret)
@@ -5034,7 +5047,7 @@ static void test_CreateRestrictedToken(void)
         is_member = TRUE;
         ret = pCheckTokenMembership(r_token, token_groups->Groups[i].Sid, &is_member);
         ok(ret, "got error %d\n", GetLastError());
-        todo_wine ok(!is_member, "not a member\n");
+        ok(!is_member, "not a member\n");
 
         ret = GetTokenInformation(r_token, TokenGroups, NULL, 0, &size);
         ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %d with error %d\n",
@@ -5049,9 +5062,9 @@ static void test_CreateRestrictedToken(void)
                 break;
         }
 
-        todo_wine ok(groups2->Groups[j].Attributes & SE_GROUP_USE_FOR_DENY_ONLY,
+        ok(groups2->Groups[j].Attributes & SE_GROUP_USE_FOR_DENY_ONLY,
             "got wrong attributes\n");
-        todo_wine ok((groups2->Groups[j].Attributes & SE_GROUP_ENABLED) == 0,
+        ok((groups2->Groups[j].Attributes & SE_GROUP_ENABLED) == 0,
             "got wrong attributes\n");
 
         HeapFree(GetProcessHeap(), 0, groups2);
@@ -5065,10 +5078,73 @@ static void test_CreateRestrictedToken(void)
         ret = GetTokenInformation(r_token, TokenImpersonationLevel, &level, size, &size);
         ok(ret, "got error %d\n", GetLastError());
         ok(level == SecurityImpersonation, "got level %u\n", type);
+
+        is_member = TRUE;
+        ret = PrivilegeCheck(r_token, &privset, &is_member);
+        ok(ret, "got error %d\n", GetLastError());
+        ok(!is_member, "Expected SeChangeNotifyPrivilege not to be enabled\n");
+
+        ret = GetTokenInformation(r_token, TokenPrivileges, NULL, 0, &size);
+        ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %d with error %d\n",
+            ret, GetLastError());
+        privs = HeapAlloc(GetProcessHeap(), 0, size);
+        ret = GetTokenInformation(r_token, TokenPrivileges, privs, size, &size);
+        ok(ret, "got error %d\n", GetLastError());
+
+        is_member = FALSE;
+        for (j = 0; j < privs->PrivilegeCount; j++)
+        {
+            if (RtlEqualLuid(&privs->Privileges[j].Luid, &privset.Privilege[0].Luid))
+            {
+                is_member = TRUE;
+                break;
+            }
+        }
+
+        ok(!is_member, "Expected not to find privilege\n");
+        HeapFree(GetProcessHeap(), 0, privs);
     }
 
     HeapFree(GetProcessHeap(), 0, token_groups);
     CloseHandle(r_token);
+
+    ret = GetTokenInformation(token, TokenPrimaryGroup, NULL, 0, &size);
+    ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %d with error %d\n",
+        ret, GetLastError());
+    primary_group = HeapAlloc(GetProcessHeap(), 0, size);
+    ret = GetTokenInformation(token, TokenPrimaryGroup, primary_group, size, &size);
+    ok(ret, "got error %d\n", GetLastError());
+
+    /* disable primary group */
+    sattr.Sid = primary_group->PrimaryGroup;
+    sattr.Attributes = 0;
+    r_token = NULL;
+    ret = pCreateRestrictedToken(token, 0, 1, &sattr, 0, NULL, 0, NULL, &r_token);
+    ok(ret, "got error %d\n", GetLastError());
+
+    if (ret)
+    {
+        is_member = TRUE;
+        ret = pCheckTokenMembership(r_token, primary_group->PrimaryGroup, &is_member);
+        ok(ret, "got error %d\n", GetLastError());
+        ok(!is_member, "not a member\n");
+
+        ret = GetTokenInformation(r_token, TokenPrimaryGroup, NULL, 0, &size);
+        ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %d with error %d\n",
+            ret, GetLastError());
+        primary_group2 = HeapAlloc(GetProcessHeap(), 0, size);
+        ret = GetTokenInformation(r_token, TokenPrimaryGroup, primary_group2, size, &size);
+        ok(ret, "got error %d\n", GetLastError());
+
+        ok(EqualSid(primary_group2->PrimaryGroup, primary_group->PrimaryGroup),
+           "Expected same primary group\n");
+
+        HeapFree(GetProcessHeap(), 0, primary_group2);
+    }
+
+    HeapFree(GetProcessHeap(), 0, primary_group);
+    CloseHandle(r_token);
+
     CloseHandle(token);
     CloseHandle(process_token);
 }
