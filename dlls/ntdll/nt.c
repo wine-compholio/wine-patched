@@ -119,6 +119,65 @@ NTSTATUS WINAPI NtDuplicateToken(
 }
 
 /******************************************************************************
+ *  NtFilterToken        [NTDLL.@]
+ *  ZwFilterToken        [NTDLL.@]
+ */
+NTSTATUS WINAPI NtFilterToken( HANDLE token, ULONG flags, TOKEN_GROUPS *disable_sids,
+                               TOKEN_PRIVILEGES *privileges, TOKEN_GROUPS *restrict_sids,
+                               HANDLE *new_token )
+{
+    data_size_t privileges_len = 0;
+    data_size_t sids_len = 0;
+    SID *sids = NULL;
+    NTSTATUS status;
+
+    TRACE( "(%p, 0x%08x, %p, %p, %p, %p)\n", token, flags, disable_sids, privileges,
+           restrict_sids, new_token );
+
+    if (flags)
+        FIXME( "flags %x unsupported\n", flags );
+
+    if (restrict_sids)
+        FIXME( "support for restricting sids not yet implemented\n" );
+
+    if (privileges)
+        privileges_len = privileges->PrivilegeCount * sizeof(LUID_AND_ATTRIBUTES);
+
+    if (disable_sids)
+    {
+        DWORD len, i;
+        BYTE *tmp;
+
+        for (i = 0; i < disable_sids->GroupCount; i++)
+            sids_len += RtlLengthSid( disable_sids->Groups[i].Sid );
+
+        sids = RtlAllocateHeap( GetProcessHeap(), 0, sids_len );
+        if (!sids) return STATUS_NO_MEMORY;
+
+        for (i = 0, tmp = (BYTE *)sids; i < disable_sids->GroupCount; i++, tmp += len)
+        {
+            len = RtlLengthSid( disable_sids->Groups[i].Sid );
+            memcpy( tmp, disable_sids->Groups[i].Sid, len );
+        }
+    }
+
+    SERVER_START_REQ( filter_token )
+    {
+        req->handle          = wine_server_obj_handle( token );
+        req->flags           = flags;
+        req->privileges_size = privileges_len;
+        wine_server_add_data( req, privileges->Privileges, privileges_len );
+        wine_server_add_data( req, sids, sids_len );
+        status = wine_server_call( req );
+        if (!status) *new_token = wine_server_ptr_handle( reply->new_handle );
+    }
+    SERVER_END_REQ;
+
+    RtlFreeHeap( GetProcessHeap(), 0, sids );
+    return status;
+}
+
+/******************************************************************************
  *  NtOpenProcessToken		[NTDLL.@]
  *  ZwOpenProcessToken		[NTDLL.@]
  */
