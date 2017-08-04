@@ -1480,6 +1480,9 @@
 @ cdecl wine_server_send_fd(long)
 @ cdecl __wine_make_process_system()
 
+# Token
+@ cdecl __wine_create_default_token(long)
+
 # Version
 @ cdecl wine_get_version() NTDLL_wine_get_version
 @ cdecl wine_get_patches() NTDLL_wine_get_patches
