@@ -49,6 +49,7 @@ extern const PSID security_builtin_users_sid;
 extern const PSID security_builtin_admins_sid;
 extern const PSID security_domain_users_sid;
 extern const PSID security_high_label_sid;
+extern const PSID security_medium_label_sid;
 
 
 /* token functions */
