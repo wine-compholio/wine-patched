@@ -136,6 +136,7 @@ extern void break_process( struct process *process );
 extern void detach_debugged_processes( struct thread *debugger );
 extern struct process_snapshot *process_snap( int *count );
 extern void enum_processes( int (*cb)(struct process*, void*), void *user);
+extern void replace_process_token( struct process *process, struct token *token );
 
 /* console functions */
 extern void inherit_console(struct thread *parent_thread, struct process *process, obj_handle_t hconin);
