@@ -1814,3 +1814,17 @@ DECL_HANDLER(create_token)
         release_object( token );
     }
 }
+
+/* Replaces the token of the current process  */
+DECL_HANDLER(replace_process_token)
+{
+    struct token *token;
+
+    if ((token = (struct token *)get_handle_obj( current->process, req->token,
+                                                 TOKEN_ASSIGN_PRIMARY,
+                                                 &token_ops )))
+    {
+        replace_process_token( current->process, token );
+        release_object( token );
+    }
+}
