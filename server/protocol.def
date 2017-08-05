@@ -3636,6 +3636,13 @@ struct handle_info
 @END
 
 
+/* Create a new token */
+@REQ(replace_process_token)
+    obj_handle_t  token;        /* new process token */
+@REPLY
+@END
+
+
 /* Create I/O completion port */
 @REQ(create_completion)
     unsigned int access;          /* desired access to a port */

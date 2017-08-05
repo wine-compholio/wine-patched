@@ -3092,6 +3092,32 @@ static void load_global_options(void)
 
 
 /***********************************************************************
+ *           elevate_process
+ */
+static void elevate_process( void )
+{
+    NTSTATUS status;
+    HANDLE token;
+
+    if (!(token = __wine_create_default_token( TRUE )))
+    {
+        ERR( "Failed to create admin token\n" );
+        return;
+    }
+
+    SERVER_START_REQ( replace_process_token )
+    {
+        req->token = wine_server_obj_handle( token );
+        if ((status = wine_server_call( req )))
+            ERR( "Failed to replace process token: %08x\n", status );
+    }
+    SERVER_END_REQ;
+
+    NtClose( token );
+}
+
+
+/***********************************************************************
  *           start_process
  */
 static void start_process( void *arg )
@@ -3107,6 +3133,7 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
                                 ULONG_PTR unknown3, ULONG_PTR unknown4 )
 {
     static const WCHAR globalflagW[] = {'G','l','o','b','a','l','F','l','a','g',0};
+    ACTIVATION_CONTEXT_RUN_LEVEL_INFORMATION runlevel;
     LARGE_INTEGER timeout;
     NTSTATUS status;
     WINE_MODREF *wm;
@@ -3149,6 +3176,16 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
     load_path = NtCurrentTeb()->Peb->ProcessParameters->DllPath.Buffer;
     if ((status = fixup_imports( wm, load_path )) != STATUS_SUCCESS) goto error;
     heap_set_debug_flags( GetProcessHeap() );
+
+    /* elevate process if necessary */
+    status = RtlQueryInformationActivationContext( 0, NULL, 0, RunlevelInformationInActivationContext,
+                                                   &runlevel, sizeof(runlevel), NULL );
+    if (!status && (runlevel.RunLevel == ACTCTX_RUN_LEVEL_HIGHEST_AVAILABLE ||
+                    runlevel.RunLevel == ACTCTX_RUN_LEVEL_REQUIRE_ADMIN))
+    {
+        TRACE( "Application requested admin rights (run level %d)\n", runlevel.RunLevel );
+        elevate_process();  /* FIXME: the process exists with a wrong token for a short time */
+    }
 
     status = wine_call_on_stack( attach_process_dlls, wm, (char *)NtCurrentTeb()->Tib.StackBase - page_size );
     if (status != STATUS_SUCCESS) goto error;
