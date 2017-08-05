@@ -1136,6 +1136,14 @@ struct process_snapshot *process_snap( int *count )
     return snapshot;
 }
 
+/* replace the token of a process */
+void replace_process_token( struct process *process, struct token *new_token )
+{
+    release_object(current->process->token);
+    current->process->token = new_token;
+    grab_object(new_token);
+}
+
 /* create a new process */
 DECL_HANDLER(new_process)
 {
