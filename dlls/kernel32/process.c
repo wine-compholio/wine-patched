@@ -2449,12 +2449,13 @@ static LPWSTR get_file_name( LPCWSTR appname, LPWSTR cmdline, LPWSTR buffer,
     return ret;
 }
 
-
-/* Steam hotpatches CreateProcessA and W, so to prevent it from crashing use an internal function */
-static BOOL create_process_impl( LPCWSTR app_name, LPWSTR cmd_line, LPSECURITY_ATTRIBUTES process_attr,
-                                 LPSECURITY_ATTRIBUTES thread_attr, BOOL inherit, DWORD flags,
-                                 LPVOID env, LPCWSTR cur_dir, LPSTARTUPINFOW startup_info,
-                                 LPPROCESS_INFORMATION info )
+/**********************************************************************
+ *      CreateProcessInternalW    (KERNEL32.@)
+ */
+BOOL WINAPI CreateProcessInternalW( HANDLE token, LPCWSTR app_name, LPWSTR cmd_line, LPSECURITY_ATTRIBUTES process_attr,
+                                    LPSECURITY_ATTRIBUTES thread_attr, BOOL inherit, DWORD flags,
+                                    LPVOID env, LPCWSTR cur_dir, LPSTARTUPINFOW startup_info,
+                                    LPPROCESS_INFORMATION info, HANDLE *new_token )
 {
     BOOL retv = FALSE;
     HANDLE hFile = 0;
@@ -2466,6 +2467,9 @@ static BOOL create_process_impl( LPCWSTR app_name, LPWSTR cmd_line, LPSECURITY_A
     /* Process the AppName and/or CmdLine to get module name and path */
 
     TRACE("app %s cmdline %s\n", debugstr_w(app_name), debugstr_w(cmd_line) );
+
+    if (token) FIXME("Creating a process with a token is not yet implemented\n");
+    if (new_token) FIXME("No support for returning created process token\n");
 
     if (!(tidy_cmdline = get_file_name( app_name, cmd_line, name, sizeof(name)/sizeof(WCHAR),
                                         &hFile, &binary_info )))
@@ -2618,8 +2622,8 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessA( LPCSTR app_name, LPSTR cmd_line, L
       FIXME("StartupInfo.lpReserved is used, please report (%s)\n",
             debugstr_a(startup_info->lpReserved));
 
-    ret = create_process_impl( app_nameW, cmd_lineW, process_attr, thread_attr,
-                               inherit, flags, env, cur_dirW, &infoW, info );
+    ret = CreateProcessInternalW( NULL, app_nameW, cmd_lineW, process_attr, thread_attr,
+                                  inherit, flags, env, cur_dirW, &infoW, info, NULL );
 done:
     HeapFree( GetProcessHeap(), 0, app_nameW );
     HeapFree( GetProcessHeap(), 0, cmd_lineW );
@@ -2638,8 +2642,8 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessW( LPCWSTR app_name, LPWSTR cmd_line,
                                               LPVOID env, LPCWSTR cur_dir, LPSTARTUPINFOW startup_info,
                                               LPPROCESS_INFORMATION info )
 {
-    return create_process_impl( app_name, cmd_line, process_attr, thread_attr,
-                                inherit, flags, env, cur_dir, startup_info, info);
+    return CreateProcessInternalW( NULL, app_name, cmd_line, process_attr, thread_attr,
+                                   inherit, flags, env, cur_dir, startup_info, info, NULL);
 }
 
 
