@@ -843,6 +843,12 @@ int token_assign_label( struct token *token, PSID label )
     return ret;
 }
 
+struct token *get_token_from_handle( obj_handle_t handle, unsigned int access )
+{
+    return (struct token *)get_handle_obj( current->process, handle,
+                                           access, &token_ops );
+}
+
 struct token *token_create_admin( void )
 {
     struct token *token = NULL;
@@ -1268,6 +1274,11 @@ const SID *token_get_user( struct token *token )
 const SID *token_get_primary_group( struct token *token )
 {
     return token->primary_group;
+}
+
+int token_is_primary( struct token *token )
+{
+    return token->primary;
 }
 
 int check_object_access(struct object *obj, unsigned int *access)
