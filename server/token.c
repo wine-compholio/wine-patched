@@ -605,13 +605,13 @@ static struct token *create_token( unsigned primary, const SID *user,
                 return NULL;
             }
             memcpy( &group->sid, groups[i].Sid, security_sid_len( groups[i].Sid ));
-            group->enabled = TRUE;
-            group->def = TRUE;
-            group->logon = (groups[i].Attributes & SE_GROUP_LOGON_ID) != 0;
             group->mandatory = (groups[i].Attributes & SE_GROUP_MANDATORY) != 0;
-            group->owner = (groups[i].Attributes & SE_GROUP_OWNER) != 0;
-            group->resource = FALSE;
-            group->deny_only = FALSE;
+            group->def       = (groups[i].Attributes & SE_GROUP_ENABLED_BY_DEFAULT) != 0;
+            group->enabled   = (groups[i].Attributes & SE_GROUP_ENABLED) != 0;
+            group->owner     = (groups[i].Attributes & SE_GROUP_OWNER) != 0;
+            group->deny_only = (groups[i].Attributes & SE_GROUP_USE_FOR_DENY_ONLY) != 0;
+            group->logon     = (groups[i].Attributes & SE_GROUP_LOGON_ID) != 0;
+            group->resource  = (groups[i].Attributes & SE_GROUP_RESOURCE) != 0;
             list_add_tail( &token->groups, &group->entry );
             /* Use first owner capable group as an owner */
             if (!token->primary_group && group->owner)
@@ -1620,8 +1620,8 @@ DECL_HANDLER(get_token_groups)
                     if (group->enabled) *attr_ptr |= SE_GROUP_ENABLED;
                     if (group->owner) *attr_ptr |= SE_GROUP_OWNER;
                     if (group->deny_only) *attr_ptr |= SE_GROUP_USE_FOR_DENY_ONLY;
-                    if (group->resource) *attr_ptr |= SE_GROUP_RESOURCE;
                     if (group->logon) *attr_ptr |= SE_GROUP_LOGON_ID;
+                    if (group->resource) *attr_ptr |= SE_GROUP_RESOURCE;
 
                     memcpy(sid_ptr, &group->sid, security_sid_len( &group->sid ));
 
