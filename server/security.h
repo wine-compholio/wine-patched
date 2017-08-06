@@ -67,6 +67,8 @@ extern const ACL *token_get_default_dacl( struct token *token );
 extern const SID *token_get_user( struct token *token );
 extern const SID *token_get_primary_group( struct token *token );
 extern int token_sid_present( struct token *token, const SID *sid, int deny);
+extern struct token *get_token_from_handle( obj_handle_t handle, unsigned int access );
+extern int token_is_primary( struct token *token );
 
 static inline const ACE_HEADER *ace_next( const ACE_HEADER *ace )
 {
