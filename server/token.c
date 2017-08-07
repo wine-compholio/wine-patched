@@ -127,6 +127,7 @@ struct token
     TOKEN_SOURCE   source;          /* source of the token */
     int            impersonation_level; /* impersonation level this token is capable of if non-primary token */
     TOKEN_ELEVATION_TYPE elevation; /* elevation level */
+    const SID     *integrity;       /* token integrity */
 };
 
 struct privilege
@@ -559,7 +560,8 @@ static struct token *create_token( unsigned primary, const SID *user,
                                    const LUID_AND_ATTRIBUTES *privs, unsigned int priv_count,
                                    const ACL *default_dacl, TOKEN_SOURCE source,
                                    const luid_t *modified_id,
-                                   int impersonation_level, TOKEN_ELEVATION_TYPE elevation )
+                                   int impersonation_level, TOKEN_ELEVATION_TYPE elevation,
+                                   const SID *integrity )
 {
     struct token *token = alloc_object( &token_ops );
     if (token)
@@ -640,6 +642,7 @@ static struct token *create_token( unsigned primary, const SID *user,
         }
 
         token->source = source;
+        token->integrity = integrity;
     }
     return token;
 }
@@ -695,7 +698,8 @@ struct token *token_duplicate( struct token *src_token, unsigned primary,
                           NULL, 0, src_token->default_dacl,
                           src_token->source, modified_id,
                           impersonation_level,
-                          src_token->elevation );
+                          src_token->elevation,
+                          src_token->integrity );
     if (!token) return token;
 
     /* copy groups */
@@ -899,7 +903,7 @@ struct token *token_create_admin( void )
         static const TOKEN_SOURCE admin_source = {"SeMgr", {0, 0}};
         token = create_token( TRUE, user_sid, admin_groups, sizeof(admin_groups)/sizeof(admin_groups[0]),
                               admin_privs, sizeof(admin_privs)/sizeof(admin_privs[0]), default_dacl,
-                              admin_source, NULL, -1, TokenElevationTypeFull );
+                              admin_source, NULL, -1, TokenElevationTypeFull, &high_label_sid );
         /* we really need a primary group */
         assert( token->primary_group );
     }
@@ -1538,6 +1542,26 @@ DECL_HANDLER(get_token_sid)
             if (reply->sid_len <= get_reply_max_size()) set_reply_data( sid, reply->sid_len );
             else set_error( STATUS_BUFFER_TOO_SMALL );
         }
+        release_object( token );
+    }
+}
+
+/* retrieves the integrity sid */
+DECL_HANDLER(get_token_integrity)
+{
+    struct token *token;
+
+    reply->sid_len = 0;
+
+    if ((token = (struct token *)get_handle_obj( current->process, req->handle,
+                                                 TOKEN_QUERY,
+                                                 &token_ops )))
+    {
+        reply->sid_len = security_sid_len( token->integrity );
+        if (reply->sid_len <= get_reply_max_size())
+            set_reply_data( token->integrity, reply->sid_len );
+        else
+            set_error( STATUS_BUFFER_TOO_SMALL );
         release_object( token );
     }
 }
