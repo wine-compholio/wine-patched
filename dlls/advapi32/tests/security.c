@@ -7290,7 +7290,7 @@ static void test_token_security_descriptor(void)
             ret = DuplicateTokenEx(token4, 0, NULL, SecurityImpersonation, TokenImpersonation, &token5);
             ok(ret, "DuplicateTokenEx failed with error %u\n", GetLastError());
             ret = SetThreadToken(NULL, token5);
-            todo_wine ok(ret, "SetThreadToken failed with error %u\n", GetLastError());
+            ok(ret, "SetThreadToken failed with error %u\n", GetLastError());
             CloseHandle(token4);
 
             /* Restrict current process token while impersonating a medium integrity token */
@@ -7355,16 +7355,16 @@ static void test_token_security_descriptor(void)
 
             size = 0;
             ret = GetKernelObjectSecurity(token6, LABEL_SECURITY_INFORMATION, NULL, 0, &size);
-            todo_wine ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER,
+            ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER,
                "Unexpected GetKernelObjectSecurity return value %u, error %u\n", ret, GetLastError());
 
             sd3 = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
             ret = GetKernelObjectSecurity(token6, LABEL_SECURITY_INFORMATION, sd3, size, &size);
-            todo_wine ok(ret, "GetKernelObjectSecurity failed with error %u\n", GetLastError());
+            ok(ret, "GetKernelObjectSecurity failed with error %u\n", GetLastError());
 
             sacl = NULL;
             ret = GetSecurityDescriptorSacl(sd3, &present, &sacl, &defaulted);
-            todo_wine ok(ret, "GetSecurityDescriptorSacl failed with error %u\n", GetLastError());
+            ok(ret, "GetSecurityDescriptorSacl failed with error %u\n", GetLastError());
             todo_wine ok(present, "No SACL in the security descriptor\n");
             todo_wine ok(sacl != NULL, "NULL SACL in the security descriptor\n");
 
@@ -7458,16 +7458,16 @@ static void test_token_security_descriptor(void)
 
         size = 0;
         ret = GetKernelObjectSecurity(token4, LABEL_SECURITY_INFORMATION, NULL, 0, &size);
-        todo_wine ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER,
+        ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER,
            "Unexpected GetKernelObjectSecurity return value %u, error %u\n", ret, GetLastError());
 
         sd3 = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
         ret = GetKernelObjectSecurity(token4, LABEL_SECURITY_INFORMATION, sd3, size, &size);
-        todo_wine ok(ret, "GetKernelObjectSecurity failed with error %u\n", GetLastError());
+        ok(ret, "GetKernelObjectSecurity failed with error %u\n", GetLastError());
 
         sacl = NULL;
         ret = GetSecurityDescriptorSacl(sd3, &present, &sacl, &defaulted);
-        todo_wine ok(ret, "GetSecurityDescriptorSacl failed with error %u\n", GetLastError());
+        ok(ret, "GetSecurityDescriptorSacl failed with error %u\n", GetLastError());
         todo_wine ok(present, "No SACL in the security descriptor\n");
         todo_wine ok(sacl != NULL, "NULL SACL in the security descriptor\n");
 
