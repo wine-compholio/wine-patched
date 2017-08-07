@@ -355,7 +355,7 @@ NTSTATUS WINAPI NtQueryInformationToken(
         0,    /* TokenAccessInformation */
         0,    /* TokenVirtualizationAllowed */
         0,    /* TokenVirtualizationEnabled */
-        sizeof(TOKEN_MANDATORY_LABEL) + sizeof(SID), /* TokenIntegrityLevel [sizeof(SID) includes one SubAuthority] */
+        0,    /* TokenIntegrityLevel */
         0,    /* TokenUIAccess */
         0,    /* TokenMandatoryPolicy */
         sizeof(TOKEN_GROUPS) + sizeof(logon_sid), /* TokenLogonSid */
@@ -608,18 +608,23 @@ NTSTATUS WINAPI NtQueryInformationToken(
         }
         break;
     case TokenIntegrityLevel:
+        SERVER_START_REQ( get_token_integrity )
         {
-            /* report always "S-1-16-12288" (high mandatory level) for now */
-            static const SID high_level = {SID_REVISION, 1, {SECURITY_MANDATORY_LABEL_AUTHORITY},
-                                                            {SECURITY_MANDATORY_HIGH_RID}};
-
             TOKEN_MANDATORY_LABEL *tml = tokeninfo;
-            PSID psid = tml + 1;
+            PSID sid = tml + 1;
+            DWORD sid_len = tokeninfolength < sizeof(*tml) ? 0 : tokeninfolength - sizeof(*tml);
 
-            tml->Label.Sid = psid;
-            tml->Label.Attributes = SE_GROUP_INTEGRITY | SE_GROUP_INTEGRITY_ENABLED;
-            memcpy(psid, &high_level, sizeof(SID));
+            req->handle = wine_server_obj_handle( token );
+            wine_server_set_reply( req, sid, sid_len );
+            status = wine_server_call( req );
+            if (retlen) *retlen = reply->sid_len + sizeof(*tml);
+            if (status == STATUS_SUCCESS)
+            {
+                tml->Label.Sid = sid;
+                tml->Label.Attributes = SE_GROUP_INTEGRITY | SE_GROUP_INTEGRITY_ENABLED;
+            }
         }
+        SERVER_END_REQ;
         break;
     case TokenAppContainerSid:
         {

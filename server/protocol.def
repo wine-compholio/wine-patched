@@ -3368,6 +3368,13 @@ enum caret_state
     VARARG(sid,SID);              /* the sid specified by which_sid from the token */
 @END
 
+@REQ(get_token_integrity)
+    obj_handle_t    handle;       /* handle to the token */
+@REPLY
+    data_size_t     sid_len;      /* length needed to store sid */
+    VARARG(sid,SID);              /* the integrity sid */
+@END
+
 @REQ(get_token_groups)
     obj_handle_t    handle;       /* handle to the token */
 @REPLY
