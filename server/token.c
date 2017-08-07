@@ -678,7 +678,7 @@ static int filter_privilege( struct privilege *privilege, const LUID_AND_ATTRIBU
 struct token *token_duplicate( struct token *src_token, unsigned primary,
                                int impersonation_level, const struct security_descriptor *sd,
                                const LUID_AND_ATTRIBUTES *filter_privileges, unsigned int priv_count,
-                               const SID *filter_groups, unsigned int group_count)
+                               const SID *filter_groups, unsigned int group_count, struct token *impersonation)
 {
     const luid_t *modified_id =
         primary || (impersonation_level == src_token->impersonation_level) ?
@@ -741,6 +741,12 @@ struct token *token_duplicate( struct token *src_token, unsigned primary,
 
     if (sd) default_set_sd( &token->obj, sd, OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
                             DACL_SECURITY_INFORMATION | SACL_SECURITY_INFORMATION );
+
+    if (!token_assign_label( token, impersonation ? (PSID)impersonation->integrity : (PSID)token->integrity ))
+    {
+        release_object( token );
+        return NULL;
+    }
 
     return token;
 }
@@ -914,6 +920,12 @@ struct token *token_create_admin( void )
                               admin_source, NULL, -1, TokenElevationTypeFull, &high_label_sid );
         /* we really need a primary group */
         assert( token->primary_group );
+
+        if (!token_assign_label( token, (PSID)token->integrity ))
+        {
+            release_object( token );
+            token = NULL;
+        }
     }
 
     free( logon_sid );
@@ -972,6 +984,12 @@ static struct token *token_create_limited( void )
                               admin_source, NULL, -1, TokenElevationTypeLimited, &medium_label_sid );
         /* we really need a primary group */
         assert( token->primary_group );
+
+        if (!token_assign_label( token, (PSID)token->integrity ))
+        {
+            release_object( token );
+            token = NULL;
+        }
     }
 
     free( logon_sid );
@@ -1440,7 +1458,8 @@ DECL_HANDLER(duplicate_token)
                                                      TOKEN_DUPLICATE,
                                                      &token_ops )))
     {
-        struct token *token = token_duplicate( src_token, req->primary, req->impersonation_level, sd, NULL, 0, NULL, 0 );
+        struct token *token = token_duplicate( src_token, req->primary, req->impersonation_level, sd, NULL, 0,
+                                               NULL, 0, thread_get_impersonation_token( current ) );
         if (token)
         {
             unsigned int access = req->access ? req->access : get_handle_access( current->process, req->handle );
@@ -1470,7 +1489,7 @@ DECL_HANDLER(filter_token)
         group_count = get_sid_count( filter_groups, get_req_data_size() - priv_count * sizeof(LUID_AND_ATTRIBUTES) );
 
         token = token_duplicate( src_token, src_token->primary, src_token->impersonation_level, NULL,
-                                 filter_privileges, priv_count, filter_groups, group_count );
+                                 filter_privileges, priv_count, filter_groups, group_count, thread_get_impersonation_token( current ) );
         if (token)
         {
             unsigned int access = get_handle_access( current->process, req->handle );
@@ -1805,23 +1824,11 @@ DECL_HANDLER(set_token_default_dacl)
 DECL_HANDLER(create_token)
 {
     struct token *token;
-    PSID label;
 
-    if (req->admin)
-    {
-        token = token_create_admin();
-        label = security_high_label_sid;
-    }
-    else
-    {
-        token = token_create_limited();
-        label = security_medium_label_sid;
-    }
-
+    token = req->admin ? token_create_admin() : token_create_limited();
     if (token)
     {
-        if (token_assign_label( token, label ))
-            reply->token = alloc_handle( current->process, token, TOKEN_ALL_ACCESS, 0 );
+        reply->token = alloc_handle( current->process, token, TOKEN_ALL_ACCESS, 0 );
         release_object( token );
     }
 }

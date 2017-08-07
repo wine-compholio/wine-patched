@@ -59,7 +59,7 @@ extern int token_assign_label( struct token *token, PSID label );
 extern struct token *token_duplicate( struct token *src_token, unsigned primary,
                                       int impersonation_level, const struct security_descriptor *sd,
                                       const LUID_AND_ATTRIBUTES *filter_privileges, unsigned int priv_count,
-                                      const SID *filter_groups, unsigned int group_count );
+                                      const SID *filter_groups, unsigned int group_count, struct token *impersonation );
 extern int token_check_privileges( struct token *token, int all_required,
                                    const LUID_AND_ATTRIBUTES *reqprivs,
                                    unsigned int count, LUID_AND_ATTRIBUTES *usedprivs);
