@@ -7209,7 +7209,7 @@ static void test_token_security_descriptor(void)
             ret = GetTokenInformation(token4, TokenIntegrityLevel, buffer_integrity, sizeof(buffer_integrity), &size);
             ok(ret, "GetTokenInformation failed with error %u\n", GetLastError());
             tml = (TOKEN_MANDATORY_LABEL *)buffer_integrity;
-            todo_wine ok(EqualSid(tml->Label.Sid, &medium_level), "Expected medium integrity level\n");
+            ok(EqualSid(tml->Label.Sid, &medium_level), "Expected medium integrity level\n");
 
             size = 0;
             ret = GetKernelObjectSecurity(token4, LABEL_SECURITY_INFORMATION, NULL, 0, &size);
@@ -7663,7 +7663,7 @@ static void test_child_token_sd_medium(void)
     ret = GetTokenInformation(token, TokenIntegrityLevel, buffer_integrity, sizeof(buffer_integrity), &size);
     ok(ret, "GetTokenInformation failed with error %u\n", GetLastError());
     tml = (TOKEN_MANDATORY_LABEL *)buffer_integrity;
-    todo_wine ok(EqualSid(tml->Label.Sid, &medium_level), "Expected medium integrity level\n");
+    ok(EqualSid(tml->Label.Sid, &medium_level), "Expected medium integrity level\n");
 
     HeapFree(GetProcessHeap(), 0, sd);
 }
