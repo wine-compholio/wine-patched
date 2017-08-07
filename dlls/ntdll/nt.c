@@ -349,7 +349,7 @@ NTSTATUS WINAPI NtQueryInformationToken(
         0,    /* TokenAuditPolicy */
         0,    /* TokenOrigin */
         sizeof(TOKEN_ELEVATION_TYPE), /* TokenElevationType */
-        0,    /* TokenLinkedToken */
+        sizeof(TOKEN_LINKED_TOKEN), /* TokenLinkedToken */
         sizeof(TOKEN_ELEVATION), /* TokenElevation */
         0,    /* TokenHasRestrictions */
         0,    /* TokenAccessInformation */
@@ -587,6 +587,32 @@ NTSTATUS WINAPI NtQueryInformationToken(
             status = wine_server_call( req );
             if (status == STATUS_SUCCESS)
                 *elevation_type = reply->elevation;
+        }
+        SERVER_END_REQ;
+        break;
+    case TokenLinkedToken:
+        SERVER_START_REQ( get_token_elevation_type )
+        {
+            TOKEN_LINKED_TOKEN *linked_token = tokeninfo;
+            req->handle = wine_server_obj_handle( token );
+            status = wine_server_call( req );
+            if (status == STATUS_SUCCESS)
+            {
+                HANDLE token;
+                /* FIXME: On Wine we do not have real linked tokens yet. Typically, a
+                 * program running with admin privileges is linked to a limited token,
+                 * and vice versa. We just create a new token instead of storing links
+                 * on the wineserver side. Using TokenLinkedToken twice should return
+                 * back the original token. */
+                if ((reply->elevation == TokenElevationTypeFull || reply->elevation == TokenElevationTypeLimited) &&
+                    (token = __wine_create_default_token( reply->elevation != TokenElevationTypeFull )))
+                {
+                    status = NtDuplicateToken( token, 0, NULL, SecurityIdentification, TokenImpersonation, &linked_token->LinkedToken );
+                    NtClose( token );
+                }
+                else
+                    status = STATUS_NO_TOKEN;
+            }
         }
         SERVER_END_REQ;
         break;
