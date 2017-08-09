@@ -4025,6 +4025,12 @@ void CDECL wined3d_device_copy_uav_counter(struct wined3d_device *device,
     TRACE("device %p, dst_buffer %p, offset %u, uav %p.\n",
             device, dst_buffer, offset, uav);
 
+    if (offset + sizeof(GLuint) > dst_buffer->resource.size)
+    {
+        WARN("Offset %u too large.\n", offset);
+        return;
+    }
+
     wined3d_cs_emit_copy_uav_counter(device->cs, dst_buffer, offset, uav);
 }
 
