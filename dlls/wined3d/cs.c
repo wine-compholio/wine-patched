@@ -2290,6 +2290,7 @@ static void wined3d_cs_exec_copy_uav_counter(struct wined3d_cs *cs, const void *
     context_release(context);
 
     wined3d_resource_release(&op->buffer->resource);
+    wined3d_resource_release(view->resource);
 }
 
 void wined3d_cs_emit_copy_uav_counter(struct wined3d_cs *cs, struct wined3d_buffer *dst_buffer,
@@ -2304,6 +2305,7 @@ void wined3d_cs_emit_copy_uav_counter(struct wined3d_cs *cs, struct wined3d_buff
     op->view = uav;
 
     wined3d_resource_acquire(&dst_buffer->resource);
+    wined3d_resource_acquire(uav->resource);
 
     cs->ops->submit(cs, WINED3D_CS_QUEUE_DEFAULT);
 }
