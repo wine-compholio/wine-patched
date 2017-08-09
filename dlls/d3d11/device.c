@@ -2422,6 +2422,9 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_CopyStructureCount(ID3D11D
     TRACE("iface %p, dst_buffer %p, dst_offset %u, src_view %p.\n",
             iface, dst_buffer, dst_offset, src_view);
 
+    if (!dst_buffer || !src_view)
+        return;
+
     buffer_impl = unsafe_impl_from_ID3D11Buffer(dst_buffer);
     uav = unsafe_impl_from_ID3D11UnorderedAccessView(src_view);
 
