@@ -47,6 +47,9 @@ static NTSTATUS (WINAPI *pBCryptDecrypt)(BCRYPT_KEY_HANDLE, PUCHAR, ULONG, VOID 
                                       ULONG *, ULONG);
 static NTSTATUS (WINAPI *pBCryptDuplicateKey)(BCRYPT_KEY_HANDLE, BCRYPT_KEY_HANDLE *, UCHAR *, ULONG, ULONG);
 static NTSTATUS (WINAPI *pBCryptDestroyKey)(BCRYPT_KEY_HANDLE);
+static NTSTATUS (WINAPI *pBCryptImportKey)(BCRYPT_ALG_HANDLE, BCRYPT_KEY_HANDLE, LPCWSTR, BCRYPT_KEY_HANDLE *,
+                                           PUCHAR, ULONG, PUCHAR, ULONG, ULONG);
+static NTSTATUS (WINAPI *pBCryptExportKey)(BCRYPT_KEY_HANDLE, BCRYPT_KEY_HANDLE, LPCWSTR, PUCHAR, ULONG, ULONG *, ULONG);
 
 static void test_BCryptGenRandom(void)
 {
@@ -1560,6 +1563,46 @@ static void test_BCryptDecrypt(void)
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
 }
 
+static void test_key_import_export(void)
+{
+    UCHAR buffer1[sizeof(BCRYPT_KEY_DATA_BLOB_HEADER) + 16];
+    UCHAR buffer2[sizeof(BCRYPT_KEY_DATA_BLOB_HEADER) + 16];
+    BCRYPT_KEY_DATA_BLOB_HEADER *key_data1 = (void*)buffer1;
+    BCRYPT_ALG_HANDLE aes;
+    BCRYPT_KEY_HANDLE key;
+    NTSTATUS ret;
+    ULONG size;
+
+    ret = pBCryptOpenAlgorithmProvider(&aes, BCRYPT_AES_ALGORITHM, NULL, 0);
+    ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
+
+    key_data1->dwMagic = BCRYPT_KEY_DATA_BLOB_MAGIC;
+    key_data1->dwVersion = BCRYPT_KEY_DATA_BLOB_VERSION1;
+    key_data1->cbKeyData = 16;
+    memset(&key_data1[1], 0x11, 16);
+
+    ret = pBCryptImportKey(aes, NULL, BCRYPT_KEY_DATA_BLOB, &key, NULL, 0, buffer1, sizeof(buffer1), 0);
+    ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
+
+    size = 0;
+    ret = pBCryptExportKey(key, NULL, BCRYPT_KEY_DATA_BLOB, buffer2, 1, &size, 0);
+    ok(ret == STATUS_BUFFER_TOO_SMALL, "got %08x\n", ret);
+    ok(size == sizeof(buffer2), "Expected sizeof(buffer2), got %u\n", size);
+
+    size = 0;
+    memset(buffer2, 0xff, sizeof(buffer2));
+    ret = pBCryptExportKey(key, NULL, BCRYPT_KEY_DATA_BLOB, buffer2, sizeof(buffer2), &size, 0);
+    ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
+    ok(size == sizeof(buffer2), "Expected sizeof(buffer2), got %u\n", size);
+    ok(!memcmp(buffer1, buffer2, sizeof(buffer1)), "Expected exported key to match imported key\n");
+
+    ret = pBCryptDestroyKey(key);
+    ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
+
+    ret = pBCryptCloseAlgorithmProvider(aes, 0);
+    ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
+}
+
 START_TEST(bcrypt)
 {
     HMODULE module;
@@ -1588,6 +1631,8 @@ START_TEST(bcrypt)
     pBCryptDecrypt = (void *)GetProcAddress(module, "BCryptDecrypt");
     pBCryptDuplicateKey = (void *)GetProcAddress(module, "BCryptDuplicateKey");
     pBCryptDestroyKey = (void *)GetProcAddress(module, "BCryptDestroyKey");
+    pBCryptImportKey = (void *)GetProcAddress(module, "BCryptImportKey");
+    pBCryptExportKey = (void *)GetProcAddress(module, "BCryptExportKey");
 
     test_BCryptGenRandom();
     test_BCryptGetFipsAlgorithmMode();
@@ -1601,6 +1646,7 @@ START_TEST(bcrypt)
     test_BCryptGenerateSymmetricKey();
     test_BCryptEncrypt();
     test_BCryptDecrypt();
+    test_key_import_export();
 
     if (pBCryptHash) /* >= Win 10 */
         test_BcryptHash();
