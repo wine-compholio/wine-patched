@@ -1019,6 +1019,13 @@ static NTSTATUS key_get_tag( struct key *key, UCHAR *tag, ULONG len )
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS key_get_secret( struct key *key, UCHAR **secret, ULONG *len )
+{
+    *secret = key->secret;
+    *len = key->secret_len;
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS key_destroy( struct key *key )
 {
     if (key->handle) pgnutls_cipher_deinit( key->handle );
@@ -1081,6 +1088,12 @@ static NTSTATUS key_decrypt( struct key *key, const UCHAR *input, ULONG input_le
 }
 
 static NTSTATUS key_get_tag( struct key *key, UCHAR *tag, ULONG len )
+{
+    ERR( "support for keys not available at build time\n" );
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+static NTSTATUS key_get_secret( struct key *key, UCHAR **secret, ULONG *len )
 {
     ERR( "support for keys not available at build time\n" );
     return STATUS_NOT_IMPLEMENTED;
@@ -1150,6 +1163,94 @@ NTSTATUS WINAPI BCryptDuplicateKey( BCRYPT_KEY_HANDLE handle, BCRYPT_KEY_HANDLE 
 
     *handle_copy = key_copy;
     return STATUS_SUCCESS;
+}
+
+NTSTATUS WINAPI BCryptImportKey( BCRYPT_ALG_HANDLE algorithm, BCRYPT_KEY_HANDLE decrypt_key, LPCWSTR type,
+                                 BCRYPT_KEY_HANDLE *key, UCHAR *object, ULONG object_len, UCHAR *input,
+                                 ULONG input_len, ULONG flags )
+{
+    struct algorithm *alg = algorithm;
+
+    TRACE( "%p, %p, %s, %p, %p, %u, %p, %u, %u\n", algorithm, decrypt_key, debugstr_w(type), key, object,
+           object_len, input, input_len, flags );
+
+    if (!alg || alg->hdr.magic != MAGIC_ALG) return STATUS_INVALID_HANDLE;
+    if (!key || !type || !input) return STATUS_INVALID_PARAMETER;
+
+    if (decrypt_key)
+    {
+        FIXME( "decrypting of key not yet supported\n" );
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if (!strcmpW( type, BCRYPT_KEY_DATA_BLOB ))
+    {
+        BCRYPT_KEY_DATA_BLOB_HEADER *key_header = (BCRYPT_KEY_DATA_BLOB_HEADER *)input;
+
+        if (input_len < sizeof(BCRYPT_KEY_DATA_BLOB_HEADER))
+            return STATUS_BUFFER_TOO_SMALL;
+
+        if (key_header->dwMagic != BCRYPT_KEY_DATA_BLOB_MAGIC)
+            return STATUS_INVALID_PARAMETER;
+
+        if (key_header->dwVersion != BCRYPT_KEY_DATA_BLOB_VERSION1)
+        {
+            FIXME( "unknown key data blob version %u\n", key_header->dwVersion );
+            return STATUS_INVALID_PARAMETER;
+        }
+
+        if (key_header->cbKeyData + sizeof(BCRYPT_KEY_DATA_BLOB_HEADER) > input_len)
+            return STATUS_INVALID_PARAMETER;
+
+        return BCryptGenerateSymmetricKey( algorithm, key, object, object_len,
+                                           (UCHAR *)&key_header[1], key_header->cbKeyData, 0 );
+    }
+
+    FIXME( "unsupported key type %s\n", debugstr_w(type) );
+    return STATUS_INVALID_PARAMETER;
+}
+
+NTSTATUS WINAPI BCryptExportKey( BCRYPT_KEY_HANDLE export_key, BCRYPT_KEY_HANDLE encrypt_key, LPCWSTR type,
+                                 UCHAR *output, ULONG output_len, ULONG *size, ULONG flags )
+{
+    struct key *key = export_key;
+    ULONG secret_len;
+    NTSTATUS status;
+    UCHAR *secret;
+
+    TRACE( "%p, %p, %s, %p, %u, %p, %u\n", key, encrypt_key, debugstr_w(type), output, output_len, size, flags );
+
+    if (!key || key->hdr.magic != MAGIC_KEY) return STATUS_INVALID_HANDLE;
+    if (!output || !output_len || !size) return STATUS_INVALID_PARAMETER;
+
+    if (encrypt_key)
+    {
+        FIXME( "encryption of key not yet supported\n" );
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
+    if ((status = key_get_secret( key, &secret, &secret_len )))
+        return status;
+
+    if (!strcmpW( type, BCRYPT_KEY_DATA_BLOB ))
+    {
+        BCRYPT_KEY_DATA_BLOB_HEADER *key_header = (BCRYPT_KEY_DATA_BLOB_HEADER *)output;
+        ULONG req_size = sizeof(BCRYPT_KEY_DATA_BLOB_HEADER) + secret_len;
+
+        *size = req_size;
+
+        if (output_len < req_size)
+            return STATUS_BUFFER_TOO_SMALL;
+
+        key_header->dwMagic = BCRYPT_KEY_DATA_BLOB_MAGIC;
+        key_header->dwVersion = BCRYPT_KEY_DATA_BLOB_VERSION1;
+        key_header->cbKeyData = secret_len;
+        memcpy( &key_header[1], secret, secret_len );
+        return STATUS_SUCCESS;
+    }
+
+    FIXME( "unsupported key type %s\n", debugstr_w(type) );
+    return STATUS_INVALID_PARAMETER;
 }
 
 NTSTATUS WINAPI BCryptDestroyKey( BCRYPT_KEY_HANDLE handle )
