@@ -566,6 +566,7 @@ HEADER_SRCS = \
 	oledberr.h \
 	oledlg.h \
 	patchapi.h \
+	pathcch.h \
 	pdh.h \
 	pdhmsg.h \
 	physicalmonitorenumerationapi.h \
