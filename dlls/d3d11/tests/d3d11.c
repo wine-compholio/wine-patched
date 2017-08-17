@@ -21947,6 +21947,60 @@ static void test_fractional_viewports(void)
     release_test_context(&test_context);
 }
 
+static void test_negative_viewports(void)
+{
+    struct d3d11_test_context test_context;
+    ID3D11DeviceContext *context;
+    D3D11_VIEWPORT vp;
+    DWORD color;
+
+    static const float red[] = {1.0f, 0.0f, 0.0f, 1.0f};
+    static const struct vec4 white = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    if (!init_test_context(&test_context, NULL))
+        return;
+
+    context = test_context.immediate_context;
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    draw_color_quad(&test_context, &white);
+    color = get_texture_color(test_context.backbuffer, 320, 240);
+    ok(compare_color(color, 0xffffffff, 1), "Got unexpected color 0x%08x.\n", color);
+
+    vp.TopLeftX = -640;
+    vp.TopLeftY = 0;
+    vp.Width    = 640 * 2;
+    vp.Height   = 480;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    draw_color_quad(&test_context, &white);
+    color = get_texture_color(test_context.backbuffer, 320, 240);
+    ok(compare_color(color, 0xffffffff, 1), "Got unexpected color 0x%08x.\n", color);
+
+    vp.Width = 640;
+    ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    draw_color_quad(&test_context, &white);
+    color = get_texture_color(test_context.backbuffer, 320, 240);
+    ok(compare_color(color, 0xff0000ff, 1), "Got unexpected color 0x%08x.\n", color);
+
+    vp.Width = 640 + 320;
+    ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
+
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    draw_color_quad(&test_context, &white);
+    color = get_texture_color(test_context.backbuffer, 320, 240);
+    ok(compare_color(color, 0xff0000ff, 1), "Got unexpected color 0x%08x.\n", color);
+    color = get_texture_color(test_context.backbuffer, 319, 240);
+    ok(compare_color(color, 0xffffffff, 1), "Got unexpected color 0x%08x.\n", color);
+
+    release_test_context(&test_context);
+}
+
 static void test_early_depth_stencil(void)
 {
     ID3D11DepthStencilState *depth_stencil_state;
@@ -22322,6 +22376,7 @@ START_TEST(d3d11)
     test_gather();
     test_gather_c();
     test_fractional_viewports();
+    test_negative_viewports();
     test_early_depth_stencil();
     test_conservative_depth_output();
 }
