@@ -22414,7 +22414,7 @@ static void test_dual_blending(void)
     ID3D11DeviceContext_ClearRenderTargetView(context, rtv[1], white);
     ID3D11DeviceContext_Draw(context, 3, 0);
 
-    todo_wine check_texture_color(test_context.backbuffer, 0xff00ffff, 0);
+    check_texture_color(test_context.backbuffer, 0xff00ffff, 0);
     todo_wine check_texture_color(render_target, 0xff0000ff, 0);
 
     ID3D11BlendState_Release(blend_state);
