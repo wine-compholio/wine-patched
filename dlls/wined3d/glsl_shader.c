@@ -2894,6 +2894,7 @@ static void shader_glsl_get_register_name(const struct wined3d_shader_register *
             break;
 
         case WINED3DSPR_COLOROUT:
+            /* FIXME: should check dual_buffers when dual blending is enabled */
             if (reg->idx[0].offset >= gl_info->limits.buffers)
                 WARN("Write to render target %u, only %d supported.\n",
                         reg->idx[0].offset, gl_info->limits.buffers);
@@ -7403,11 +7404,23 @@ static GLuint shader_glsl_generate_pshader(const struct wined3d_context *context
 
     if (!needs_legacy_glsl_syntax(gl_info))
     {
-        for (i = 0; i < gl_info->limits.buffers; i++)
+        if (args->dual_source_blend)
         {
-            if (shader_glsl_use_explicit_attrib_location(gl_info))
-                shader_addline(buffer, "layout(location = %u) ", i);
-            shader_addline(buffer, "out vec4 ps_out%u;\n", i);
+            for (i = 0; i < gl_info->limits.dual_buffers * 2; i++)
+            {
+                if (shader_glsl_use_explicit_attrib_location(gl_info))
+                    shader_addline(buffer, "layout(location = %u, index = %u) ", i / 2, i % 2);
+                shader_addline(buffer, "out vec4 ps_out%u;\n", i);
+            }
+        }
+        else
+        {
+            for (i = 0; i < gl_info->limits.buffers; i++)
+            {
+                if (shader_glsl_use_explicit_attrib_location(gl_info))
+                    shader_addline(buffer, "layout(location = %u) ", i);
+                shader_addline(buffer, "out vec4 ps_out%u;\n", i);
+            }
         }
     }
 
@@ -9936,13 +9949,25 @@ static void set_glsl_shader_program(const struct wined3d_context *context, const
 
         if (!needs_legacy_glsl_syntax(gl_info))
         {
-            for (i = 0; i < gl_info->limits.buffers; i++)
-            {
-                char var[12];
+            char var[12];
 
-                sprintf(var, "ps_out%u", i);
-                GL_EXTCALL(glBindFragDataLocation(program_id, i, var));
-                checkGLcall("glBindFragDataLocation");
+            if (wined3d_dualblend_enabled(state, gl_info))
+            {
+                for (i = 0; i < gl_info->limits.dual_buffers * 2; i++)
+                {
+                    sprintf(var, "ps_out%u", i);
+                    GL_EXTCALL(glBindFragDataLocationIndexed(program_id, i / 2, i % 2, var));
+                    checkGLcall("glBindFragDataLocationIndexed");
+                }
+            }
+            else
+            {
+                for (i = 0; i < gl_info->limits.buffers; i++)
+                {
+                    sprintf(var, "ps_out%u", i);
+                    GL_EXTCALL(glBindFragDataLocation(program_id, i, var));
+                    checkGLcall("glBindFragDataLocation");
+                }
             }
         }
     }

@@ -3096,8 +3096,16 @@ static DWORD find_draw_buffers_mask(const struct wined3d_context *context, const
     else if (!context->render_offscreen)
         return context_generate_rt_mask_from_resource(rts[0]->resource);
 
+    /* If we attach more buffers than supported in dual blend mode, the NVIDIA
+     * driver generates the following error:
+     *      GL_INVALID_OPERATION error generated. State(s) are invalid: blend.
+     * DX11 does not treat this configuration as invalid, so disable the unused ones.
+     */
     rt_mask = ps ? ps->reg_maps.rt_mask : 1;
-    rt_mask &= context->d3d_info->valid_rt_mask;
+    if (wined3d_dualblend_enabled(state, context->gl_info))
+        rt_mask &= context->d3d_info->valid_dual_rt_mask;
+    else
+        rt_mask &= context->d3d_info->valid_rt_mask;
     rt_mask_bits = rt_mask;
     i = 0;
     while (rt_mask_bits)
