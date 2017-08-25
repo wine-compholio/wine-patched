@@ -272,6 +272,7 @@ static inline enum complex_fixup get_complex_fixup(struct color_fixup_desc fixup
 #define MAX_UNORDERED_ACCESS_VIEWS  8
 #define MAX_TGSM_REGISTERS          8192
 #define MAX_VERTEX_BLENDS           4
+#define MAX_VERTEX_INDEX_BLENDS     9
 #define MAX_MULTISAMPLE_TYPES       8
 #define MAX_RENDER_TARGETS          8
 
@@ -2721,7 +2722,8 @@ struct wined3d_ffp_vs_settings
     DWORD ortho_fog       : 1;
     DWORD flatshading     : 1;
     DWORD swizzle_map     : 16; /* MAX_ATTRIBS, 16 */
-    DWORD padding         : 2;
+    DWORD vb_indices      : 1;
+    DWORD padding         : 1;
 
     DWORD texgen[MAX_TEXTURES];
 };
@@ -4269,6 +4271,20 @@ static inline void *wined3d_calloc(SIZE_T count, SIZE_T size)
     if (count > ~(SIZE_T)0 / size)
         return NULL;
     return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, count * size);
+}
+
+static inline BOOL use_indexed_vertex_blending(const struct wined3d_state *state, const struct wined3d_stream_info *si)
+{
+    if (!state->render_states[WINED3D_RS_INDEXEDVERTEXBLENDENABLE])
+        return FALSE;
+
+    if (state->render_states[WINED3D_RS_VERTEXBLEND] == WINED3D_VBF_DISABLE)
+        return FALSE;
+
+    if (!(si->use_map & (1 << WINED3D_FFP_BLENDINDICES)) || !(si->use_map & (1 << WINED3D_FFP_BLENDWEIGHT)))
+        return FALSE;
+
+    return TRUE;
 }
 
 static inline BOOL use_vs(const struct wined3d_state *state)

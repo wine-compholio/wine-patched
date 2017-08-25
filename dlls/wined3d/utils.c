@@ -5806,6 +5806,9 @@ void wined3d_ffp_get_vs_settings(const struct wined3d_context *context,
             break;
     }
 
+    if (use_indexed_vertex_blending(state, si))
+        settings->vb_indices = 1;
+
     settings->clipping = state->render_states[WINED3D_RS_CLIPPING]
             && state->render_states[WINED3D_RS_CLIPPLANEENABLE];
     settings->normal = !!(si->use_map & (1u << WINED3D_FFP_NORMAL));
