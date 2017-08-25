@@ -19844,7 +19844,7 @@ static void do_test_indexed_vertex_blending(IDirect3DDevice9 *device, const char
     ok(SUCCEEDED(hr), "Failed to get device caps, hr %#x.\n", hr);
     if (caps.MaxVertexBlendMatrixIndex < 7 || caps.MaxVertexBlendMatrices < 4)
     {
-        todo_wine win_skip("(%s) Too few vertex blend matrices supported: MaxVertexBlendMatrices=%u, MaxVertexBlendMatrixIndex=%u.\n",
+        win_skip("(%s) Too few vertex blend matrices supported: MaxVertexBlendMatrices=%u, MaxVertexBlendMatrixIndex=%u.\n",
                 test_id_str, caps.MaxVertexBlendMatrices, caps.MaxVertexBlendMatrixIndex);
         return;
     }

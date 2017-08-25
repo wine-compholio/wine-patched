@@ -143,7 +143,7 @@ struct glsl_vs_program
     GLint uniform_b_locations[WINED3D_MAX_CONSTS_B];
     GLint pos_fixup_location;
 
-    GLint modelview_matrix_location[MAX_VERTEX_BLENDS];
+    GLint modelview_matrix_location[MAX_VERTEX_INDEX_BLENDS];
     GLint projection_matrix_location;
     GLint normal_matrix_location;
     GLint texture_matrix_location[MAX_TEXTURES];
@@ -1787,7 +1787,7 @@ static void shader_glsl_load_constants(void *shader_priv, struct wined3d_context
     {
         struct wined3d_matrix mat;
 
-        for (i = 1; i < MAX_VERTEX_BLENDS; ++i)
+        for (i = 1; i < MAX_VERTEX_INDEX_BLENDS; ++i)
         {
             if (prog->vs.modelview_matrix_location[i] == -1)
                 break;
@@ -8562,8 +8562,7 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     {
         {"vec4", "ffp_attrib_position"},        /* WINED3D_FFP_POSITION */
         {"vec4", "ffp_attrib_blendweight"},     /* WINED3D_FFP_BLENDWEIGHT */
-        /* TODO: Indexed vertex blending */
-        {"float", ""},                          /* WINED3D_FFP_BLENDINDICES */
+        {"vec4", "ffp_attrib_blendindices"},    /* WINED3D_FFP_BLENDINDICES */
         {"vec3", "ffp_attrib_normal"},          /* WINED3D_FFP_NORMAL */
         {"float", "ffp_attrib_psize"},          /* WINED3D_FFP_PSIZE */
         {"vec4", "ffp_attrib_diffuse"},         /* WINED3D_FFP_DIFFUSE */
@@ -8575,6 +8574,7 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     BOOL legacy_lighting = priv->legacy_lighting;
     GLuint shader_obj;
     unsigned int i;
+    char var[64];
 
     string_buffer_clear(buffer);
 
@@ -8593,7 +8593,7 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     }
     shader_addline(buffer, "\n");
 
-    shader_addline(buffer, "uniform mat4 ffp_modelview_matrix[%u];\n", MAX_VERTEX_BLENDS);
+    shader_addline(buffer, "uniform mat4 ffp_modelview_matrix[%u];\n", MAX_VERTEX_INDEX_BLENDS);
     shader_addline(buffer, "uniform mat4 ffp_projection_matrix;\n");
     shader_addline(buffer, "uniform mat3 ffp_normal_matrix;\n");
     shader_addline(buffer, "uniform mat4 ffp_texture_matrix[%u];\n", MAX_TEXTURES);
@@ -8685,7 +8685,10 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
 
         shader_addline(buffer, "vec4 ec_pos = vec4(0.0);\n");
         for (i = 0; i < settings->vertexblends + 1; ++i)
-            shader_addline(buffer, "ec_pos += ffp_attrib_blendweight[%u] * (ffp_modelview_matrix[%u] * ffp_attrib_position);\n", i, i);
+        {
+            sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
+            shader_addline(buffer, "ec_pos += ffp_attrib_blendweight[%u] * (ffp_modelview_matrix[%s] * ffp_attrib_position);\n", i, var);
+        }
 
         shader_addline(buffer, "gl_Position = ffp_projection_matrix * ec_pos;\n");
         if (settings->clipping)
@@ -8709,7 +8712,10 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
         else
         {
             for (i = 0; i < settings->vertexblends + 1; ++i)
-                shader_addline(buffer, "normal += ffp_attrib_blendweight[%u] * (mat3(ffp_modelview_matrix[%u]) * ffp_attrib_normal);\n", i, i);
+            {
+                sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
+                shader_addline(buffer, "normal += ffp_attrib_blendweight[%u] * (mat3(ffp_modelview_matrix[%s]) * ffp_attrib_normal);\n", i, var);
+            }
         }
 
         if (settings->normalize)
@@ -9582,7 +9588,7 @@ static void shader_glsl_init_vs_uniform_locations(const struct wined3d_gl_info *
 
     vs->pos_fixup_location = GL_EXTCALL(glGetUniformLocation(program_id, "pos_fixup"));
 
-    for (i = 0; i < MAX_VERTEX_BLENDS; ++i)
+    for (i = 0; i < MAX_VERTEX_INDEX_BLENDS; ++i)
     {
         string_buffer_sprintf(name, "ffp_modelview_matrix[%u]", i);
         vs->modelview_matrix_location[i] = GL_EXTCALL(glGetUniformLocation(program_id, name->buffer));
@@ -10157,7 +10163,7 @@ static void set_glsl_shader_program(const struct wined3d_context *context, const
         entry->constant_update_mask |= WINED3D_SHADER_CONST_FFP_MODELVIEW
                 | WINED3D_SHADER_CONST_FFP_PROJ;
 
-        for (i = 1; i < MAX_VERTEX_BLENDS; ++i)
+        for (i = 1; i < MAX_VERTEX_INDEX_BLENDS; ++i)
         {
             if (entry->vs.modelview_matrix_location[i] != -1)
             {
@@ -11119,7 +11125,7 @@ static void glsl_vertex_pipe_vp_get_caps(const struct wined3d_gl_info *gl_info, 
     caps->ffp_generic_attributes = TRUE;
     caps->max_active_lights = MAX_ACTIVE_LIGHTS;
     caps->max_vertex_blend_matrices = MAX_VERTEX_BLENDS;
-    caps->max_vertex_blend_matrix_index = 0;
+    caps->max_vertex_blend_matrix_index = MAX_VERTEX_INDEX_BLENDS - 1;
     caps->vertex_processing_caps = WINED3DVTXPCAPS_TEXGEN
             | WINED3DVTXPCAPS_MATERIALSOURCE7
             | WINED3DVTXPCAPS_VERTEXFOG
@@ -11537,6 +11543,11 @@ static const struct StateEntryTemplate glsl_vertex_pipe_vp_states[] =
     {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(1)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(1)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
     {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(2)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(2)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
     {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(3)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(3)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
+    {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(4)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(4)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
+    {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(5)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(5)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
+    {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(6)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(6)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
+    {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(7)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(7)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
+    {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(8)),                {STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(8)),                glsl_vertex_pipe_vertexblend }, WINED3D_GL_EXT_NONE    },
     {STATE_TEXTURESTAGE(0, WINED3D_TSS_TEXTURE_TRANSFORM_FLAGS), {STATE_TEXTURESTAGE(0, WINED3D_TSS_TEXTURE_TRANSFORM_FLAGS), glsl_vertex_pipe_texmatrix}, WINED3D_GL_EXT_NONE       },
     {STATE_TEXTURESTAGE(1, WINED3D_TSS_TEXTURE_TRANSFORM_FLAGS), {STATE_TEXTURESTAGE(1, WINED3D_TSS_TEXTURE_TRANSFORM_FLAGS), glsl_vertex_pipe_texmatrix}, WINED3D_GL_EXT_NONE       },
     {STATE_TEXTURESTAGE(2, WINED3D_TSS_TEXTURE_TRANSFORM_FLAGS), {STATE_TEXTURESTAGE(2, WINED3D_TSS_TEXTURE_TRANSFORM_FLAGS), glsl_vertex_pipe_texmatrix}, WINED3D_GL_EXT_NONE       },
