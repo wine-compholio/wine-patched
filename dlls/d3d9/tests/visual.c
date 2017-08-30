@@ -19987,7 +19987,9 @@ static void test_indexed_vertex_blending(void)
     IDirect3DDevice9 *device;
     IDirect3D9 *d3d;
     ULONG refcount;
+    D3DCAPS9 caps;
     HWND window;
+    HRESULT hr;
 
     window = CreateWindowA("static", "d3d9_test", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             0, 0, 640, 480, NULL, NULL, NULL, NULL);
@@ -20016,7 +20018,14 @@ static void test_indexed_vertex_blending(void)
     if (SUCCEEDED(IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
             D3DCREATE_SOFTWARE_VERTEXPROCESSING, &present_parameters, &device)))
     {
+        memset(&caps, 0, sizeof(caps));
+        hr = IDirect3DDevice9_GetDeviceCaps(device, &caps);
+        ok(SUCCEEDED(hr), "Failed to get device caps, hr %#x.\n", hr);
+        todo_wine ok(caps.MaxVertexBlendMatrixIndex == 255, "Expected 255 as maximum blend matrix index, got %u.\n",
+                caps.MaxVertexBlendMatrixIndex);
+
         do_test_indexed_vertex_blending(device,"IVB software");
+
         refcount = IDirect3DDevice9_Release(device);
         ok(!refcount, "Device has %u references left.\n", refcount);
     }
@@ -20026,7 +20035,26 @@ static void test_indexed_vertex_blending(void)
     if (SUCCEEDED(IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
             D3DCREATE_MIXED_VERTEXPROCESSING, &present_parameters, &device)))
     {
+        memset(&caps, 0, sizeof(caps));
+        hr = IDirect3DDevice9_GetDeviceCaps(device, &caps);
+        ok(SUCCEEDED(hr), "Failed to get device caps, hr %#x.\n", hr);
+        ok(caps.MaxVertexBlendMatrixIndex < 255, "Expected less than 255 as maximum blend matrix index, got %u.\n",
+                caps.MaxVertexBlendMatrixIndex);
+
+        hr = IDirect3DDevice9_SetSoftwareVertexProcessing(device, TRUE);
+        ok(SUCCEEDED(hr), "Failed to enable software processing, hr %#x.\n", hr);
+
+        memset(&caps, 0, sizeof(caps));
+        hr = IDirect3DDevice9_GetDeviceCaps(device, &caps);
+        ok(SUCCEEDED(hr), "Failed to get device caps, hr %#x.\n", hr);
+        todo_wine ok(caps.MaxVertexBlendMatrixIndex == 255, "Expected 255 as maximum blend matrix index, got %u.\n",
+                caps.MaxVertexBlendMatrixIndex);
+
+        hr = IDirect3DDevice9_SetSoftwareVertexProcessing(device, FALSE);
+        ok(SUCCEEDED(hr), "Failed to disable software processing, hr %#x.\n", hr);
+
         do_test_indexed_vertex_blending(device,"IVB mixed");
+
         refcount = IDirect3DDevice9_Release(device);
         ok(!refcount, "Device has %u references left.\n", refcount);
     }
