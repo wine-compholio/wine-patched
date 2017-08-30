@@ -144,8 +144,8 @@ struct glsl_vs_program
     GLint pos_fixup_location;
 
     GLint modelview_matrix_location[MAX_VERTEX_INDEX_BLENDS];
+    GLint normal_matrix_location[MAX_VERTEX_INDEX_BLENDS];
     GLint projection_matrix_location;
-    GLint normal_matrix_location;
     GLint texture_matrix_location[MAX_TEXTURES];
     GLint material_ambient_location;
     GLint material_diffuse_location;
@@ -1497,33 +1497,6 @@ static BOOL invert_matrix(struct wined3d_matrix *out, struct wined3d_matrix *m)
     return TRUE;
 }
 
-static void shader_glsl_ffp_vertex_normalmatrix_uniform(const struct wined3d_context *context,
-        const struct wined3d_state *state, struct glsl_shader_prog_link *prog)
-{
-    const struct wined3d_gl_info *gl_info = context->gl_info;
-    float mat[3 * 3];
-    struct wined3d_matrix mv;
-    unsigned int i, j;
-
-    if (prog->vs.normal_matrix_location == -1)
-        return;
-
-    get_modelview_matrix(context, state, 0, &mv);
-    if (context->d3d_info->wined3d_creation_flags & WINED3D_LEGACY_FFP_LIGHTING)
-        invert_matrix_3d(&mv, &mv);
-    else
-        invert_matrix(&mv, &mv);
-    /* Tests show that singular modelview matrices are used unchanged as normal
-     * matrices on D3D3 and older. There seems to be no clearly consistent
-     * behavior on newer D3D versions so always follow older ddraw behavior. */
-    for (i = 0; i < 3; ++i)
-        for (j = 0; j < 3; ++j)
-            mat[i * 3 + j] = (&mv._11)[j * 4 + i];
-
-    GL_EXTCALL(glUniformMatrix3fv(prog->vs.normal_matrix_location, 1, FALSE, mat));
-    checkGLcall("glUniformMatrix3fv");
-}
-
 static void shader_glsl_ffp_vertex_texmatrix_uniform(const struct wined3d_context *context,
         const struct wined3d_state *state, unsigned int tex, struct glsl_shader_prog_link *prog)
 {
@@ -1716,6 +1689,23 @@ static void shader_glsl_load_color_key_constant(const struct glsl_ps_program *ps
     GL_EXTCALL(glUniform4fv(ps->color_key_location, 2, &float_key[0].r));
 }
 
+/* Context activation is done by the caller. */
+static void get_normal_matrix(struct wined3d_context *context, struct wined3d_matrix *mat, float *normal)
+{
+    int i, j;
+
+    if (context->d3d_info->wined3d_creation_flags & WINED3D_LEGACY_FFP_LIGHTING)
+        invert_matrix_3d(mat, mat);
+    else
+        invert_matrix(mat, mat);
+    /* Tests show that singular modelview matrices are used unchanged as normal
+     * matrices on D3D3 and older. There seems to be no clearly consistent
+     * behavior on newer D3D versions so always follow older ddraw behavior. */
+    for (i = 0; i < 3; ++i)
+        for (j = 0; j < 3; ++j)
+            normal[i * 3 + j] = (&mat->_11)[j * 4 + i];
+}
+
 /* Context activation is done by the caller (state handler). */
 static void shader_glsl_load_constants(void *shader_priv, struct wined3d_context *context,
         const struct wined3d_state *state)
@@ -1726,6 +1716,7 @@ static void shader_glsl_load_constants(void *shader_priv, struct wined3d_context
     const struct wined3d_gl_info *gl_info = context->gl_info;
     struct shader_glsl_priv *priv = shader_priv;
     float position_fixup[4];
+    float normal[3 * 3];
     DWORD update_mask;
 
     struct glsl_shader_prog_link *prog = ctx_data->glsl_program;
@@ -1780,7 +1771,9 @@ static void shader_glsl_load_constants(void *shader_priv, struct wined3d_context
         GL_EXTCALL(glUniformMatrix4fv(prog->vs.modelview_matrix_location[0], 1, FALSE, &mat._11));
         checkGLcall("glUniformMatrix4fv");
 
-        shader_glsl_ffp_vertex_normalmatrix_uniform(context, state, prog);
+        get_normal_matrix(context, &mat, normal);
+        GL_EXTCALL(glUniformMatrix3fv(prog->vs.normal_matrix_location[0], 1, FALSE, normal));
+        checkGLcall("glUniformMatrix3fv");
     }
 
     if (update_mask & WINED3D_SHADER_CONST_FFP_VERTEXBLEND)
@@ -1795,6 +1788,10 @@ static void shader_glsl_load_constants(void *shader_priv, struct wined3d_context
             get_modelview_matrix(context, state, i, &mat);
             GL_EXTCALL(glUniformMatrix4fv(prog->vs.modelview_matrix_location[i], 1, FALSE, &mat._11));
             checkGLcall("glUniformMatrix4fv");
+
+            get_normal_matrix(context, &mat, normal);
+            GL_EXTCALL(glUniformMatrix3fv(prog->vs.normal_matrix_location[i], 1, FALSE, normal));
+            checkGLcall("glUniformMatrix3fv");
         }
     }
 
@@ -8601,8 +8598,8 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     shader_addline(buffer, "\n");
 
     shader_addline(buffer, "uniform mat4 ffp_modelview_matrix[%u];\n", MAX_VERTEX_INDEX_BLENDS);
+    shader_addline(buffer, "uniform mat3 ffp_normal_matrix[%u];\n", MAX_VERTEX_INDEX_BLENDS);
     shader_addline(buffer, "uniform mat4 ffp_projection_matrix;\n");
-    shader_addline(buffer, "uniform mat3 ffp_normal_matrix;\n");
     shader_addline(buffer, "uniform mat4 ffp_texture_matrix[%u];\n", MAX_TEXTURES);
 
     shader_addline(buffer, "uniform struct\n{\n");
@@ -8712,17 +8709,10 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     shader_addline(buffer, "vec3 normal = vec3(0.0);\n");
     if (settings->normal)
     {
-        if (!settings->vertexblends)
+        for (i = 0; i < settings->vertexblends + 1; ++i)
         {
-            shader_addline(buffer, "normal = ffp_normal_matrix * ffp_attrib_normal;\n");
-        }
-        else
-        {
-            for (i = 0; i < settings->vertexblends + 1; ++i)
-            {
-                sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
-                shader_addline(buffer, "normal += ffp_attrib_blendweight[%u] * (mat3(ffp_modelview_matrix[%s]) * ffp_attrib_normal);\n", i, var);
-            }
+            sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
+            shader_addline(buffer, "normal += ffp_attrib_blendweight[%u] * (ffp_normal_matrix[%s] * ffp_attrib_normal);\n", i, var);
         }
 
         if (settings->normalize)
@@ -9600,8 +9590,12 @@ static void shader_glsl_init_vs_uniform_locations(const struct wined3d_gl_info *
         string_buffer_sprintf(name, "ffp_modelview_matrix[%u]", i);
         vs->modelview_matrix_location[i] = GL_EXTCALL(glGetUniformLocation(program_id, name->buffer));
     }
+    for (i = 0; i < MAX_VERTEX_INDEX_BLENDS; ++i)
+    {
+        string_buffer_sprintf(name, "ffp_normal_matrix[%u]", i);
+        vs->normal_matrix_location[i] = GL_EXTCALL(glGetUniformLocation(program_id, name->buffer));
+    }
     vs->projection_matrix_location = GL_EXTCALL(glGetUniformLocation(program_id, "ffp_projection_matrix"));
-    vs->normal_matrix_location = GL_EXTCALL(glGetUniformLocation(program_id, "ffp_normal_matrix"));
     for (i = 0; i < MAX_TEXTURES; ++i)
     {
         string_buffer_sprintf(name, "ffp_texture_matrix[%u]", i);
