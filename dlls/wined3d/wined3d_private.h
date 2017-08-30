@@ -2726,7 +2726,7 @@ struct wined3d_ffp_vs_settings
     DWORD flatshading     : 1;
     DWORD swizzle_map     : 16; /* MAX_ATTRIBS, 16 */
     DWORD vb_indices      : 1;
-    DWORD padding         : 1;
+    DWORD sw_blending     : 1;
 
     DWORD texgen[MAX_TEXTURES];
 };
@@ -4298,6 +4298,20 @@ static inline BOOL use_indexed_vertex_blending(const struct wined3d_state *state
         return FALSE;
 
     return TRUE;
+}
+
+static inline BOOL use_software_vertex_processing(const struct wined3d_device *device)
+{
+    if (device->shader_backend != &glsl_shader_backend)
+        return FALSE;
+
+    if (device->create_parms.flags & WINED3DCREATE_SOFTWARE_VERTEXPROCESSING)
+        return TRUE;
+
+    if (!(device->create_parms.flags & WINED3DCREATE_MIXED_VERTEXPROCESSING))
+        return FALSE;
+
+    return device->softwareVertexProcessing;
 }
 
 static inline BOOL use_vs(const struct wined3d_state *state)
