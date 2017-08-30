@@ -19962,7 +19962,7 @@ static void do_test_indexed_vertex_blending(IDirect3DDevice9 *device, const char
         while (point->x != -1 && point->y != -1)
         {
             color = getPixelColor(device, point->x, point->y);
-            todo_wine ok(color_match(color, 0x0000007f, 1), "(%s) Expected color 0x0000007f at %dx%d, got 0x%08x.\n", test_id_str, point->x, point->y, color);
+            ok(color_match(color, 0x0000007f, 1), "(%s) Expected color 0x0000007f at %dx%d, got 0x%08x.\n", test_id_str, point->x, point->y, color);
             ++point;
         }
 
