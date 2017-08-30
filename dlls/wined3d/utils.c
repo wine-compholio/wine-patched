@@ -6082,7 +6082,12 @@ void wined3d_ffp_get_vs_settings(const struct wined3d_context *context,
     }
 
     if (use_indexed_vertex_blending(state, si))
-        settings->vb_indices = 1;
+    {
+        if (use_software_vertex_processing(context->device))
+            settings->sw_blending = 1;
+        else
+            settings->vb_indices = 1;
+    }
 
     settings->clipping = state->render_states[WINED3D_RS_CLIPPING]
             && state->render_states[WINED3D_RS_CLIPPLANEENABLE];
