@@ -3864,6 +3864,8 @@ GLenum gl_primitive_type_from_d3d(enum wined3d_primitive_type primitive_type) DE
 /* Math utils */
 void multiply_matrix(struct wined3d_matrix *dest, const struct wined3d_matrix *src1,
         const struct wined3d_matrix *src2) DECLSPEC_HIDDEN;
+BOOL invert_matrix_3d(struct wined3d_matrix *out, const struct wined3d_matrix *in) DECLSPEC_HIDDEN;
+BOOL invert_matrix(struct wined3d_matrix *out, struct wined3d_matrix *m) DECLSPEC_HIDDEN;
 
 void wined3d_release_dc(HWND window, HDC dc) DECLSPEC_HIDDEN;
 
