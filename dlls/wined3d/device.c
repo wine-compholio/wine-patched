@@ -3960,30 +3960,14 @@ HRESULT CDECL wined3d_device_validate_device(const struct wined3d_device *device
 
 void CDECL wined3d_device_set_software_vertex_processing(struct wined3d_device *device, BOOL software)
 {
-    static BOOL warned;
-
     TRACE("device %p, software %#x.\n", device, software);
-
-    if (!warned)
-    {
-        FIXME("device %p, software %#x stub!\n", device, software);
-        warned = TRUE;
-    }
 
     device->softwareVertexProcessing = software;
 }
 
 BOOL CDECL wined3d_device_get_software_vertex_processing(const struct wined3d_device *device)
 {
-    static BOOL warned;
-
     TRACE("device %p.\n", device);
-
-    if (!warned)
-    {
-        TRACE("device %p stub!\n", device);
-        warned = TRUE;
-    }
 
     return device->softwareVertexProcessing;
 }
