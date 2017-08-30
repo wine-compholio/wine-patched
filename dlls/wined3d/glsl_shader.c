@@ -8409,14 +8409,21 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     }
     else
     {
-        for (i = 0; i < settings->vertexblends; ++i)
-            shader_addline(buffer, "ffp_attrib_blendweight[%u] -= ffp_attrib_blendweight[%u];\n", settings->vertexblends, i);
-
-        shader_addline(buffer, "vec4 ec_pos = vec4(0.0);\n");
-        for (i = 0; i < settings->vertexblends + 1; ++i)
+        if (!settings->sw_blending)
         {
-            sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
-            shader_addline(buffer, "ec_pos += ffp_attrib_blendweight[%u] * (ffp_modelview_matrix[%s] * ffp_attrib_position);\n", i, var);
+            for (i = 0; i < settings->vertexblends; ++i)
+                shader_addline(buffer, "ffp_attrib_blendweight[%u] -= ffp_attrib_blendweight[%u];\n", settings->vertexblends, i);
+
+            shader_addline(buffer, "vec4 ec_pos = vec4(0.0);\n");
+            for (i = 0; i < settings->vertexblends + 1; ++i)
+            {
+                sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
+                shader_addline(buffer, "ec_pos += ffp_attrib_blendweight[%u] * (ffp_modelview_matrix[%s] * ffp_attrib_position);\n", i, var);
+            }
+        }
+        else
+        {
+            shader_addline(buffer, "vec4 ec_pos = ffp_attrib_position;\n");
         }
 
         shader_addline(buffer, "gl_Position = ffp_projection_matrix * ec_pos;\n");
@@ -8434,10 +8441,17 @@ static GLuint shader_glsl_generate_ffp_vertex_shader(struct shader_glsl_priv *pr
     shader_addline(buffer, "vec3 normal = vec3(0.0);\n");
     if (settings->normal)
     {
-        for (i = 0; i < settings->vertexblends + 1; ++i)
+        if (!settings->sw_blending)
         {
-            sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
-            shader_addline(buffer, "normal += ffp_attrib_blendweight[%u] * (ffp_normal_matrix[%s] * ffp_attrib_normal);\n", i, var);
+            for (i = 0; i < settings->vertexblends + 1; ++i)
+            {
+                sprintf(var, settings->vb_indices ? "int(ffp_attrib_blendindices[%u] + 0.1)" : "%u", i);
+                shader_addline(buffer, "normal += ffp_attrib_blendweight[%u] * (ffp_normal_matrix[%s] * ffp_attrib_normal);\n", i, var);
+            }
+        }
+        else
+        {
+            shader_addline(buffer, "normal = ffp_attrib_normal;\n");
         }
 
         if (settings->normalize)
