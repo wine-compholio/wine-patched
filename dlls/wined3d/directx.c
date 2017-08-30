@@ -6089,7 +6089,10 @@ HRESULT CDECL wined3d_get_device_caps(const struct wined3d *wined3d, UINT adapte
     caps->MaxUserClipPlanes                = vertex_caps.max_user_clip_planes;
     caps->MaxActiveLights                  = vertex_caps.max_active_lights;
     caps->MaxVertexBlendMatrices           = vertex_caps.max_vertex_blend_matrices;
-    caps->MaxVertexBlendMatrixIndex        = vertex_caps.max_vertex_blend_matrix_index;
+    if (device_type == WINED3D_DEVICE_TYPE_HAL)
+        caps->MaxVertexBlendMatrixIndex    = vertex_caps.max_vertex_blend_matrix_index;
+    else
+        caps->MaxVertexBlendMatrixIndex    = 255;
     caps->VertexProcessingCaps             = vertex_caps.vertex_processing_caps;
     caps->FVFCaps                          = vertex_caps.fvf_caps;
     caps->RasterCaps                      |= vertex_caps.raster_caps;
