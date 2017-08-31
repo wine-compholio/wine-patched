@@ -1509,6 +1509,8 @@ static void shader_glsl_load_constants(void *shader_priv, struct wined3d_context
         {
             if (prog->vs.modelview_matrix_location[i] == -1)
                 break;
+            if (!(update_mask & WINED3D_SHADER_CONST_FFP_VERTEXBLEND_INDEX(i)))
+                continue;
 
             get_modelview_matrix(context, state, i, &mat);
             GL_EXTCALL(glUniformMatrix4fv(prog->vs.modelview_matrix_location[i], 1, FALSE, &mat._11));
@@ -11045,7 +11047,8 @@ static void glsl_vertex_pipe_world(struct wined3d_context *context,
 static void glsl_vertex_pipe_vertexblend(struct wined3d_context *context,
         const struct wined3d_state *state, DWORD state_id)
 {
-    context->constant_update_mask |= WINED3D_SHADER_CONST_FFP_VERTEXBLEND;
+    int i = state_id - STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(0));
+    context->constant_update_mask |= WINED3D_SHADER_CONST_FFP_VERTEXBLEND_INDEX(i);
 }
 
 static void glsl_vertex_pipe_view(struct wined3d_context *context, const struct wined3d_state *state, DWORD state_id)
