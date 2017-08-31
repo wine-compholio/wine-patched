@@ -40,6 +40,8 @@ enum deferred_cmd
     DEFERRED_OMSETBLENDSTATE,           /* blend_state_info */
     DEFERRED_OMSETRENDERTARGETS,        /* render_target_info */
 
+    DEFERRED_COPYRESOURCE,              /* copy_resource_info */
+
     DEFERRED_CSSETSHADER,               /* cs_info */
     DEFERRED_DSSETSHADER,               /* ds_info */
     DEFERRED_GSSETSHADER,               /* gs_info */
@@ -139,6 +141,11 @@ struct deferred_call
             ID3D11RenderTargetView **render_targets;
             ID3D11DepthStencilView *depth_stencil;
         } render_target_info;
+        struct
+        {
+            ID3D11Resource *dst_resource;
+            ID3D11Resource *src_resource;
+        } copy_resource_info;
         struct
         {
             ID3D11ComputeShader *shader;
@@ -416,6 +423,14 @@ static void free_deferred_calls(struct list *commands)
                     ID3D11DepthStencilView_Release(call->render_target_info.depth_stencil);
                 break;
             }
+            case DEFERRED_COPYRESOURCE:
+            {
+                if (call->copy_resource_info.dst_resource)
+                    ID3D11Resource_Release(call->copy_resource_info.dst_resource);
+                if (call->copy_resource_info.src_resource)
+                    ID3D11Resource_Release(call->copy_resource_info.src_resource);
+                break;
+            }
             case DEFERRED_CSSETSHADER:
             {
                 if (call->cs_info.shader)
@@ -611,6 +626,13 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             {
                 ID3D11DeviceContext_OMSetRenderTargets(iface, call->render_target_info.num_views,
                         call->render_target_info.render_targets, call->render_target_info.depth_stencil);
+                break;
+            }
+            case DEFERRED_COPYRESOURCE:
+            {
+                ID3D11DeviceContext_CopyResource(iface,
+                        call->copy_resource_info.dst_resource,
+                        call->copy_resource_info.src_resource);
                 break;
             }
             case DEFERRED_CSSETSHADER:
@@ -4309,7 +4331,20 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_CopySubresourceRegion(ID3D1
 static void STDMETHODCALLTYPE d3d11_deferred_context_CopyResource(ID3D11DeviceContext *iface,
         ID3D11Resource *dst_resource, ID3D11Resource *src_resource)
 {
-    FIXME("iface %p, dst_resource %p, src_resource %p stub!\n", iface, dst_resource, src_resource);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, dst_resource %p, src_resource %p.\n", iface, dst_resource, src_resource);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    if (dst_resource) ID3D11Resource_AddRef(dst_resource);
+    if (src_resource) ID3D11Resource_AddRef(src_resource);
+
+    call->cmd = DEFERRED_COPYRESOURCE;
+    call->copy_resource_info.dst_resource = dst_resource;
+    call->copy_resource_info.src_resource = src_resource;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_UpdateSubresource(ID3D11DeviceContext *iface,
