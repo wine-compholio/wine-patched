@@ -45,6 +45,7 @@ enum deferred_cmd
     DEFERRED_COPYRESOURCE,              /* copy_resource_info */
     DEFERRED_SETRESOURCEMINLOD,         /* set_resource_min_lod_info */
     DEFERRED_COPYSUBRESOURCEREGION,     /* copy_subresource_region_info */
+    DEFERRED_UPDATESUBRESOURCE,         /* update_subresource_info */
     DEFERRED_RESOLVESUBRESOURCE,        /* resolve_subresource_info */
     DEFERRED_COPYSTRUCTURECOUNT,        /* copy_structure_count_info */
 
@@ -183,6 +184,15 @@ struct deferred_call
             UINT src_subresource_idx;
             D3D11_BOX *src_box;
         } copy_subresource_region_info;
+        struct
+        {
+            ID3D11Resource *resource;
+            UINT subresource_idx;
+            D3D11_BOX *box;
+            void *data;
+            UINT row_pitch;
+            UINT depth_pitch;
+        } update_subresource_info;
         struct
         {
             ID3D11Resource *dst_resource;
@@ -568,6 +578,12 @@ static void free_deferred_calls(struct list *commands)
                     ID3D11Resource_Release(call->copy_subresource_region_info.src_resource);
                 break;
             }
+            case DEFERRED_UPDATESUBRESOURCE:
+            {
+                if (call->update_subresource_info.resource)
+                    ID3D11Resource_Release(call->update_subresource_info.resource);
+                break;
+            }
             case DEFERRED_RESOLVESUBRESOURCE:
             {
                 if (call->resolve_subresource_info.dst_resource)
@@ -897,6 +913,17 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                         call->copy_structure_count_info.dst_buffer,
                         call->copy_structure_count_info.dst_offset,
                         call->copy_structure_count_info.src_view);
+                break;
+            }
+            case DEFERRED_UPDATESUBRESOURCE:
+            {
+                ID3D11DeviceContext_UpdateSubresource(iface,
+                        call->update_subresource_info.resource,
+                        call->update_subresource_info.subresource_idx,
+                        call->update_subresource_info.box,
+                        call->update_subresource_info.data,
+                        call->update_subresource_info.row_pitch,
+                        call->update_subresource_info.depth_pitch);
                 break;
             }
             case DEFERRED_CSSETSHADER:
@@ -4827,8 +4854,54 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_UpdateSubresource(ID3D11Dev
         ID3D11Resource *resource, UINT subresource_idx, const D3D11_BOX *box,
         const void *data, UINT row_pitch, UINT depth_pitch)
 {
-    FIXME("iface %p, resource %p, subresource_idx %u, box %p, data %p, row_pitch %u, depth_pitch %u stub!\n",
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct wined3d_resource *wined3d_resource;
+    struct wined3d_box wined3d_box;
+    struct deferred_call *call;
+    UINT size;
+
+    TRACE("iface %p, resource %p, subresource_idx %u, box %p, data %p, row_pitch %u, depth_pitch %u.\n",
             iface, resource, subresource_idx, box, data, row_pitch, depth_pitch);
+
+    if (box)
+        wined3d_box_set(&wined3d_box, box->left, box->top, box->right, box->bottom, box->front, box->back);
+
+    wined3d_resource = wined3d_resource_from_d3d11_resource(resource);
+    wined3d_mutex_lock();
+    size = wined3d_resource_update_info(wined3d_resource, subresource_idx,
+            box ? &wined3d_box : NULL, row_pitch, depth_pitch);
+    wined3d_mutex_unlock();
+
+    if (!size)
+    {
+        FIXME("Failed to calculate size of data\n");
+        return;
+    }
+
+    if (!(call = add_deferred_call(context, size + (box ? sizeof(D3D11_BOX) : 0))))
+        return;
+
+    call->cmd = DEFERRED_UPDATESUBRESOURCE;
+    call->update_subresource_info.resource = resource;
+    call->update_subresource_info.subresource_idx = subresource_idx;
+    call->update_subresource_info.row_pitch = row_pitch;
+    call->update_subresource_info.depth_pitch = depth_pitch;
+
+    ID3D11Resource_AddRef(resource);
+
+    if (box)
+    {
+        call->update_subresource_info.box  = (void *)(call + 1);
+        call->update_subresource_info.data = (void *)(call->update_subresource_info.box + 1);
+        *call->update_subresource_info.box = *box;
+    }
+    else
+    {
+        call->update_subresource_info.box  = NULL;
+        call->update_subresource_info.data = (void *)(call + 1);
+    }
+
+    memcpy(call->update_subresource_info.data, data, size);
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_CopyStructureCount(ID3D11DeviceContext *iface,
