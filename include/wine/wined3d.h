@@ -2569,6 +2569,8 @@ void __cdecl wined3d_resource_preload(struct wined3d_resource *resource);
 void __cdecl wined3d_resource_set_parent(struct wined3d_resource *resource, void *parent);
 DWORD __cdecl wined3d_resource_set_priority(struct wined3d_resource *resource, DWORD priority);
 HRESULT __cdecl wined3d_resource_unmap(struct wined3d_resource *resource, unsigned int sub_resource_idx);
+UINT __cdecl wined3d_resource_update_info(struct wined3d_resource *resource, unsigned int sub_resource_idx,
+        const struct wined3d_box *box, unsigned int row_pitch, unsigned int depth_pitch);
 
 HRESULT __cdecl wined3d_rendertarget_view_create(const struct wined3d_view_desc *desc,
         struct wined3d_resource *resource, void *parent, const struct wined3d_parent_ops *parent_ops,
