@@ -35,6 +35,7 @@ enum deferred_cmd
 
     DEFERRED_RSSETSTATE,                /* rstate_info */
     DEFERRED_RSSETVIEWPORTS,            /* viewport_info */
+    DEFERRED_RSSETSCISSORRECTS,         /* rs_set_scissor_rects_info */
 
     DEFERRED_OMSETDEPTHSTENCILSTATE,    /* stencil_state_info */
     DEFERRED_OMSETBLENDSTATE,           /* blend_state_info */
@@ -129,6 +130,11 @@ struct deferred_call
         {
             ID3D11RasterizerState *state;
         } rstate_info;
+        struct
+        {
+            UINT rect_count;
+            D3D11_RECT *rects;
+        } rs_set_scissor_rects_info;
         struct
         {
             UINT num_viewports;
@@ -462,6 +468,10 @@ static void free_deferred_calls(struct list *commands)
             {
                 break; /* nothing to do */
             }
+            case DEFERRED_RSSETSCISSORRECTS:
+            {
+                break; /* nothing to do */
+            }
             case DEFERRED_OMSETDEPTHSTENCILSTATE:
             {
                 if (call->stencil_state_info.state)
@@ -727,6 +737,13 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             {
                 ID3D11DeviceContext_RSSetViewports(iface, call->viewport_info.num_viewports,
                         call->viewport_info.viewports);
+                break;
+            }
+            case DEFERRED_RSSETSCISSORRECTS:
+            {
+                ID3D11DeviceContext_RSSetScissorRects(iface,
+                        call->rs_set_scissor_rects_info.rect_count,
+                        call->rs_set_scissor_rects_info.rects);
                 break;
             }
             case DEFERRED_OMSETDEPTHSTENCILSTATE:
@@ -4556,7 +4573,18 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_RSSetViewports(ID3D11Device
 static void STDMETHODCALLTYPE d3d11_deferred_context_RSSetScissorRects(ID3D11DeviceContext *iface,
         UINT rect_count, const D3D11_RECT *rects)
 {
-    FIXME("iface %p, rect_count %u, rects %p stub!\n", iface, rect_count, rects);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, rect_count %u, rects %p.\n", iface, rect_count, rects);
+
+    if (!(call = add_deferred_call(context, sizeof(D3D11_RECT) * rect_count)))
+        return;
+
+    call->cmd = DEFERRED_RSSETSCISSORRECTS;
+    call->rs_set_scissor_rects_info.rects = (void *)(call + 1);
+    call->rs_set_scissor_rects_info.rect_count = rect_count;
+    memcpy(call->rs_set_scissor_rects_info.rects, rects, sizeof(D3D11_RECT) * rect_count);
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_CopySubresourceRegion(ID3D11DeviceContext *iface,
