@@ -79,6 +79,7 @@ enum deferred_cmd
     DEFERRED_DRAW,                      /* draw_info */
     DEFERRED_DRAWINDEXED,               /* draw_indexed_info */
     DEFERRED_DRAWINDEXEDINSTANCED,      /* draw_indexed_inst_info */
+    DEFERRED_DRAWAUTO,
 
     DEFERRED_MAP,                       /* map_info */
     DEFERRED_DISPATCH,                  /* dispatch_info */
@@ -588,6 +589,10 @@ static void free_deferred_calls(struct list *commands)
             {
                 break; /* nothing to do */
             }
+            case DEFERRED_DRAWAUTO:
+            {
+                break; /* nothing to do */
+            }
             case DEFERRED_MAP:
             {
                 ID3D11Resource_Release(call->map_info.resource);
@@ -897,6 +902,11 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                 ID3D11DeviceContext_DrawIndexedInstanced(iface, call->draw_indexed_inst_info.count_per_instance,
                         call->draw_indexed_inst_info.instance_count, call->draw_indexed_inst_info.start_index,
                         call->draw_indexed_inst_info.base_vertex, call->draw_indexed_inst_info.start_instance);
+                break;
+            }
+            case DEFERRED_DRAWAUTO:
+            {
+                ID3D11DeviceContext_DrawAuto(iface);
                 break;
             }
             case DEFERRED_MAP:
@@ -4342,7 +4352,15 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_SOSetTargets(ID3D11DeviceCo
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_DrawAuto(ID3D11DeviceContext *iface)
 {
-    FIXME("iface %p stub!\n", iface);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p.\n", iface);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_DRAWAUTO;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_DrawIndexedInstancedIndirect(ID3D11DeviceContext *iface,
