@@ -42,6 +42,7 @@ enum deferred_cmd
 
     DEFERRED_COPYRESOURCE,              /* copy_resource_info */
     DEFERRED_SETRESOURCEMINLOD,         /* set_resource_min_lod_info */
+    DEFERRED_COPYSUBRESOURCEREGION,     /* copy_subresource_region_info */
 
     DEFERRED_CSSETSHADER,               /* cs_info */
     DEFERRED_DSSETSHADER,               /* ds_info */
@@ -152,6 +153,17 @@ struct deferred_call
             ID3D11Resource *resource;
             FLOAT min_lod;
         } set_resource_min_lod_info;
+        struct
+        {
+            ID3D11Resource *dst_resource;
+            UINT dst_subresource_idx;
+            UINT dst_x;
+            UINT dst_y;
+            UINT dst_z;
+            ID3D11Resource *src_resource;
+            UINT src_subresource_idx;
+            D3D11_BOX *src_box;
+        } copy_subresource_region_info;
         struct
         {
             ID3D11ComputeShader *shader;
@@ -443,6 +455,14 @@ static void free_deferred_calls(struct list *commands)
                     ID3D11Resource_Release(call->set_resource_min_lod_info.resource);
                 break;
             }
+            case DEFERRED_COPYSUBRESOURCEREGION:
+            {
+                if (call->copy_subresource_region_info.dst_resource)
+                    ID3D11Resource_Release(call->copy_subresource_region_info.dst_resource);
+                if (call->copy_subresource_region_info.src_resource)
+                    ID3D11Resource_Release(call->copy_subresource_region_info.src_resource);
+                break;
+            }
             case DEFERRED_CSSETSHADER:
             {
                 if (call->cs_info.shader)
@@ -652,6 +672,19 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                 ID3D11DeviceContext_SetResourceMinLOD(iface,
                         call->set_resource_min_lod_info.resource,
                         call->set_resource_min_lod_info.min_lod);
+                break;
+            }
+            case DEFERRED_COPYSUBRESOURCEREGION:
+            {
+                ID3D11DeviceContext_CopySubresourceRegion(iface,
+                        call->copy_subresource_region_info.dst_resource,
+                        call->copy_subresource_region_info.dst_subresource_idx,
+                        call->copy_subresource_region_info.dst_x,
+                        call->copy_subresource_region_info.dst_y,
+                        call->copy_subresource_region_info.dst_z,
+                        call->copy_subresource_region_info.src_resource,
+                        call->copy_subresource_region_info.src_subresource_idx,
+                        call->copy_subresource_region_info.src_box);
                 break;
             }
             case DEFERRED_CSSETSHADER:
@@ -4329,10 +4362,37 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_CopySubresourceRegion(ID3D1
         ID3D11Resource *dst_resource, UINT dst_subresource_idx, UINT dst_x, UINT dst_y, UINT dst_z,
         ID3D11Resource *src_resource, UINT src_subresource_idx, const D3D11_BOX *src_box)
 {
-    FIXME("iface %p, dst_resource %p, dst_subresource_idx %u, dst_x %u, dst_y %u, dst_z %u, "
-            "src_resource %p, src_subresource_idx %u, src_box %p stub!\n",
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, dst_resource %p, dst_subresource_idx %u, dst_x %u, dst_y %u, dst_z %u, "
+            "src_resource %p, src_subresource_idx %u, src_box %p.\n",
             iface, dst_resource, dst_subresource_idx, dst_x, dst_y, dst_z,
             src_resource, src_subresource_idx, src_box);
+
+    if (!(call = add_deferred_call(context, src_box ? sizeof(D3D11_BOX) : 0)))
+        return;
+
+    if (dst_resource) ID3D11Resource_AddRef(dst_resource);
+    if (src_resource) ID3D11Resource_AddRef(src_resource);
+
+    call->cmd = DEFERRED_COPYSUBRESOURCEREGION;
+    call->copy_subresource_region_info.dst_resource = dst_resource;
+    call->copy_subresource_region_info.dst_subresource_idx = dst_subresource_idx;
+    call->copy_subresource_region_info.dst_x = dst_x;
+    call->copy_subresource_region_info.dst_y = dst_y;
+    call->copy_subresource_region_info.dst_z = dst_z;
+    call->copy_subresource_region_info.src_resource = src_resource;
+    call->copy_subresource_region_info.src_subresource_idx = src_subresource_idx;
+    if (src_box)
+    {
+        call->copy_subresource_region_info.src_box = (void *)(call + 1);
+        *call->copy_subresource_region_info.src_box = *src_box;
+    }
+    else
+    {
+        call->copy_subresource_region_info.src_box = NULL;
+    }
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_CopyResource(ID3D11DeviceContext *iface,
