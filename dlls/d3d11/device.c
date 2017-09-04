@@ -78,6 +78,7 @@ enum deferred_cmd
 
     DEFERRED_CSSETUNORDEREDACCESSVIEWS, /* unordered_view */
     DEFERRED_SOSETTARGETS,              /* so_set_targets_info */
+    DEFERRED_GENERATEMIPS,              /* generate_mips_info */
 
     DEFERRED_DRAW,                      /* draw_info */
     DEFERRED_DRAWINDEXED,               /* draw_indexed_info */
@@ -311,6 +312,10 @@ struct deferred_call
             UINT count_y;
             UINT count_z;
         } dispatch_info;
+        struct
+        {
+            ID3D11ShaderResourceView *view;
+        } generate_mips_info;
         struct
         {
             ID3D11RenderTargetView *rtv;
@@ -661,6 +666,12 @@ static void free_deferred_calls(struct list *commands)
                     if (call->so_set_targets_info.buffers[i])
                         ID3D11Buffer_Release(call->so_set_targets_info.buffers[i]);
                 }
+                break;
+            }
+            case DEFERRED_GENERATEMIPS:
+            {
+                if (call->generate_mips_info.view)
+                    ID3D11ShaderResourceView_Release(call->generate_mips_info.view);
                 break;
             }
             case DEFERRED_DRAW:
@@ -1014,6 +1025,12 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                         call->so_set_targets_info.buffer_count,
                         call->so_set_targets_info.buffers,
                         call->so_set_targets_info.offsets);
+                break;
+            }
+            case DEFERRED_GENERATEMIPS:
+            {
+                ID3D11DeviceContext_GenerateMips(iface,
+                        call->generate_mips_info.view);
                 break;
             }
             case DEFERRED_DRAW:
@@ -4858,7 +4875,17 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_ClearDepthStencilView(ID3D1
 static void STDMETHODCALLTYPE d3d11_deferred_context_GenerateMips(ID3D11DeviceContext *iface,
         ID3D11ShaderResourceView *view)
 {
-    FIXME("iface %p, view %p stub!\n", iface, view);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, view %p.\n", iface, view);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_GENERATEMIPS;
+    if (view) ID3D11ShaderResourceView_AddRef(view);
+    call->generate_mips_info.view = view;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_SetResourceMinLOD(ID3D11DeviceContext *iface,
