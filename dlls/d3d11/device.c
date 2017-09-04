@@ -81,6 +81,7 @@ enum deferred_cmd
     DEFERRED_DRAWINDEXEDINSTANCED,      /* draw_indexed_inst_info */
     DEFERRED_DRAWAUTO,
     DEFERRED_DRAWINSTANCED,                 /* draw_instanced_info */
+    DEFERRED_DRAWINSTANCEDINDIRECT,         /* draw_instanced_indirect_info */
 
     DEFERRED_MAP,                       /* map_info */
     DEFERRED_DISPATCH,                  /* dispatch_info */
@@ -263,6 +264,11 @@ struct deferred_call
             UINT start_vertex_location;
             UINT start_instance_location;
         } draw_instanced_info;
+        struct
+        {
+            ID3D11Buffer *buffer;
+            UINT offset;
+        } draw_instanced_indirect_info;
         struct
         {
             ID3D11Resource *resource;
@@ -605,6 +611,12 @@ static void free_deferred_calls(struct list *commands)
             {
                 break; /* nothing to do */
             }
+            case DEFERRED_DRAWINSTANCEDINDIRECT:
+            {
+                if (call->draw_instanced_indirect_info.buffer)
+                    ID3D11Buffer_Release(call->draw_instanced_indirect_info.buffer);
+                break;
+            }
             case DEFERRED_MAP:
             {
                 ID3D11Resource_Release(call->map_info.resource);
@@ -928,6 +940,13 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                         call->draw_instanced_info.instance_count,
                         call->draw_instanced_info.start_vertex_location,
                         call->draw_instanced_info.start_instance_location);
+                break;
+            }
+            case DEFERRED_DRAWINSTANCEDINDIRECT:
+            {
+                ID3D11DeviceContext_DrawInstancedIndirect(iface,
+                        call->draw_instanced_indirect_info.buffer,
+                        call->draw_instanced_indirect_info.offset);
                 break;
             }
             case DEFERRED_MAP:
@@ -4405,7 +4424,18 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_DrawIndexedInstancedIndirec
 static void STDMETHODCALLTYPE d3d11_deferred_context_DrawInstancedIndirect(ID3D11DeviceContext *iface,
         ID3D11Buffer *buffer, UINT offset)
 {
-    FIXME("iface %p, buffer %p, offset %u stub!\n", iface, buffer, offset);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, buffer %p, offset %u.\n", iface, buffer, offset);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_DRAWINSTANCEDINDIRECT;
+    if (buffer) ID3D11Buffer_AddRef(buffer);
+    call->draw_instanced_indirect_info.buffer = buffer;
+    call->draw_instanced_indirect_info.offset = offset;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_Dispatch(ID3D11DeviceContext *iface,
