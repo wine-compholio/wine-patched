@@ -91,6 +91,7 @@ enum deferred_cmd
     DEFERRED_MAP,                       /* map_info */
     DEFERRED_DISPATCH,                  /* dispatch_info */
     DEFERRED_DISPATCHINDIRECT,          /* dispatch_indirect_info */
+    DEFERRED_SETPREDICATION,            /* set_predication_info */
 
     DEFERRED_CLEARSTATE,
     DEFERRED_CLEARRENDERTARGETVIEW,     /* clear_rtv_info */
@@ -318,6 +319,11 @@ struct deferred_call
             ID3D11Buffer *buffer;
             UINT offset;
         } dispatch_indirect_info;
+        struct
+        {
+            ID3D11Predicate *predicate;
+            BOOL value;
+        } set_predication_info;
         struct
         {
             ID3D11ShaderResourceView *view;
@@ -714,6 +720,12 @@ static void free_deferred_calls(struct list *commands)
             {
                 if (call->dispatch_indirect_info.buffer)
                     ID3D11Buffer_Release(call->dispatch_indirect_info.buffer);
+                break;
+            }
+            case DEFERRED_SETPREDICATION:
+            {
+                if (call->set_predication_info.predicate)
+                    ID3D11Predicate_Release(call->set_predication_info.predicate);
                 break;
             }
             case DEFERRED_CLEARSTATE:
@@ -1119,6 +1131,13 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                 ID3D11DeviceContext_DispatchIndirect(iface,
                         call->dispatch_indirect_info.buffer,
                         call->dispatch_indirect_info.offset);
+                break;
+            }
+            case DEFERRED_SETPREDICATION:
+            {
+                ID3D11DeviceContext_SetPredication(iface,
+                        call->set_predication_info.predicate,
+                        call->set_predication_info.value);
                 break;
             }
             case DEFERRED_CLEARSTATE:
@@ -4449,7 +4468,18 @@ static HRESULT STDMETHODCALLTYPE d3d11_deferred_context_GetData(ID3D11DeviceCont
 static void STDMETHODCALLTYPE d3d11_deferred_context_SetPredication(ID3D11DeviceContext *iface,
         ID3D11Predicate *predicate, BOOL value)
 {
-    FIXME("iface %p, predicate %p, value %#x stub!\n", iface, predicate, value);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, predicate %p, value %#x.\n", iface, predicate, value);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_SETPREDICATION;
+    if (predicate) ID3D11Predicate_AddRef(predicate);
+    call->set_predication_info.predicate = predicate;
+    call->set_predication_info.value = value;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_GSSetShaderResources(ID3D11DeviceContext *iface,
