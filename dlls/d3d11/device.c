@@ -80,6 +80,7 @@ enum deferred_cmd
     DEFERRED_DRAWINDEXED,               /* draw_indexed_info */
     DEFERRED_DRAWINDEXEDINSTANCED,      /* draw_indexed_inst_info */
     DEFERRED_DRAWAUTO,
+    DEFERRED_DRAWINSTANCED,                 /* draw_instanced_info */
 
     DEFERRED_MAP,                       /* map_info */
     DEFERRED_DISPATCH,                  /* dispatch_info */
@@ -255,6 +256,13 @@ struct deferred_call
             INT  base_vertex;
             UINT start_instance;
         } draw_indexed_inst_info;
+        struct
+        {
+            UINT instance_vertex_count;
+            UINT instance_count;
+            UINT start_vertex_location;
+            UINT start_instance_location;
+        } draw_instanced_info;
         struct
         {
             ID3D11Resource *resource;
@@ -593,6 +601,10 @@ static void free_deferred_calls(struct list *commands)
             {
                 break; /* nothing to do */
             }
+            case DEFERRED_DRAWINSTANCED:
+            {
+                break; /* nothing to do */
+            }
             case DEFERRED_MAP:
             {
                 ID3D11Resource_Release(call->map_info.resource);
@@ -907,6 +919,15 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             case DEFERRED_DRAWAUTO:
             {
                 ID3D11DeviceContext_DrawAuto(iface);
+                break;
+            }
+            case DEFERRED_DRAWINSTANCED:
+            {
+                ID3D11DeviceContext_DrawInstanced(iface,
+                        call->draw_instanced_info.instance_vertex_count,
+                        call->draw_instanced_info.instance_count,
+                        call->draw_instanced_info.start_vertex_location,
+                        call->draw_instanced_info.start_instance_location);
                 break;
             }
             case DEFERRED_MAP:
@@ -4119,10 +4140,22 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_DrawIndexedInstanced(ID3D11
 static void STDMETHODCALLTYPE d3d11_deferred_context_DrawInstanced(ID3D11DeviceContext *iface,
         UINT instance_vertex_count, UINT instance_count, UINT start_vertex_location, UINT start_instance_location)
 {
-    FIXME("iface %p, instance_vertex_count %u, instance_count %u, start_vertex_location %u, "
-            "start_instance_location %u stub!\n",
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, instance_vertex_count %u, instance_count %u, start_vertex_location %u, "
+            "start_instance_location %u.\n",
             iface, instance_vertex_count, instance_count, start_vertex_location,
             start_instance_location);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_DRAWINSTANCED;
+    call->draw_instanced_info.instance_vertex_count = instance_vertex_count;
+    call->draw_instanced_info.instance_count = instance_count;
+    call->draw_instanced_info.start_vertex_location = start_vertex_location;
+    call->draw_instanced_info.start_instance_location = start_instance_location;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_GSSetConstantBuffers(ID3D11DeviceContext *iface,
