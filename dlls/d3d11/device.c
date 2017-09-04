@@ -77,6 +77,7 @@ enum deferred_cmd
     DEFERRED_VSSETCONSTANTBUFFERS,      /* constant_buffers_info */
 
     DEFERRED_CSSETUNORDEREDACCESSVIEWS, /* unordered_view */
+    DEFERRED_SOSETTARGETS,              /* so_set_targets_info */
 
     DEFERRED_DRAW,                      /* draw_info */
     DEFERRED_DRAWINDEXED,               /* draw_indexed_info */
@@ -203,6 +204,12 @@ struct deferred_call
             ID3D11UnorderedAccessView **unordered_access_views;
             UINT *initial_counts;
         } render_targets_and_unordered_access_views_info;
+        struct
+        {
+            UINT buffer_count;
+            ID3D11Buffer **buffers;
+            UINT *offsets;
+        } so_set_targets_info;
         struct
         {
             ID3D11ComputeShader *shader;
@@ -647,6 +654,15 @@ static void free_deferred_calls(struct list *commands)
                 }
                 break;
             }
+            case DEFERRED_SOSETTARGETS:
+            {
+                for (i = 0; i < call->so_set_targets_info.buffer_count; i++)
+                {
+                    if (call->so_set_targets_info.buffers[i])
+                        ID3D11Buffer_Release(call->so_set_targets_info.buffers[i]);
+                }
+                break;
+            }
             case DEFERRED_DRAW:
             case DEFERRED_DRAWINDEXED:
             case DEFERRED_DRAWINDEXEDINSTANCED:
@@ -990,6 +1006,14 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             {
                 ID3D11DeviceContext_CSSetUnorderedAccessViews(iface, call->unordered_view.start_slot,
                         call->unordered_view.num_views, call->unordered_view.views, call->unordered_view.initial_counts);
+                break;
+            }
+            case DEFERRED_SOSETTARGETS:
+            {
+                ID3D11DeviceContext_SOSetTargets(iface,
+                        call->so_set_targets_info.buffer_count,
+                        call->so_set_targets_info.buffers,
+                        call->so_set_targets_info.offsets);
                 break;
             }
             case DEFERRED_DRAW:
@@ -4533,10 +4557,28 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_OMSetDepthStencilState(ID3D
     call->stencil_state_info.stencil_ref = stencil_ref;
 }
 
-static void STDMETHODCALLTYPE d3d11_deferred_context_SOSetTargets(ID3D11DeviceContext *iface, UINT buffer_count,
-        ID3D11Buffer *const *buffers, const UINT *offsets)
+static void STDMETHODCALLTYPE d3d11_deferred_context_SOSetTargets(ID3D11DeviceContext *iface,
+        UINT buffer_count, ID3D11Buffer *const *buffers, const UINT *offsets)
 {
-    FIXME("iface %p, buffer_count %u, buffers %p, offsets %p stub!\n", iface, buffer_count, buffers, offsets);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+    UINT i;
+
+    TRACE("iface %p, buffer_count %u, buffers %p, offsets %p.\n", iface, buffer_count, buffers, offsets);
+
+    if (!(call = add_deferred_call(context, (sizeof(ID3D11Buffer *) + sizeof(UINT)) * buffer_count)))
+        return;
+
+    call->cmd = DEFERRED_SOSETTARGETS;
+    call->so_set_targets_info.buffers = (void *)(call + 1);
+    call->so_set_targets_info.offsets = (void *)&call->so_set_targets_info.buffers[buffer_count];
+
+    for (i = 0; i < buffer_count; i++)
+    {
+        if (buffers[i]) ID3D11Buffer_AddRef(buffers[i]);
+        call->so_set_targets_info.buffers[i] = buffers[i];
+        call->so_set_targets_info.offsets[i] = offsets[i];
+    }
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_DrawAuto(ID3D11DeviceContext *iface)
