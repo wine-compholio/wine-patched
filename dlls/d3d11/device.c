@@ -90,6 +90,7 @@ enum deferred_cmd
 
     DEFERRED_MAP,                       /* map_info */
     DEFERRED_DISPATCH,                  /* dispatch_info */
+    DEFERRED_DISPATCHINDIRECT,          /* dispatch_indirect_info */
 
     DEFERRED_CLEARSTATE,
     DEFERRED_CLEARRENDERTARGETVIEW,     /* clear_rtv_info */
@@ -312,6 +313,11 @@ struct deferred_call
             UINT count_y;
             UINT count_z;
         } dispatch_info;
+        struct
+        {
+            ID3D11Buffer *buffer;
+            UINT offset;
+        } dispatch_indirect_info;
         struct
         {
             ID3D11ShaderResourceView *view;
@@ -703,6 +709,12 @@ static void free_deferred_calls(struct list *commands)
             case DEFERRED_DISPATCH:
             {
                 break; /* nothing to do */
+            }
+            case DEFERRED_DISPATCHINDIRECT:
+            {
+                if (call->dispatch_indirect_info.buffer)
+                    ID3D11Buffer_Release(call->dispatch_indirect_info.buffer);
+                break;
             }
             case DEFERRED_CLEARSTATE:
             {
@@ -1100,6 +1112,13 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
             {
                 ID3D11DeviceContext_Dispatch(iface, call->dispatch_info.count_x,
                         call->dispatch_info.count_y, call->dispatch_info.count_z);
+                break;
+            }
+            case DEFERRED_DISPATCHINDIRECT:
+            {
+                ID3D11DeviceContext_DispatchIndirect(iface,
+                        call->dispatch_indirect_info.buffer,
+                        call->dispatch_indirect_info.offset);
                 break;
             }
             case DEFERRED_CLEARSTATE:
@@ -4654,7 +4673,18 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_Dispatch(ID3D11DeviceContex
 static void STDMETHODCALLTYPE d3d11_deferred_context_DispatchIndirect(ID3D11DeviceContext *iface,
         ID3D11Buffer *buffer, UINT offset)
 {
-    FIXME("iface %p, buffer %p, offset %u stub!\n", iface, buffer, offset);
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+
+    TRACE("iface %p, buffer %p, offset %u.\n", iface, buffer, offset);
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_DISPATCHINDIRECT;
+    if (buffer) ID3D11Buffer_AddRef(buffer);
+    call->dispatch_indirect_info.buffer = buffer;
+    call->dispatch_indirect_info.offset = offset;
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_RSSetState(ID3D11DeviceContext *iface,
