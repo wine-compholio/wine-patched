@@ -91,6 +91,7 @@ enum deferred_cmd
     DEFERRED_CLEARRENDERTARGETVIEW,     /* clear_rtv_info */
     DEFERRED_CLEARDEPTHSTENCILVIEW,     /* clear_depth_info */
     DEFERRED_CLEARUNORDEREDACCESSVIEWUINT,  /* clear_unordered_access_view_uint */
+    DEFERRED_CLEARUNORDEREDACCESSVIEWFLOAT, /* clear_unordered_access_view_float */
 
     DEFERRED_BEGIN,                     /* async_info */
     DEFERRED_END,                       /* async_info */
@@ -303,6 +304,11 @@ struct deferred_call
             ID3D11UnorderedAccessView *unordered_access_view;
             UINT values[4];
         } clear_unordered_access_view_uint;
+        struct
+        {
+            ID3D11UnorderedAccessView *unordered_access_view;
+            float values[4];
+        } clear_unordered_access_view_float;
         struct
         {
             ID3D11Asynchronous *asynchronous;
@@ -654,6 +660,12 @@ static void free_deferred_calls(struct list *commands)
             {
                 if (call->clear_unordered_access_view_uint.unordered_access_view)
                     ID3D11UnorderedAccessView_Release(call->clear_unordered_access_view_uint.unordered_access_view);
+                break;
+            }
+            case DEFERRED_CLEARUNORDEREDACCESSVIEWFLOAT:
+            {
+                if (call->clear_unordered_access_view_float.unordered_access_view)
+                    ID3D11UnorderedAccessView_Release(call->clear_unordered_access_view_float.unordered_access_view);
                 break;
             }
             case DEFERRED_BEGIN:
@@ -1016,6 +1028,13 @@ static void exec_deferred_calls(ID3D11DeviceContext *iface, struct list *command
                 ID3D11DeviceContext_ClearUnorderedAccessViewUint(iface,
                         call->clear_unordered_access_view_uint.unordered_access_view,
                         call->clear_unordered_access_view_uint.values);
+                break;
+            }
+            case DEFERRED_CLEARUNORDEREDACCESSVIEWFLOAT:
+            {
+                ID3D11DeviceContext_ClearUnorderedAccessViewFloat(iface,
+                        call->clear_unordered_access_view_float.unordered_access_view,
+                        call->clear_unordered_access_view_float.values);
                 break;
             }
             case DEFERRED_BEGIN:
@@ -4656,8 +4675,21 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_ClearUnorderedAccessViewUin
 static void STDMETHODCALLTYPE d3d11_deferred_context_ClearUnorderedAccessViewFloat(ID3D11DeviceContext *iface,
         ID3D11UnorderedAccessView *unordered_access_view, const float values[4])
 {
-    FIXME("iface %p, unordered_access_view %p, values %s stub!\n",
+    struct d3d11_deferred_context *context = impl_from_deferred_ID3D11DeviceContext(iface);
+    struct deferred_call *call;
+    int i;
+
+    TRACE("iface %p, unordered_access_view %p, values %s.\n",
             iface, unordered_access_view, debug_float4(values));
+
+    if (!(call = add_deferred_call(context, 0)))
+        return;
+
+    call->cmd = DEFERRED_CLEARUNORDEREDACCESSVIEWFLOAT;
+    if (unordered_access_view) ID3D11UnorderedAccessView_AddRef(unordered_access_view);
+    call->clear_unordered_access_view_float.unordered_access_view = unordered_access_view;
+    for (i = 0; i < 4; i++)
+        call->clear_unordered_access_view_float.values[i] = values[i];
 }
 
 static void STDMETHODCALLTYPE d3d11_deferred_context_ClearDepthStencilView(ID3D11DeviceContext *iface,
