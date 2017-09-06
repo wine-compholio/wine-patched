@@ -55,6 +55,8 @@ static struct _KUSER_SHARED_DATA user_shared_data_internal;
 struct _KUSER_SHARED_DATA *user_shared_data_external;
 struct _KUSER_SHARED_DATA *user_shared_data = &user_shared_data_internal;
 
+extern void DECLSPEC_NORETURN __wine_syscall_dispatcher( void );
+
 PUNHANDLED_EXCEPTION_FILTER unhandled_exception_filter = NULL;
 
 /* info passed to a starting thread */
@@ -83,7 +85,6 @@ static RTL_CRITICAL_SECTION_DEBUG critsect_debug =
       0, 0, { (DWORD_PTR)(__FILE__ ": peb_lock") }
 };
 static RTL_CRITICAL_SECTION peb_lock = { &critsect_debug, -1, 0, 0, 0, 0 };
-
 
 BOOL read_process_time(int unix_pid, int unix_tid, unsigned long clk_tck,
                        LARGE_INTEGER *kernel, LARGE_INTEGER *user)
@@ -490,6 +491,10 @@ HANDLE thread_init(void)
     InitializeListHead( &ldr.InMemoryOrderModuleList );
     InitializeListHead( &ldr.InInitializationOrderModuleList );
     *(ULONG_PTR *)peb->Reserved = get_image_addr();
+
+#if defined(__APPLE__) && defined(__x86_64__)
+    *((DWORD*)((char*)user_shared_data_external + 0x1000)) = __wine_syscall_dispatcher;
+#endif
 
     /*
      * Starting with Vista, the first user to log on has session id 1.

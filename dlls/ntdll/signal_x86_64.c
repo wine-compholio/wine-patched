@@ -326,6 +326,8 @@ static inline struct amd64_thread_data *amd64_thread_data(void)
     return (struct amd64_thread_data *)NtCurrentTeb()->SystemReserved2;
 }
 
+extern void DECLSPEC_NORETURN __wine_syscall_dispatcher( void );
+
 /***********************************************************************
  * Dynamic unwind table
  */
@@ -2980,6 +2982,7 @@ NTSTATUS signal_alloc_thread( TEB **teb )
     {
         (*teb)->Tib.Self = &(*teb)->Tib;
         (*teb)->Tib.ExceptionList = (void *)~0UL;
+        (*teb)->WOW32Reserved = __wine_syscall_dispatcher;
     }
     return status;
 }
