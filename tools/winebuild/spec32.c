@@ -299,11 +299,11 @@ static void output_relay_debug( DLLSPEC *spec )
 }
 
 /*******************************************************************
- *         output_syscall_thunks
+ *         output_syscall_thunks_x86
  *
  * Output entry points for system call functions
  */
-static void output_syscall_thunks( DLLSPEC *spec )
+static void output_syscall_thunks_x86( DLLSPEC *spec )
 {
     const unsigned int page_size = get_page_size();
     int i;
@@ -369,7 +369,91 @@ static void output_syscall_thunks( DLLSPEC *spec )
         output( "1:\tpopl %%ecx\n" );
         output( "\tjmpl *(%s-1b)(%%ecx,%%eax,%d)\n", asm_name("__wine_syscall_table"), get_ptr_size() );
     }
-    else output( "\tjmpl *%s(,%%eax,4)\n", asm_name("__wine_syscall_table") );
+    else output( "\tjmpl *%s(,%%eax,%d)\n", asm_name("__wine_syscall_table"), get_ptr_size() );
+    output( "\tret\n" );
+    output_cfi( ".cfi_endproc" );
+    output_function_size( "__wine_syscall_dispatcher" );
+}
+
+/*******************************************************************
+ *         output_syscall_thunks_x64
+ *
+ * Output entry points for system call functions
+ */
+static void output_syscall_thunks_x64( DLLSPEC *spec )
+{
+    const unsigned int page_size = get_page_size();
+    int i;
+
+    if (!spec->nb_syscalls)
+        return;
+
+    /* Reserve space for PE header directly before syscalls. */
+    if (target_platform == PLATFORM_APPLE)
+        output( "\t.text\n" );
+    else
+        output( "\n\t.section \".text.startup\"\n" );
+
+    output( "\t.align %d\n", get_alignment(65536) );
+    output( "__wine_spec_pe_header_syscalls:\n" );
+    output( "\t.byte 0\n" );
+    output( "\t.balign %d, 0\n", page_size );
+
+    output( "\n/* syscall thunks */\n\n" );
+    for (i = 0; i < spec->nb_syscalls; i++)
+    {
+        ORDDEF *odp = spec->syscalls[i];
+        const char *name = odp->link_name;
+
+        output( "\t.balign 16, 0\n" );
+        output( "\t%s\n", func_declaration(name) );
+        output( "%s\n", asm_globl(name) );
+        output_cfi( ".cfi_startproc" );
+        output( "\t.byte 0xb8\n" );                                         /* mov eax, SYSCALL */
+        output( "\t.long %d\n", i );
+        if (target_platform == PLATFORM_APPLE)
+        {
+            output( "\t.byte 0xff,0x14,0x25\n" );                           /* call [0x7ffe1000] */
+            output( "\t.long 0x7ffe1000\n" );
+        }
+        else
+        {
+            output( "\t.byte 0x65,0xff,0x14,0x25\n" );                      /* call qword ptr gs:[0x100] */
+            output( "\t.long 0x100\n");
+        }
+        output( "\t.byte 0xc3\n" );                                        /* ret */
+        output_cfi( ".cfi_endproc" );
+        output_function_size( name );
+    }
+
+    for (i = 0; i < 0x20; i++)
+        output( "\t.byte 0\n" );
+
+    output( "\n/* syscall table */\n\n" );
+    output( "\t.data\n" );
+    output( "%s\n", asm_globl("__wine_syscall_table") );
+    for (i = 0; i < spec->nb_syscalls; i++)
+    {
+        ORDDEF *odp = spec->syscalls[i];
+        output ("\t%s %s\n", get_asm_ptr_keyword(), asm_name(odp->impl_name) );
+    }
+
+    output( "\n/* syscall dispatcher */\n\n" );
+    output( "\t.text\n" );
+    output( "\t.align %d\n", get_alignment(16) );
+    output( "\t%s\n", func_declaration("__wine_syscall_dispatcher") );
+    output( "%s\n", asm_globl("__wine_syscall_dispatcher") );
+    output_cfi( ".cfi_startproc" );
+    output( "\tadd $8, %%rsp\n" );
+    output_cfi( ".cfi_adjust_cfa_offset -8" );
+    output( "\tmovq $0xffffffff, %%r10\n" );
+    output( "\tandq %%r10, %%rax\n" );
+    if (UsePIC)
+    {
+        output( "\tleaq (%%rip), %%r10\n" );
+        output( "1:\tjmpq *(%s-1b)(%%r10,%%rax,%d)\n", asm_name("__wine_syscall_table"), get_ptr_size() );
+    }
+    else output( "\tjmpq *%s(,%%rax,%d)\n", asm_name("__wine_syscall_table"), get_ptr_size() );
     output( "\tret\n" );
     output_cfi( ".cfi_endproc" );
     output_function_size( "__wine_syscall_dispatcher" );
@@ -732,7 +816,10 @@ void BuildSpec32File( DLLSPEC *spec )
     resolve_imports( spec );
     output_standard_file_header();
     output_module( spec );
-    output_syscall_thunks( spec );
+    if (target_cpu == CPU_x86)
+        output_syscall_thunks_x86( spec );
+    else if (target_cpu == CPU_x86_64)
+        output_syscall_thunks_x64( spec );
     output_stubs( spec );
     output_exports( spec );
     output_imports( spec );
@@ -744,7 +831,7 @@ void BuildSpec32File( DLLSPEC *spec )
 
 static int needs_stub_exports( DLLSPEC *spec )
 {
-    if (target_cpu != CPU_x86)
+    if (target_cpu != CPU_x86 && target_cpu != CPU_x86_64)
         return 0;
     if (!(spec->characteristics & IMAGE_FILE_DLL))
         return 0;
@@ -754,7 +841,7 @@ static int needs_stub_exports( DLLSPEC *spec )
 }
 
 
-static void create_stub_exports_text( DLLSPEC *spec )
+static void create_stub_exports_text_x86( DLLSPEC *spec )
 {
     int i, nr_exports = spec->base <= spec->limit ? spec->limit - spec->base + 1 : 0;
     size_t rva, thunk;
@@ -862,6 +949,113 @@ static void create_stub_exports_text( DLLSPEC *spec )
     put_byte( 0x89 ); put_byte( 0x02 );                               /* mov dword[edx], eax */
     rva = output_buffer_rva + 2;
     put_byte( 0xeb ); put_byte( label_rva("_forward_done") - rva );   /* jmp _forward_done */
+
+    /* export directory */
+    align_output_rva( 16, 16 );
+    put_label( "export_start" );
+    put_dword( 0 );                             /* Characteristics */
+    put_dword( 0 );                             /* TimeDateStamp */
+    put_dword( 0 );                             /* MajorVersion/MinorVersion */
+    put_dword( label_rva("dll_name") );         /* Name */
+    put_dword( spec->base );                    /* Base */
+    put_dword( nr_exports );                    /* NumberOfFunctions */
+    put_dword( spec->nb_names );                /* NumberOfNames */
+    put_dword( label_rva("export_funcs") );     /* AddressOfFunctions */
+    put_dword( label_rva("export_names") );     /* AddressOfNames */
+    put_dword( label_rva("export_ordinals") );  /* AddressOfNameOrdinals */
+
+    put_label( "export_funcs" );
+    for (i = spec->base; i <= spec->limit; i++)
+    {
+        ORDDEF *odp = spec->ordinals[i];
+        if (odp)
+        {
+            const char *name = (odp->flags & FLAG_SYSCALL) ? odp->link_name : get_stub_name( odp, spec );
+            put_dword( label_rva( name ) );
+        }
+        else
+            put_dword( 0 );
+    }
+
+    if (spec->nb_names)
+    {
+        put_label( "export_names" );
+        for (i = 0; i < spec->nb_names; i++)
+            put_dword( label_rva(strmake("str_%s", get_stub_name(spec->names[i], spec))) );
+
+        put_label( "export_ordinals" );
+        for (i = 0; i < spec->nb_names; i++)
+            put_word( spec->names[i]->ordinal - spec->base );
+        if (spec->nb_names % 2)
+            put_word( 0 );
+    }
+
+    put_label( "dll_name" );
+    put_str( spec->file_name );
+
+    for (i = 0; i < spec->nb_names; i++)
+    {
+        put_label( strmake("str_%s", get_stub_name(spec->names[i], spec)) );
+        put_str( spec->names[i]->name );
+    }
+
+    put_label( "export_end" );
+}
+
+
+static void create_stub_exports_text_x64( DLLSPEC *spec )
+{
+    int i, nr_exports = spec->base <= spec->limit ? spec->limit - spec->base + 1 : 0;
+
+    /* output syscalls */
+    for (i = 0; i < spec->nb_syscalls; i++)
+    {
+        ORDDEF *odp = spec->syscalls[i];
+
+        align_output_rva( 16, 16 );
+        put_label( odp->link_name );
+        put_byte( 0xb8 ); put_dword( i );                      /* mov eax, SYSCALL */
+        if (target_platform == PLATFORM_APPLE)
+        {
+            put_byte( 0xff ); put_byte( 0x14 );                /* call [0x7ffe1000] */
+            put_byte( 0x25 ); put_dword( 0x7ffe1000 );
+        }
+        else
+        {
+            put_byte( 0x65 ); put_byte( 0xff );                /* call ptr gs:[0x100] */
+            put_byte( 0x14 ); put_byte( 0x25 ); put_dword( 0x100 );
+
+        }
+        put_byte( 0xc3 );                                      /* ret */
+    }
+
+    if (spec->nb_syscalls)
+    {
+        for (i = 0; i < 0x20; i++)
+            put_byte( 0 );
+    }
+
+    /* output stub code for exports */
+    for (i = 0; i < spec->nb_entry_points; i++)
+    {
+        ORDDEF *odp = &spec->entry_points[i];
+        const char *name;
+
+        if (odp->flags & FLAG_SYSCALL)
+            continue;
+
+        align_output_rva( 16, 16 );
+        name = get_stub_name( odp, spec );
+        put_label( name );
+        put_byte( 0xcc );                                             /* int $0x3 */
+        put_byte( 0xc3 );                                             /* ret */
+    }
+
+    /* output entry point */
+    align_output_rva( 16, 16 );
+    put_label( "entrypoint" );
+    put_byte( 0xb8 ); put_dword( 1 );                                 /* mov rax, 1 */
+    put_byte( 0xc3 );                                                 /* ret */
 
     /* export directory */
     align_output_rva( 16, 16 );
@@ -1115,7 +1309,10 @@ static void output_fake_module_pass( DLLSPEC *spec )
     if (needs_stub_exports( spec ))
     {
         put_label( "text_start" );
-        create_stub_exports_text( spec );
+        if (target_cpu == CPU_x86)
+            create_stub_exports_text_x86( spec );
+        else if (target_cpu == CPU_x86_64)
+            create_stub_exports_text_x64( spec );
         put_label( "text_end" );
     }
     else
