@@ -386,7 +386,9 @@ static const char *shader_glsl_get_prefix(enum wined3d_shader_type type)
 
 static unsigned int shader_glsl_get_version(const struct wined3d_gl_info *gl_info)
 {
-    if (gl_info->glsl_version >= MAKEDWORD_VERSION(1, 50))
+    if (gl_info->glsl_version >= MAKEDWORD_VERSION(4, 40))
+        return 440;
+    else if (gl_info->glsl_version >= MAKEDWORD_VERSION(1, 50))
         return 150;
     else if (gl_info->glsl_version >= MAKEDWORD_VERSION(1, 30))
         return 130;
@@ -2123,8 +2125,51 @@ static const char *shader_glsl_shader_output_name(const struct wined3d_gl_info *
     return shader_glsl_use_interface_blocks(gl_info) ? "shader_out.reg" : "ps_link";
 }
 
+static const char *shader_glsl_get_interpolation(const struct wined3d_gl_info *gl_info, enum wined3d_shader_interpolation_mode mode)
+{
+    const char *inter;
+
+    switch (mode)
+    {
+        case WINED3DSIM_NONE:
+        case WINED3DSIM_LINEAR:
+            return "";
+        case WINED3DSIM_CONSTANT:
+            inter = "flat";
+            break;
+        case WINED3DSIM_LINEAR_CENTROID:
+            inter = "centroid";
+            break;
+        case WINED3DSIM_LINEAR_NOPERSPECTIVE:
+            inter = "noperspective";
+            break;
+        case WINED3DSIM_LINEAR_NOPERSPECTIVE_CENTROID:
+            inter = "noperspective centroid";
+            break;
+        case WINED3DSIM_LINEAR_SAMPLE:
+            inter = "sample";
+            break;
+        case WINED3DSIM_LINEAR_NOPERSPECTIVE_SAMPLE:
+            inter = "noperspective sample";
+            break;
+        default:
+            FIXME("Unhandled interpolation mode %#x.\n", mode);
+            return "";
+    }
+
+    if (shader_glsl_get_version(gl_info) < 440)
+    {
+        FIXME("Interpolation mode %x requires support for glsl 4.40\n", mode);
+        return "";
+    }
+
+    return inter;
+}
+
 static void shader_glsl_declare_shader_inputs(const struct wined3d_gl_info *gl_info,
-        struct wined3d_string_buffer *buffer, unsigned int element_count, BOOL unroll)
+        struct wined3d_string_buffer *buffer, unsigned int element_count,
+        const enum wined3d_shader_interpolation_mode *interpolation_mode,
+        BOOL unroll)
 {
     if (shader_glsl_use_interface_blocks(gl_info))
     {
@@ -2134,7 +2179,7 @@ static void shader_glsl_declare_shader_inputs(const struct wined3d_gl_info *gl_i
 
             shader_addline(buffer, "in shader_in_out {\n");
             for (i = 0; i < element_count; ++i)
-                shader_addline(buffer, "vec4 reg%u;\n", i);
+                shader_addline(buffer, "%s vec4 reg%u;\n", shader_glsl_get_interpolation(gl_info, interpolation_mode[i]), i);
             shader_addline(buffer, "} shader_in;\n");
         }
         else
@@ -7391,7 +7436,8 @@ static GLuint shader_glsl_generate_pshader(const struct wined3d_context *context
         unsigned int in_count = min(vec4_varyings(version->major, gl_info), shader->limits->packed_input);
 
         if (args->vp_mode == vertexshader && reg_maps->input_registers)
-            shader_glsl_declare_shader_inputs(gl_info, buffer, in_count, version->major >= 4);
+            shader_glsl_declare_shader_inputs(gl_info, buffer, in_count,
+                shader->u.ps.interpolation_mode, version->major >= 4);
         shader_addline(buffer, "vec4 %s_in[%u];\n", prefix, in_count);
     }
 
@@ -10825,7 +10871,7 @@ static const SHADER_HANDLER shader_glsl_instruction_handler_table[WINED3DSIH_TAB
     /* WINED3DSIH_DCL_INPUT                        */ shader_glsl_nop,
     /* WINED3DSIH_DCL_INPUT_CONTROL_POINT_COUNT    */ shader_glsl_nop,
     /* WINED3DSIH_DCL_INPUT_PRIMITIVE              */ shader_glsl_nop,
-    /* WINED3DSIH_DCL_INPUT_PS                     */ NULL,
+    /* WINED3DSIH_DCL_INPUT_PS                     */ shader_glsl_nop,
     /* WINED3DSIH_DCL_INPUT_PS_SGV                 */ NULL,
     /* WINED3DSIH_DCL_INPUT_PS_SIV                 */ NULL,
     /* WINED3DSIH_DCL_INPUT_SGV                    */ shader_glsl_nop,
