@@ -2816,6 +2816,12 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *sigcontext )
     }
 }
 
+static inline DWORD is_icebp_instr( CONTEXT *context )
+{
+    const BYTE *instr = (BYTE *)context->Rip - 1;
+    return (*instr == 0xf1) ? EXCEPTION_SINGLE_STEP : 0;
+}
+
 /**********************************************************************
  *		trap_handler
  *
@@ -2832,8 +2838,12 @@ static void trap_handler( int signal, siginfo_t *siginfo, void *sigcontext )
         rec->ExceptionCode = EXCEPTION_SINGLE_STEP;
         break;
     case TRAP_BRKPT:   /* Breakpoint exception */
+    {
+        CONTEXT *win_context = get_exception_context( rec );
+        if ((rec->ExceptionCode = is_icebp_instr( win_context ))) break;
         rec->ExceptionAddress = (char *)rec->ExceptionAddress - 1;  /* back up over the int3 instruction */
         /* fall through */
+    }
     default:
         rec->ExceptionCode = EXCEPTION_BREAKPOINT;
         rec->NumberParameters = 1;
