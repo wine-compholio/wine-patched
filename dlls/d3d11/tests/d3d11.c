@@ -22692,11 +22692,11 @@ static void test_mipmap_generation(void)
     ID3D11DeviceContext_GenerateMips(context, srv);
 
     check_texture_sub_resource_color(texture, 0, NULL, 0xff00ff00, 0);
-    todo_wine check_texture_sub_resource_color(texture, 1, NULL, 0xff00ff00, 0);
-    todo_wine check_texture_sub_resource_color(texture, 2, NULL, 0xff00ff00, 0);
+    check_texture_sub_resource_color(texture, 1, NULL, 0xff00ff00, 0);
+    check_texture_sub_resource_color(texture, 2, NULL, 0xff00ff00, 0);
     check_texture_sub_resource_color(texture, 3, NULL, 0x00ffff00, 0);
-    todo_wine check_texture_sub_resource_color(texture, 4, NULL, 0x00ffff00, 0);
-    todo_wine check_texture_sub_resource_color(texture, 5, NULL, 0x00ffff00, 0);
+    check_texture_sub_resource_color(texture, 4, NULL, 0x00ffff00, 0);
+    check_texture_sub_resource_color(texture, 5, NULL, 0x00ffff00, 0);
 
     ID3D11ShaderResourceView_Release(srv);
     ID3D11Texture2D_Release(texture);
@@ -22736,7 +22736,7 @@ static void test_mipmap_generation(void)
     check_texture_sub_resource_color(texture, 0, NULL, 0xff00ff00, 0);
     check_texture_sub_resource_color(texture, 1, NULL, 0xffff0000, 0);
     if (!is_warp_device(device)) /* broken on WARP device */
-        todo_wine check_texture_sub_resource_color(texture, 2, NULL, 0xffff0000, 0);
+        check_texture_sub_resource_color(texture, 2, NULL, 0xffff0000, 0);
     check_texture_sub_resource_color(texture, 3, NULL, 0xff00ff00, 0);
     check_texture_sub_resource_color(texture, 4, NULL, 0xffff0000, 0);
     check_texture_sub_resource_color(texture, 5, NULL, 0x00000000, 0);
