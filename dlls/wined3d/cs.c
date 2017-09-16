@@ -72,6 +72,7 @@ enum wined3d_cs_op
     WINED3D_CS_OP_CLEAR_UNORDERED_ACCESS_VIEW,
     WINED3D_CS_OP_COPY_UAV_COUNTER,
     WINED3D_CS_OP_COPY_SUB_RESOURCE,
+    WINED3D_CS_OP_GENERATE_MIPS,
     WINED3D_CS_OP_STOP,
 };
 
@@ -436,6 +437,12 @@ struct wined3d_cs_copy_sub_resource
     struct wined3d_resource *src_resource;
     unsigned int src_sub_resource_idx;
     struct wined3d_box src_box;
+};
+
+struct wined3d_cs_generate_mips
+{
+    enum wined3d_cs_op opcode;
+    struct wined3d_shader_resource_view *view;
 };
 
 struct wined3d_cs_stop
@@ -2453,6 +2460,82 @@ void wined3d_cs_emit_copy_sub_resource(struct wined3d_cs *cs, struct wined3d_res
     cs->ops->submit(cs, WINED3D_CS_QUEUE_DEFAULT);
 }
 
+static void wined3d_cs_exec_generate_mips(struct wined3d_cs *cs, const void *data)
+{
+    const struct wined3d_cs_generate_mips *op = data;
+    struct wined3d_shader_resource_view *view = op->view;
+    struct wined3d_resource *resource = view->resource;
+    const struct wined3d_gl_info *gl_info;
+    struct wined3d_texture *texture;
+    struct wined3d_context *context;
+    GLenum target;
+    int i, j;
+
+    if (resource->type != WINED3D_RTYPE_TEXTURE_1D &&
+        resource->type != WINED3D_RTYPE_TEXTURE_2D &&
+        resource->type != WINED3D_RTYPE_TEXTURE_3D)
+    {
+        FIXME("Not implemented for %s resources.\n", debug_d3dresourcetype(resource->type));
+        goto end;
+    }
+
+    texture = texture_from_resource(resource);
+    context = context_acquire(cs->device, NULL, 0);
+    gl_info = context->gl_info;
+
+    for (i = view->desc.u.texture.layer_idx; i < view->desc.u.texture.layer_idx + view->desc.u.texture.layer_count; i++)
+    {
+        wined3d_texture_load_location(texture, i * texture->level_count + view->desc.u.texture.level_idx, context, WINED3D_LOCATION_TEXTURE_RGB);
+    }
+
+    if (view->gl_view.name)
+    {
+        context_bind_texture(context, view->gl_view.target, view->gl_view.name);
+        target = view->gl_view.target;
+    }
+    else
+    {
+        wined3d_texture_bind(texture, context, FALSE);
+        target = texture->target;
+    }
+
+    if (gl_info->fbo_ops.glGenerateMipmap)
+    {
+        gl_info->fbo_ops.glGenerateMipmap(target);
+        checkGLcall("glGenerateMipmap");
+    }
+    else
+        FIXME("Your OpenGL driver does not support glGenerateMipmap.\n");
+
+    for (i = view->desc.u.texture.layer_idx; i < view->desc.u.texture.layer_idx + view->desc.u.texture.layer_count; i++)
+    {
+        for (j = view->desc.u.texture.level_idx + 1; j < view->desc.u.texture.level_idx + view->desc.u.texture.level_count; j++)
+        {
+            wined3d_texture_validate_location(texture, i * texture->level_count + j, WINED3D_LOCATION_TEXTURE_RGB);
+            wined3d_texture_invalidate_location(texture, i * texture->level_count + j, ~WINED3D_LOCATION_TEXTURE_RGB);
+        }
+    }
+
+    wined3d_texture_dirtify(context);
+    context_release(context);
+
+end:
+    wined3d_resource_release(view->resource);
+}
+
+void wined3d_cs_emit_generate_mips(struct wined3d_cs *cs, struct wined3d_shader_resource_view *view)
+{
+    struct wined3d_cs_generate_mips *op;
+
+    op = cs->ops->require_space(cs, sizeof(*op), WINED3D_CS_QUEUE_DEFAULT);
+    op->opcode = WINED3D_CS_OP_GENERATE_MIPS;
+    op->view = view;
+
+    wined3d_resource_acquire(view->resource);
+
+    cs->ops->submit(cs, WINED3D_CS_QUEUE_DEFAULT);
+}
+
 static void wined3d_cs_emit_stop(struct wined3d_cs *cs)
 {
     struct wined3d_cs_stop *op;
@@ -2512,6 +2595,7 @@ static void (* const wined3d_cs_op_handlers[])(struct wined3d_cs *cs, const void
     /* WINED3D_CS_OP_CLEAR_UNORDERED_ACCESS_VIEW */ wined3d_cs_exec_clear_unordered_access_view,
     /* WINED3D_CS_OP_COPY_UAV_COUNTER            */ wined3d_cs_exec_copy_uav_counter,
     /* WINED3D_CS_OP_COPY_SUB_RESOURCE           */ wined3d_cs_exec_copy_sub_resource,
+    /* WINED3D_CS_OP_GENERATE_MIPS               */ wined3d_cs_exec_generate_mips,
 };
 
 static void *wined3d_cs_st_require_space(struct wined3d_cs *cs, size_t size, enum wined3d_cs_queue_id queue_id)

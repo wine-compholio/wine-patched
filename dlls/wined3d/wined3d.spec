@@ -50,6 +50,7 @@
 @ cdecl wined3d_device_end_scene(ptr)
 @ cdecl wined3d_device_end_stateblock(ptr ptr)
 @ cdecl wined3d_device_evict_managed_resources(ptr)
+@ cdecl wined3d_device_generate_mips_view(ptr ptr)
 @ cdecl wined3d_device_get_available_texture_mem(ptr)
 @ cdecl wined3d_device_get_base_vertex_index(ptr)
 @ cdecl wined3d_device_get_clip_plane(ptr long ptr)

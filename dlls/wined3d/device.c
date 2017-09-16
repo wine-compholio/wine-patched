@@ -4306,6 +4306,13 @@ void CDECL wined3d_device_update_sub_resource(struct wined3d_device *device, str
     wined3d_cs_emit_update_sub_resource(device->cs, resource, sub_resource_idx, box, data, row_pitch, depth_pitch);
 }
 
+void CDECL wined3d_device_generate_mips_view(struct wined3d_device *device, struct wined3d_shader_resource_view *view)
+{
+    TRACE("device %p, view %p.\n", device, view);
+
+    wined3d_cs_emit_generate_mips(device->cs, view);
+}
+
 HRESULT CDECL wined3d_device_clear_rendertarget_view(struct wined3d_device *device,
         struct wined3d_rendertarget_view *view, const RECT *rect, DWORD flags,
         const struct wined3d_color *color, float depth, DWORD stencil)
