@@ -2443,9 +2443,19 @@ static void STDMETHODCALLTYPE d3d11_immediate_context_ClearDepthStencilView(ID3D
 }
 
 static void STDMETHODCALLTYPE d3d11_immediate_context_GenerateMips(ID3D11DeviceContext *iface,
-        ID3D11ShaderResourceView *view)
+        ID3D11ShaderResourceView *shader_view)
 {
-    FIXME("iface %p, view %p stub!\n", iface, view);
+    struct d3d_device *device = device_from_immediate_ID3D11DeviceContext(iface);
+    struct d3d_shader_resource_view *view = unsafe_impl_from_ID3D11ShaderResourceView(shader_view);
+
+    TRACE("iface %p, shader_view %p.\n", iface, shader_view);
+
+    if (!view)
+        return;
+
+    wined3d_mutex_lock();
+    wined3d_device_generate_mips_view(device->wined3d_device, view->wined3d_view);
+    wined3d_mutex_unlock();
 }
 
 static void STDMETHODCALLTYPE d3d11_immediate_context_SetResourceMinLOD(ID3D11DeviceContext *iface,

@@ -765,8 +765,7 @@ void wined3d_texture_bind(struct wined3d_texture *texture,
 }
 
 /* Context activation is done by the caller. */
-void wined3d_texture_bind_and_dirtify(struct wined3d_texture *texture,
-        struct wined3d_context *context, BOOL srgb)
+void wined3d_texture_dirtify(struct wined3d_context *context)
 {
     /* We don't need a specific texture unit, but after binding the texture
      * the current unit is dirty. Read the unit back instead of switching to
@@ -787,7 +786,13 @@ void wined3d_texture_bind_and_dirtify(struct wined3d_texture *texture,
      * a shader. */
     context_invalidate_compute_state(context, STATE_COMPUTE_SHADER_RESOURCE_BINDING);
     context_invalidate_state(context, STATE_GRAPHICS_SHADER_RESOURCE_BINDING);
+}
 
+/* Context activation is done by the caller. */
+void wined3d_texture_bind_and_dirtify(struct wined3d_texture *texture,
+        struct wined3d_context *context, BOOL srgb)
+{
+    wined3d_texture_dirtify(context);
     wined3d_texture_bind(texture, context, srgb);
 }
 
