@@ -2461,6 +2461,7 @@ void __cdecl wined3d_device_update_sub_resource(struct wined3d_device *device, s
 HRESULT __cdecl wined3d_device_update_texture(struct wined3d_device *device,
         struct wined3d_texture *src_texture, struct wined3d_texture *dst_texture);
 HRESULT __cdecl wined3d_device_validate_device(const struct wined3d_device *device, DWORD *num_passes);
+void CDECL wined3d_device_generate_mips_view(struct wined3d_device *device, struct wined3d_shader_resource_view *view);
 
 HRESULT __cdecl wined3d_palette_create(struct wined3d_device *device, DWORD flags,
         unsigned int entry_count, const PALETTEENTRY *entries, struct wined3d_palette **palette);
