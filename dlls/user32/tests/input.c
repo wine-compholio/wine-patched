@@ -1991,6 +1991,23 @@ static DWORD WINAPI create_static_win(void *arg)
     return 0;
 }
 
+static void get_dc_region(RECT *region, HWND hwnd, DWORD flags)
+{
+    int region_type;
+    HRGN hregion;
+    HDC hdc;
+
+    hdc = GetDCEx(hwnd, 0, flags);
+    ok(hdc != NULL, "GetDCEx failed\n");
+    hregion = CreateRectRgn(40, 40, 60, 60);
+    ok(hregion != NULL, "CreateRectRgn failed\n");
+    GetRandomRgn(hdc, hregion, SYSRGN);
+    region_type = GetRgnBox(hregion, region);
+    ok(region_type == SIMPLEREGION, "expected SIMPLEREGION, got %d\n", region_type);
+    DeleteObject(hregion);
+    ReleaseDC(hwnd, hdc);
+}
+
 static void test_Input_mouse(void)
 {
     BOOL got_button_down, got_button_up;
@@ -2225,6 +2242,10 @@ static void test_Input_mouse(void)
             WS_VISIBLE | WS_POPUP, 100, 100, 100, 100, button_win, NULL, NULL, NULL);
     ok(hwnd != NULL, "CreateWindowEx failed\n");
 
+    static_win = CreateWindowA("static", "Title", WS_VISIBLE | WS_CHILD,
+                          10, 10, 20, 20, hwnd, NULL, NULL, NULL);
+    ok(static_win != NULL, "CreateWindowA failed %u\n", GetLastError());
+
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     SetWindowLongA(hwnd, GWL_EXSTYLE, GetWindowLongA(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
     ret = SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
@@ -2336,6 +2357,25 @@ static void test_Input_mouse(void)
         ok(region_type == ERROR, "expected ERROR, got %d\n", region_type);
     }
 
+    get_dc_region(&region, hwnd, DCX_PARENTCLIP);
+    ok(region.left == 100 && region.top == 100 && region.right == 200 && region.bottom == 200,
+       "expected region (100,100)-(200,200), got %s\n", wine_dbgstr_rect(&region));
+    get_dc_region(&region, hwnd, DCX_WINDOW | DCX_USESTYLE);
+    ok(region.left == 100 && region.top == 100 && region.right == 200 && region.bottom == 200,
+       "expected region (100,100)-(200,200), got %s\n", wine_dbgstr_rect(&region));
+    get_dc_region(&region, hwnd, DCX_USESTYLE);
+    ok(region.left == 100 && region.top == 100 && region.right == 200 && region.bottom == 200,
+       "expected region (100,100)-(200,200), got %s\n", wine_dbgstr_rect(&region));
+    get_dc_region(&region, static_win, DCX_PARENTCLIP);
+    ok(region.left == 100 && region.top == 100 && region.right == 200 && region.bottom == 200,
+       "expected region (100,100)-(200,200), got %s\n", wine_dbgstr_rect(&region));
+    get_dc_region(&region, static_win, DCX_WINDOW | DCX_USESTYLE);
+    ok(region.left == 110 && region.top == 110 && region.right == 130 && region.bottom == 130,
+       "expected region (110,110)-(130,130), got %s\n", wine_dbgstr_rect(&region));
+    get_dc_region(&region, static_win, DCX_USESTYLE);
+    ok(region.left == 100 && region.top == 100 && region.right == 200 && region.bottom == 200,
+       "expected region (100,100)-(200,200), got %s\n", wine_dbgstr_rect(&region));
+
     got_button_down = got_button_up = FALSE;
     simulate_click(TRUE, 150, 150);
     while (wait_for_message(&msg))
@@ -2425,6 +2465,7 @@ static void test_Input_mouse(void)
     ok(got_button_down, "expected WM_LBUTTONDOWN message\n");
     ok(got_button_up, "expected WM_LBUTTONUP message\n");
 
+    DestroyWindow(static_win);
     DestroyWindow(hwnd);
     SetCursorPos(pt_org.x, pt_org.y);
 
