@@ -7513,7 +7513,17 @@ static void STDMETHODCALLTYPE d3d10_device_ClearDepthStencilView(ID3D10Device1 *
 static void STDMETHODCALLTYPE d3d10_device_GenerateMips(ID3D10Device1 *iface,
         ID3D10ShaderResourceView *shader_resource_view)
 {
-    FIXME("iface %p, shader_resource_view %p stub!\n", iface, shader_resource_view);
+    struct d3d_device *device = impl_from_ID3D10Device(iface);
+    struct d3d_shader_resource_view *view = unsafe_impl_from_ID3D10ShaderResourceView(shader_resource_view);
+
+    TRACE("iface %p, shader_resource_view %p.\n", iface, shader_resource_view);
+
+    if (!view)
+        return;
+
+    wined3d_mutex_lock();
+    wined3d_device_generate_mips_view(device->wined3d_device, view->wined3d_view);
+    wined3d_mutex_unlock();
 }
 
 static void STDMETHODCALLTYPE d3d10_device_ResolveSubresource(ID3D10Device1 *iface,
