@@ -136,7 +136,7 @@ static const IUnknownVtbl evr_inner_vtbl =
 
 static inline evr_filter *impl_from_IBaseFilter(IBaseFilter *iface)
 {
-    return CONTAINING_RECORD(iface, evr_filter, filter);
+    return CONTAINING_RECORD(iface, evr_filter, filter.IBaseFilter_iface);
 }
 
 static HRESULT WINAPI filter_QueryInterface(IBaseFilter *iface, REFIID riid, void **ppv)
