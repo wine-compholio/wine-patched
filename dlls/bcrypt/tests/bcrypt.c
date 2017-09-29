@@ -1672,7 +1672,7 @@ static void test_ECDSA(void)
     status = pBCryptOpenAlgorithmProvider(&alg, BCRYPT_ECDSA_P256_ALGORITHM, NULL, 0);
     if (status)
     {
-        todo_wine win_skip("Failed to open ECDSA provider: %08x, skipping test\n", status);
+        win_skip("Failed to open ECDSA provider: %08x, skipping test\n", status);
         return;
     }
 
@@ -1688,10 +1688,10 @@ static void test_ECDSA(void)
     ok(!status, "BCryptImportKeyPair failed: %08x\n", status);
 
     status = pBCryptVerifySignature(key, NULL, certHash, sizeof(certHash) - 1, certSignature, sizeof(certSignature), 0);
-    ok(status == STATUS_INVALID_SIGNATURE, "Expected STATUS_INVALID_SIGNATURE, got %08x\n", status);
+    todo_wine ok(status == STATUS_INVALID_SIGNATURE, "Expected STATUS_INVALID_SIGNATURE, got %08x\n", status);
 
     status = pBCryptVerifySignature(key, NULL, certHash, sizeof(certHash), certSignature, sizeof(certSignature), 0);
-    ok(!status, "BCryptVerifySignature failed: %08x\n", status);
+    todo_wine ok(!status, "BCryptVerifySignature failed: %08x\n", status);
 
     pBCryptDestroyKey(key);
     pBCryptCloseAlgorithmProvider(alg, 0);
