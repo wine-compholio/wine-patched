@@ -941,6 +941,92 @@ static BOOL match_broken_viewport_subpixel_bits(const struct wined3d_gl_info *gl
     return !wined3d_caps_gl_ctx_test_viewport_subpixel_bits(ctx);
 }
 
+static GLuint compile_glsl_shader(const struct wined3d_gl_info *gl_info, GLenum type, const GLchar *src)
+{
+    GLchar log[4096];
+    GLuint shader;
+    GLint status;
+
+    shader = GL_EXTCALL(glCreateShader(type));
+    if (!shader)
+    {
+        ERR("Failed to create shader\n");
+        return 0;
+    }
+
+    GL_EXTCALL(glShaderSource(shader, 1, &src, NULL));
+    GL_EXTCALL(glCompileShader(shader));
+
+    GL_EXTCALL(glGetShaderiv(shader, GL_COMPILE_STATUS, &status));
+    if (!status)
+    {
+        GL_EXTCALL(glGetShaderInfoLog(shader, sizeof(log), NULL, log));
+        ERR("Failed to compile inferface matching shader %x: %s\n", type, (char *)log);
+        GL_EXTCALL(glDeleteShader(shader));
+        return 0;
+    }
+    return shader;
+}
+
+/* Context activation is done by the caller. */
+static BOOL match_broken_interface_matching(const struct wined3d_gl_info *gl_info,
+        struct wined3d_caps_gl_ctx *ctx, const char *gl_renderer, enum wined3d_gl_vendor gl_vendor,
+        enum wined3d_pci_vendor card_vendor, enum wined3d_pci_device device)
+{
+    static const char vertex_src[] =
+        "#version 440\n"
+        "in vec4 vs_in0;\n"
+        "out shader_in_out { vec4 reg0; } shader_out;\n"
+        "void main()\n"
+        "{\n"
+        "   shader_out.reg0 = (vs_in0.xyzw);\n"
+        "}";
+    static const char frag_src[] =
+        "#version 440\n"
+        "in shader_in_out { centroid vec4 reg0; } shader_in;\n"
+        "out vec4 ps_out0;\n"
+        "void main()\n"
+        "{\n"
+        "   ps_out0 = vec4(1.0, 0.0, 1.0, 1.0);\n"
+        "}";
+
+    GLuint vs = 0, ps = 0, prog = 0;
+    GLchar log[4096];
+    BOOL ret = TRUE;
+    GLint status;
+
+    if (!wined3d_settings.glslRequested || gl_info->glsl_version < MAKEDWORD_VERSION(4, 40))
+        return FALSE;
+
+    if (!(vs = compile_glsl_shader(gl_info, GL_VERTEX_SHADER, vertex_src)))
+        return TRUE;
+
+    if (!(ps = compile_glsl_shader(gl_info, GL_FRAGMENT_SHADER, frag_src)))
+        goto done;
+
+    prog = GL_EXTCALL(glCreateProgram());
+    if (!prog) goto done;
+
+    GL_EXTCALL(glAttachShader(prog, vs));
+    GL_EXTCALL(glAttachShader(prog, ps));
+
+    GL_EXTCALL(glLinkProgram(prog));
+    GL_EXTCALL(glGetProgramiv(prog, GL_LINK_STATUS, &status));
+    if (!status)
+    {
+        GL_EXTCALL(glGetProgramInfoLog(prog, sizeof(log), NULL, log));
+        WARN("OpenGL implementation has broken matching for storage qualifiers: %s\n", log);
+    }
+    else
+        ret = FALSE;
+
+done:
+    if (prog) GL_EXTCALL(glDeleteProgram(prog));
+    if (vs) GL_EXTCALL(glDeleteShader(vs));
+    if (ps) GL_EXTCALL(glDeleteShader(ps));
+    return ret;
+}
+
 static void quirk_apple_glsl_constants(struct wined3d_gl_info *gl_info)
 {
     /* MacOS needs uniforms for relative addressing offsets. This can accumulate to quite a few uniforms.
@@ -1078,6 +1164,11 @@ static void quirk_broken_viewport_subpixel_bits(struct wined3d_gl_info *gl_info)
     }
 }
 
+static void quirk_broken_interface_matching(struct wined3d_gl_info *gl_info)
+{
+    gl_info->quirks |= WINED3D_QUIRK_BROKEN_STORAGE_MATCHING;
+}
+
 struct driver_quirk
 {
     BOOL (*match)(const struct wined3d_gl_info *gl_info, struct wined3d_caps_gl_ctx *ctx,
@@ -1173,6 +1264,11 @@ static const struct driver_quirk quirk_table[] =
         match_broken_viewport_subpixel_bits,
         quirk_broken_viewport_subpixel_bits,
         "Nvidia viewport subpixel bits bug"
+    },
+    {
+        match_broken_interface_matching,
+        quirk_broken_interface_matching,
+        "Mesa broken shader interface matching"
     },
 };
 

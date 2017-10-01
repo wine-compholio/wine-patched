@@ -2163,6 +2163,13 @@ static const char *shader_glsl_get_interpolation(const struct wined3d_gl_info *g
         return "";
     }
 
+    if ((gl_info->quirks & WINED3D_QUIRK_BROKEN_STORAGE_MATCHING) &&
+        (strstr(inter, "centroid") || strstr(inter, "sample")))
+    {
+        FIXME("Auxiliary matching for %s broken in host OpenGL implementation, ignoring it.\n", inter);
+        return "";
+    }
+
     return inter;
 }
 
