@@ -34,7 +34,7 @@
 @ stub cuD3D10CtxCreate
 @ stub cuD3D10CtxCreateOnDevice
 @ stub cuD3D10CtxCreate_v2
-@ stub cuD3D10GetDevice
+@ stdcall cuD3D10GetDevice(ptr ptr) wine_cuD3D10GetDevice
 @ stub cuD3D10GetDevices
 @ stub cuD3D10GetDirect3DDevice
 @ stub cuD3D10MapResources
