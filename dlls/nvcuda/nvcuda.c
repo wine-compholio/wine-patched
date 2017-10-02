@@ -37,6 +37,7 @@
 #include "cuda.h"
 #include "nvcuda.h"
 #include "d3d9.h"
+#include "dxgi.h"
 
 #if defined(__x86_64) || defined(AMD64) || defined(_M_AMD64)
 #define DEV_PTR "%llu"
@@ -2955,6 +2956,13 @@ CUresult WINAPI wine_cuD3D9CtxCreate(CUcontext *pCtx, CUdevice *pCudaDevice, uns
 CUresult WINAPI wine_cuD3D9GetDevice(CUdevice *pCudaDevice, const char *pszAdapterName)
 {
     FIXME("(%p, %s) - semi-stub\n", pCudaDevice, pszAdapterName);
+    return pcuDeviceGet(pCudaDevice, 0);
+}
+
+CUresult WINAPI wine_cuD3D10GetDevice(CUdevice *pCudaDevice, IDXGIAdapter *pAdapter)
+{
+    FIXME("(%p, %p) - semi-stub\n", pCudaDevice, pAdapter);
+    /* DXGI adapters don't have an OpenGL context assigned yet, otherwise we could use cuGLGetDevices */
     return pcuDeviceGet(pCudaDevice, 0);
 }
 
