@@ -150,8 +150,8 @@ extern struct security_descriptor *get_file_sd( struct object *obj, struct fd *f
 
 extern struct mapping *get_mapping_obj( struct process *process, obj_handle_t handle,
                                         unsigned int access );
-extern obj_handle_t open_mapping_file( struct process *process, client_ptr_t base,
-                                       unsigned int access, unsigned int sharing );
+extern struct file *get_mapping_file( struct process *process, client_ptr_t base,
+                                      unsigned int access, unsigned int sharing );
 extern void free_mapped_views( struct process *process );
 extern int get_page_size(void);
 
