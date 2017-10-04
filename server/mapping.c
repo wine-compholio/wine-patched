@@ -110,6 +110,7 @@ static const struct object_ops ranges_ops =
 struct memory_view
 {
     struct list     entry;           /* entry in per-process view list */
+    struct mapping *mapping;         /* for shared PE mappings */
     struct fd      *fd;              /* fd for mapped file */
     struct ranges  *committed;       /* list of committed ranges in this mapping */
     unsigned int    flags;           /* SEC_* flags */
@@ -336,6 +337,7 @@ static struct memory_view *find_mapped_view( struct process *process, client_ptr
 
 static void free_memory_view( struct memory_view *view )
 {
+    if (view->mapping) release_object( view->mapping );
     if (view->fd) release_object( view->fd );
     if (view->committed) release_object( view->committed );
     list_remove( &view->entry );
@@ -989,6 +991,7 @@ DECL_HANDLER(map_view)
         view->size      = req->size;
         view->start     = req->start;
         view->flags     = mapping->flags;
+        view->mapping   = mapping->shared_file ? (struct mapping *)grab_object( mapping ) : NULL;
         view->fd        = !is_fd_removable( mapping->fd ) ? (struct fd *)grab_object( mapping->fd ) : NULL;
         view->committed = mapping->committed ? (struct ranges *)grab_object( mapping->committed ) : NULL;
         list_add_tail( &current->process->views, &view->entry );
