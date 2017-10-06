@@ -15598,6 +15598,47 @@ static void test_depth_separate(void)
     ok(compare_color(color, white_d, 1), "Got unexpected color 0x%08x.\n", color);
     release_resource_readback(&rb);
 
+    ID3D11DeviceContext_ClearRenderTargetView(context, test_context.backbuffer_rtv, red);
+    ID3D11DeviceContext_ClearDepthStencilView(context, ds_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    draw_color_quad_z(&test_context, &green, 0.5f);
+    ID3D11RasterizerState_Release(rs);
+
+    rs_desc.DepthClipEnable = TRUE;
+    rs_desc.DepthBias = -100000;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+    draw_color_quad_z(&test_context, &blue, 0.5f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, blue_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+    ID3D11RasterizerState_Release(rs);
+
+    rs_desc.DepthBias = -100005;
+    rs_desc.DepthBiasClamp = -0.00001f;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+    draw_color_quad_z(&test_context, &white, 0.5f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    todo_wine ok(compare_color(color, blue_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+    ID3D11RasterizerState_Release(rs);
+
+    rs_desc.DepthBias = -100010;
+    rs_desc.DepthBiasClamp = -1.0f;
+    ID3D11Device_CreateRasterizerState(device, &rs_desc, &rs);
+    ok(SUCCEEDED(hr), "Failed to create rasterizer state, hr %#x.\n", hr);
+    ID3D11DeviceContext_RSSetState(context, rs);
+    draw_color_quad_z(&test_context, &green, 0.5f);
+    get_texture_readback(test_context.backbuffer, 0, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(compare_color(color, green_d, 1), "Got unexpected color 0x%08x.\n", color);
+    release_resource_readback(&rb);
+    ID3D11RasterizerState_Release(rs);
+
     ID3D11DepthStencilState_Release(ds_state);
     ID3D11DepthStencilView_Release(ds_view);
     ID3D11RasterizerState_Release(rs);
