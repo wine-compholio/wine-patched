@@ -382,8 +382,9 @@ enum wined3d_render_state
     WINED3D_RS_DESTBLENDALPHA               = 208,
     WINED3D_RS_BLENDOPALPHA                 = 209,
     WINED3D_RS_DEPTHCLIP                    = 210,
+    WINED3D_RS_DEPTHBIASCLAMP               = 211,
 };
-#define WINEHIGHEST_RENDER_STATE                                WINED3D_RS_DEPTHCLIP
+#define WINEHIGHEST_RENDER_STATE                                WINED3D_RS_DEPTHBIASCLAMP
 
 enum wined3d_blend
 {
