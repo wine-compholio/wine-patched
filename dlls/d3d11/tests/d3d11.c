@@ -15462,7 +15462,7 @@ static void test_depth_separate(void)
     draw_color_quad_z(&test_context, &white, 0.5f);
     get_texture_readback(test_context.backbuffer, 0, &rb);
     color = get_readback_color(&rb, 320, 240);
-    todo_wine ok(compare_color(color, blue_d, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(compare_color(color, blue_d, 1), "Got unexpected color 0x%08x.\n", color);
     release_resource_readback(&rb);
     ID3D11RasterizerState_Release(rs);
 
