@@ -5444,12 +5444,13 @@ static void STDMETHODCALLTYPE d3d11_deferred_context_CSSetUnorderedAccessViews(I
     call->unordered_view.start_slot = start_slot;
     call->unordered_view.num_views = view_count;
     call->unordered_view.views = (void *)(call + 1);
-    call->unordered_view.initial_counts = (void *)&call->unordered_view.views[view_count];
+    call->unordered_view.initial_counts = initial_counts ?
+        (void *)&call->unordered_view.views[view_count] : NULL;
     for (i = 0; i < view_count; i++)
     {
         if (views[i]) ID3D11UnorderedAccessView_AddRef(views[i]);
         call->unordered_view.views[i] = views[i];
-        call->unordered_view.initial_counts[i] = initial_counts[i];
+        if (initial_counts) call->unordered_view.initial_counts[i] = initial_counts[i];
     }
 }
 
