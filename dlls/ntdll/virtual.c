@@ -1637,7 +1637,7 @@ void virtual_init(void)
 
     /* make the DOS area accessible (except the low 64K) to hide bugs in broken apps like Excel 2003 */
     size = (char *)address_space_start - (char *)0x10000;
-    if (size && wine_mmap_is_in_reserved_area( (void*)0x10000, size ) == 1)
+    if (address_space_start > (void *)0x10000 && wine_mmap_is_in_reserved_area( (void *)0x10000, size ) == 1)
         wine_anon_mmap( (void *)0x10000, size, PROT_READ | PROT_WRITE, MAP_FIXED );
 }
 
