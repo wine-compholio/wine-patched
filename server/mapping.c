@@ -585,6 +585,7 @@ static int build_shared_mapping( struct mapping *mapping, int fd,
         if (pwrite( shared_fd, buffer, file_size, write_pos ) != file_size) goto error;
     }
     free( buffer );
+    buffer = NULL;
 
     if (!(shared = alloc_object( &shared_map_ops ))) goto error;
     shared->fd = (struct fd *)grab_object( mapping->fd );
